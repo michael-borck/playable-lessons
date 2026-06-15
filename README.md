@@ -4,10 +4,10 @@ Turn educational source material into **playable interactive fiction**. Paste in
 
 It ships in two forms:
 
-- **Desktop app** (Electron + React) — the full authoring experience: AI generation pipeline, node-graph editor, live player, and exports. Aimed at non-technical authors (e.g. educators).
-- **CLI** (`playable-lessons`, on npm) — a headless tool for **validating and exporting** existing `.ink` files. Handy for scripts, CI, and batch export.
+- **Desktop app** (Electron + React) — the full authoring experience: AI generation with an interactive clarification step, a node-graph editor, live player, and exports. Aimed at non-technical authors (e.g. educators).
+- **CLI** (`playable-lessons`, on npm) — the same engine, headless: **generate**, **validate**, and **export**. Handy for scripts, CI, batch runs, and local/offline generation against Ollama.
 
-> **Note:** AI _generation_ currently lives in the desktop app only. The CLI does **not** generate stories or call any LLM — it validates and exports Ink you already have. (A headless `generate` command is on the roadmap.)
+The desktop app and the CLI share one generation pipeline; the app adds the interactive clarification step and visual editor on top.
 
 ---
 
@@ -18,6 +18,33 @@ It ships in two forms:
 ```bash
 npm install -g playable-lessons
 ```
+
+### Generate a story from source material
+
+```bash
+# Local + offline against Ollama (no API key needed):
+playable-lessons generate --input notes.md --provider ollama --model llama3.1:8b --output lesson/
+
+# Anthropic Claude (key from the environment):
+ANTHROPIC_API_KEY=sk-ant-... playable-lessons generate -i case-study.md -p claude -o lesson/
+
+# From a topic instead of a file, choosing formats:
+playable-lessons generate --topic "Phishing awareness for staff" -p openai -o lesson/ -f ink,html,json
+
+# Pipe source material via stdin:
+cat lecture.txt | playable-lessons generate -o lesson/ -p ollama -m llama3.1:8b
+```
+
+Provider selection and API keys:
+
+| Provider | `--provider` | Key (env var) | Notes |
+| --- | --- | --- | --- |
+| Claude | `claude` | `ANTHROPIC_API_KEY` | default model `claude-opus-4-8` |
+| OpenAI | `openai` | `OPENAI_API_KEY` | default model `gpt-4o` |
+| Ollama | `ollama` | none (or `OLLAMA_API_KEY`) | local by default; `--ollama-url` for remote |
+| Custom | `custom` | `PLAYABLE_LESSONS_API_KEY` / `OPENAI_API_KEY` | OpenAI-compatible; requires `--base-url` + `--model` |
+
+If `--provider` is omitted it's inferred from the environment (Claude → OpenAI → Ollama). Keys are read from env vars only — the CLI never touches the OS keychain (that's the desktop app). Other flags: `--mode`, `--length` (short/medium/long), `--tone`, `--protagonist`, `--answers`, `--title`. Run `playable-lessons generate --help` for all options.
 
 ### Validate an Ink file
 

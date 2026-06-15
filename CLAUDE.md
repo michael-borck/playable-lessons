@@ -43,20 +43,28 @@ src/
         githubPublisher.ts  # GitHub Pages publish via API
         sampleStory.ts      # Demo story for testing without AI
       styles/      # Global CSS
+  shared/          # Code shared by the renderer AND the CLI (no store, no DOM)
+    storyExport.ts # escapeHtml, compileInk, standalone-HTML export
+    aiClient.ts    # provider-agnostic AI calls + model listing (config-driven)
+    prompts.ts     # AI prompt templates
+    generate.ts    # headless generation pipeline (outline → ink → review → compile)
 resources/         # App icons and static assets
 ```
 
 ## Commands
 - `npm run dev` — Start Electron dev server with hot reload
 - `npm run build` — Build for production
+- `npm run cli -- generate --input notes.md --provider ollama --output lesson/` — Generate via CLI
 - `npm run cli -- validate --input story.ink` — Validate Ink via CLI
 - `npm run cli -- export --input story.ink --output dist/ --format html` — Export via CLI
 - `npm run typecheck` — Run TypeScript type checking
+- `npm test` — Run unit tests (vitest)
 - `npm run lint` — Run ESLint
 
 ## Architecture Notes
-- All AI calls go through `src/renderer/src/lib/aiService.ts`
-- Generation pipeline: 6 stages (analysis → clarification → outline → ink-gen → review → compile)
+- The AI layer is shared: provider calls + model listing live in `src/shared/aiClient.ts` (config-driven, no store), the headless pipeline in `src/shared/generate.ts`. The renderer's `src/renderer/src/lib/aiService.ts` builds a ProviderConfig from the Zustand store and wraps the pipeline with the GUI's interactive clarification flow; the CLI calls `generateInk` directly.
+- Shared modules are standalone-ish: the CLI imports them with explicit `.js` extensions (NodeNext); the renderer imports them extensionless (Vite/bundler resolves `.js` → `.ts`).
+- GUI generation: 6 stages (analysis → clarification → outline → ink-gen → review → compile). CLI generation skips the interactive clarification and runs 4 stages.
 - Ink compilation uses inkjs's built-in Compiler class
 - Stories MUST have `-> start` divert at top level (ensureStartDivert handles this)
 - Ink parser (`inkParser.ts`) extracts structured data for the node editor
