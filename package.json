@@ -1,6 +1,6 @@
 {
   "name": "playable-lessons",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Interactive Fiction Authoring Tool for Education — Generate playable branching stories from source material using AI + Ink",
   "main": "./out/main/index.mjs",
   "scripts": {
@@ -24,7 +24,7 @@
     "cli": "npx tsx src/cli/index.ts"
   },
   "bin": {
-    "playable-lessons": "./out/cli/index.js"
+    "playable-lessons": "out/cli/index.js"
   },
   "files": [
     "out/cli/",
@@ -46,19 +46,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/michael-borck/playable-lessons.git"
+    "url": "git+https://github.com/michael-borck/playable-lessons.git"
   },
   "homepage": "https://github.com/michael-borck/playable-lessons",
+  "comment:dependencies": "Runtime deps for the published CLI only. The GUI libraries (react, zustand, @xyflow/react, …) are devDependencies because Vite bundles them into the Electron renderer at build time, so they don't need to be installed by CLI consumers.",
   "dependencies": {
-    "@xyflow/react": "^12.10.2",
     "inkjs": "^2.4.0",
-    "jszip": "^3.10.1",
-    "marked": "^17.0.5",
-    "openai": "^6.33.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "yargs": "^18.0.0",
-    "zustand": "^5.0.12"
+    "yargs": "^18.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
@@ -68,13 +62,17 @@
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
     "@vitejs/plugin-react": "^6.0.1",
+    "@xyflow/react": "^12.10.2",
     "electron": "^41.1.0",
     "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
     "eslint": "^10.1.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "zustand": "^5.0.12"
   }
 }
