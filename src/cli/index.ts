@@ -149,6 +149,7 @@ yargs(hideBin(process.argv))
       .option('tone', { type: 'string', default: 'professional', describe: 'Narrative tone' })
       .option('protagonist', { type: 'string', default: 'the reader', describe: 'Protagonist type' })
       .option('answers', { type: 'string', describe: 'Optional answers to clarifying questions' })
+      .option('retries', { type: 'number', default: 3, describe: 'Max compile attempts, with AI-assisted fixes between them (raise for weaker local models)' })
       .option('format', { alias: 'f', type: 'string', default: 'ink,html', describe: 'Output formats: ink, html, json' })
       .option('title', { alias: 't', type: 'string', describe: 'Story title (defaults to the input/topic name)' })
   }, async (argv) => {
@@ -187,7 +188,7 @@ yargs(hideBin(process.argv))
           answers: argv.answers as string | undefined
         },
         config,
-        { log: (m) => console.error(m) }
+        { log: (m) => console.error(m), maxCompileRetries: argv.retries as number }
       )
 
       const outputDir = argv.output as string
@@ -231,5 +232,5 @@ yargs(hideBin(process.argv))
 
   .demandCommand(1, 'You must specify a command')
   .help()
-  .version('0.2.0')
+  .version('0.2.1')
   .parse()

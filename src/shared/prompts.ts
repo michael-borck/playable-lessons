@@ -106,6 +106,9 @@ Requirements:
 - Use conditional text { var > X: text } to make scenes respond to past choices
 - Every path must reach -> END
 - Write engaging, educational prose — not just placeholder text
+- Write ALL prose yourself. Do NOT copy any example or placeholder text from the
+  syntax reference verbatim (e.g. "[Write the opening scene here]"); those
+  bracketed placeholders show structure only — replace them with real content
 - Include at least one conditional branch that depends on a variable
 - Mark endings with a # ENDING: tag followed by a label (good/neutral/bad)
 
@@ -137,15 +140,16 @@ VAR has_key = false
 -> start
 
 // First knot MUST be named "start"
+// (bracketed text below = placeholders — replace with your own prose, do not copy)
 === start ===
-Opening text here.
+[Write the opening scene here]
 * [First choice] -> next_scene
 
 // Other knots
 === knot_name ===
-Text of the passage.
+[Write the passage prose here]
 * [Choice text visible to player]
-    Result text shown after choosing.
+    [Result prose shown after choosing]
     -> next_knot
 * [Another choice]
     -> another_knot
@@ -153,10 +157,10 @@ Text of the passage.
 // Stitches (sub-sections within a knot)
 === knot ===
 = stitch_one
-Text here.
+[Stitch prose here]
 -> stitch_two
 = stitch_two
-More text.
+[More stitch prose here]
 
 // Sticky choices (can be chosen repeatedly)
 + [Repeatable choice]
