@@ -29,7 +29,8 @@ export default function GenerationPanel() {
   const awaitingClarification = stage === 'clarification' && questions.length > 0
 
   const needsApiKey = (aiProvider === 'claude' || aiProvider === 'openai' || aiProvider === 'auto') && !apiKey
-  const canGenerate = !needsApiKey || aiProvider === 'ollama'
+  // Ollama needs no key, so it never sets needsApiKey in the first place.
+  const canGenerate = !needsApiKey
 
   const startGeneration = useCallback(async () => {
     setIsGenerating(true)

@@ -1,5 +1,5 @@
 {
-  "name": "narrative-forge",
+  "name": "playable-lessons",
   "version": "0.1.0",
   "description": "Interactive Fiction Authoring Tool for Education — Generate playable branching stories from source material using AI + Ink",
   "main": "./out/main/index.mjs",
@@ -17,15 +17,18 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "lint": "eslint . --ext .ts,.tsx",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "build:cli": "tsc -p tsconfig.cli.json",
     "prepublishOnly": "npm run build:cli",
     "cli": "npx tsx src/cli/index.ts"
   },
   "bin": {
-    "narrativeforge": "./out/cli/index.js"
+    "playable-lessons": "./out/cli/index.js"
   },
   "files": [
     "out/cli/",
+    "out/shared/",
     "README.md",
     "LICENSE"
   ],
@@ -43,9 +46,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/michael-borck/narrative-forge.git"
+    "url": "https://github.com/michael-borck/playable-lessons.git"
   },
-  "homepage": "https://github.com/michael-borck/narrative-forge",
+  "homepage": "https://github.com/michael-borck/playable-lessons",
   "dependencies": {
     "@xyflow/react": "^12.10.2",
     "inkjs": "^2.4.0",
@@ -71,6 +74,7 @@
     "eslint": "^10.1.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
-    "vite": "^8.0.3"
+    "vite": "^8.0.3",
+    "vitest": "^4.1.8"
   }
 }

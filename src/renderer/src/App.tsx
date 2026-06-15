@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useAppStore } from './stores/appStore'
 import InputPanel from './components/InputPanel'
 import GenerationPanel from './components/GenerationPanel'
@@ -13,10 +14,18 @@ function App(): React.ReactElement {
   const setView = useAppStore((s) => s.setCurrentView)
   const projectName = useAppStore((s) => s.projectName)
 
+  // Load secrets from the OS keychain into memory for this session.
+  useEffect(() => {
+    const store = useAppStore.getState()
+    window.api.getSecret('apiKey').then((v) => { if (v) store.setApiKey(v) })
+    window.api.getSecret('ollamaToken').then((v) => { if (v) store.setOllamaToken(v) })
+    window.api.getSecret('customApiKey').then((v) => { if (v) store.setCustomApiKey(v) })
+  }, [])
+
   return (
     <div className="app">
       <header className="app-header">
-        <h1 className="app-title">NarrativeForge</h1>
+        <h1 className="app-title">Playable Lessons</h1>
         {projectName && <span className="project-name">{projectName}</span>}
         <nav className="app-nav">
           <NavButton view="input" current={view} onClick={setView}>Input</NavButton>

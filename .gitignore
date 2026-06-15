@@ -27,5 +27,5 @@ npm-debug.log*
 # Electron
 release/
 
-# NarrativeForge exports
+# Playable Lessons exports
 export/

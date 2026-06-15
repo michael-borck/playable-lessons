@@ -35,6 +35,10 @@ export default function PreviewPlayer() {
   // Bookmarks
   const [bookmarks, setBookmarks] = useState<{ label: string; state: string }[]>([])
 
+  // Holds the latest makeChoice so the timer's interval never calls a stale
+  // closure (it's defined below and assigned on every render).
+  const makeChoiceRef = useRef<(index: number) => void>(() => {})
+
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current)
@@ -131,7 +135,7 @@ export default function PreviewPlayer() {
             // Time's up — auto-select first choice
             clearTimer()
             if (story && storyState.choices.length > 0) {
-              makeChoice(0)
+              makeChoiceRef.current(0)
             }
             return 0
           }
@@ -151,6 +155,7 @@ export default function PreviewPlayer() {
     story.ChooseChoiceIndex(index)
     continueStory(story)
   }
+  makeChoiceRef.current = makeChoice
 
   const undo = () => {
     if (!story || history.length === 0) return

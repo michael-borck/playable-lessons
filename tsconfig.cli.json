@@ -3,13 +3,14 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ESNext",
-    "outDir": "./out/cli",
-    "rootDir": "./src/cli",
+    "outDir": "./out",
+    "rootDir": "./src",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "strict": true,
     "declaration": false,
     "types": ["node"]
   },
-  "include": ["src/cli/**/*.ts"]
+  "include": ["src/cli/**/*.ts", "src/shared/**/*.ts"],
+  "exclude": ["**/*.test.ts"]
 }

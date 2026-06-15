@@ -133,6 +133,9 @@ export default function ExportPanel() {
           {publishUrl && (
             <div style={{ background: 'rgba(76, 175, 124, 0.15)', border: '1px solid var(--success)', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 12, color: 'var(--success)' }}>
               Published: <a href={publishUrl} target="_blank" rel="noopener" style={{ color: 'var(--success)' }}>{publishUrl}</a>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                GitHub Pages can take up to a minute to build — if the link 404s, wait and refresh.
+              </div>
             </div>
           )}
 

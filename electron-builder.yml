@@ -1,5 +1,5 @@
-appId: com.narrativeforge.app
-productName: NarrativeForge
+appId: com.playablelessons.app
+productName: Playable Lessons
 directories:
   buildResources: resources
   output: release

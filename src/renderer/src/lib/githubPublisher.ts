@@ -10,17 +10,30 @@ interface PublishResult {
   repoUrl: string
 }
 
+const REQUEST_TIMEOUT_MS = 30_000
+
 async function githubFetch(path: string, token: string, options: RequestInit = {}): Promise<Response> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Authorization': `token ${token}`,
-      'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-      ...options.headers
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(`${API_BASE}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`GitHub request timed out (${path})`)
     }
-  })
-  return response
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 /**
@@ -30,6 +43,9 @@ async function getUsername(token: string): Promise<string> {
   const resp = await githubFetch('/user', token)
   if (!resp.ok) throw new Error(`GitHub auth failed: ${resp.status}`)
   const data = await resp.json()
+  if (typeof data?.login !== 'string') {
+    throw new Error('GitHub API did not return a user login')
+  }
   return data.login
 }
 
@@ -48,10 +64,9 @@ async function ensureRepo(token: string, repoName: string): Promise<string> {
     method: 'POST',
     body: JSON.stringify({
       name: repoName,
-      description: 'Interactive fiction published with NarrativeForge',
+      description: 'Interactive fiction published with Playable Lessons',
       homepage: `https://${username}.github.io/${repoName}`,
-      auto_init: true,
-      has_pages: true
+      auto_init: true
     })
   })
 
@@ -87,14 +102,15 @@ export async function publishToGitHubPages(
 
     if (defaultRef.ok) {
       const data = await defaultRef.json()
-      sha = data.object.sha
+      sha = data?.object?.sha
     } else {
       // Try master
       const masterRef = await githubFetch(`${repoPath}/git/refs/heads/master`, token)
       if (!masterRef.ok) throw new Error('Could not find default branch')
       const data = await masterRef.json()
-      sha = data.object.sha
+      sha = data?.object?.sha
     }
+    if (typeof sha !== 'string') throw new Error('Could not resolve default branch SHA')
 
     await githubFetch(`${repoPath}/git/refs`, token, {
       method: 'POST',
@@ -105,7 +121,7 @@ export async function publishToGitHubPages(
   // Check if index.html already exists on gh-pages
   const existingFile = await githubFetch(`${repoPath}/contents/index.html?ref=gh-pages`, token)
   const body: Record<string, string> = {
-    message: 'Publish story via NarrativeForge',
+    message: 'Publish story via Playable Lessons',
     content: base64Content,
     branch: 'gh-pages'
   }

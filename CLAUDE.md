@@ -1,7 +1,7 @@
-# NarrativeForge - Development Guide
+# Playable Lessons - Development Guide
 
 ## Project Overview
-NarrativeForge is an Electron + React + TypeScript desktop app that transforms educational source material into playable interactive fiction using the Ink scripting language.
+Playable Lessons is an Electron + React + TypeScript desktop app that transforms educational source material into playable interactive fiction using the Ink scripting language. (Formerly "NarrativeForge".)
 
 ## Tech Stack
 - **Shell**: Electron + electron-vite
@@ -17,7 +17,7 @@ NarrativeForge is an Electron + React + TypeScript desktop app that transforms e
 src/
   main/            # Electron main process (IPC handlers)
   preload/         # Electron preload scripts (IPC bridge)
-  cli/             # CLI entry point (narrativeforge validate/export)
+  cli/             # CLI entry point (playable-lessons validate/export)
   renderer/
     src/
       components/  # React components

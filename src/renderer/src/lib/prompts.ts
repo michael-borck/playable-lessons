@@ -1,5 +1,5 @@
 export const PROMPTS = {
-  system: `You are NarrativeForge, an AI assistant that transforms educational source material into playable interactive fiction using the Ink scripting language.
+  system: `You are the Playable Lessons assistant, an AI that transforms educational source material into playable interactive fiction using the Ink scripting language.
 
 Your goals:
 - Create engaging, educational interactive stories from the provided source material
@@ -19,7 +19,7 @@ When generating Ink, follow these rules:
 - Use { variable > X: text } for conditional content
 - Use ~ variable = value for variable assignments
 - Always include a -> END or -> DONE to terminate paths
-- Use # IMAGE: and # TIMER: tags for NarrativeForge custom features`,
+- Use # IMAGE: and # TIMER: tags for Playable Lessons custom features`,
 
   analysis: `Analyze the following source material provided in "{{inputMode}}" mode.
 
@@ -180,7 +180,7 @@ You feel {has_key: confident|nervous}.
 -> END
 -> DONE
 
-// Tags (for NarrativeForge)
+// Tags (for Playable Lessons)
 # IMAGE: assets/images/scene.jpg
 # TIMER: 15
 # ENDING: good

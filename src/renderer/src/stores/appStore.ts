@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 
 export type InputMode = 'topic' | 'lesson' | 'methodology' | 'case-study' | 'lecture-notes' | 'scenario'
 export type View = 'input' | 'generation' | 'graph' | 'preview' | 'export' | 'settings'
-export type AIProvider = 'claude' | 'openai' | 'ollama' | 'auto'
+export type AIProvider = 'claude' | 'openai' | 'ollama' | 'custom' | 'auto'
 export type StoryLength = 'short' | 'medium' | 'long'
 export type GenerationStage = 'idle' | 'analysis' | 'clarification' | 'outline' | 'ink-generation' | 'review' | 'compile' | 'done' | 'error'
 
@@ -52,10 +52,23 @@ export interface AppState {
   setAIProvider: (provider: AIProvider) => void
   apiKey: string
   setApiKey: (key: string) => void
+  claudeModel: string
+  setClaudeModel: (model: string) => void
+  openaiModel: string
+  setOpenaiModel: (model: string) => void
   ollamaUrl: string
   setOllamaUrl: (url: string) => void
   ollamaModel: string
   setOllamaModel: (model: string) => void
+  ollamaToken: string
+  setOllamaToken: (token: string) => void
+  // Custom OpenAI-compatible endpoint (remote Ollama, OpenRouter, LiteLLM, vLLM, …)
+  customBaseUrl: string
+  setCustomBaseUrl: (url: string) => void
+  customApiKey: string
+  setCustomApiKey: (key: string) => void
+  customModel: string
+  setCustomModel: (model: string) => void
 
   // Generation state
   generationStage: GenerationStage
@@ -121,10 +134,22 @@ export const useAppStore = create<AppState>()(persist((set) => ({
   setAIProvider: (aiProvider) => set({ aiProvider }),
   apiKey: '',
   setApiKey: (apiKey) => set({ apiKey }),
+  claudeModel: 'claude-opus-4-8',
+  setClaudeModel: (claudeModel) => set({ claudeModel }),
+  openaiModel: 'gpt-4o',
+  setOpenaiModel: (openaiModel) => set({ openaiModel }),
   ollamaUrl: 'http://localhost:11434',
   setOllamaUrl: (ollamaUrl) => set({ ollamaUrl }),
   ollamaModel: 'llama3.1:8b',
   setOllamaModel: (ollamaModel) => set({ ollamaModel }),
+  ollamaToken: '',
+  setOllamaToken: (ollamaToken) => set({ ollamaToken }),
+  customBaseUrl: '',
+  setCustomBaseUrl: (customBaseUrl) => set({ customBaseUrl }),
+  customApiKey: '',
+  setCustomApiKey: (customApiKey) => set({ customApiKey }),
+  customModel: '',
+  setCustomModel: (customModel) => set({ customModel }),
 
   // Generation state
   generationStage: 'idle',
@@ -175,12 +200,18 @@ export const useAppStore = create<AppState>()(persist((set) => ({
   error: null,
   setError: (error) => set({ error })
 }), {
-  name: 'narrativeforge-settings',
+  name: 'playable-lessons-settings',
+  // NOTE: secrets (apiKey, ollamaToken, customApiKey) are deliberately NOT
+  // persisted here. They live in the OS keychain via safeStorage (see App
+  // bootstrap + SettingsPanel) and are held in memory only for the session.
   partialize: (state) => ({
     aiProvider: state.aiProvider,
-    apiKey: state.apiKey,
+    claudeModel: state.claudeModel,
+    openaiModel: state.openaiModel,
     ollamaUrl: state.ollamaUrl,
     ollamaModel: state.ollamaModel,
+    customBaseUrl: state.customBaseUrl,
+    customModel: state.customModel,
     theme: state.theme,
     storyLength: state.storyLength,
     protagonistType: state.protagonistType,

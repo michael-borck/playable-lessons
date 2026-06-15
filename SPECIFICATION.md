@@ -1,4 +1,4 @@
-# NarrativeForge — Product Specification
+# Playable Lessons — Product Specification
 **Interactive Fiction Authoring Tool for Education**
 Version 0.1 | March 2026 | Working Draft
 
@@ -6,7 +6,7 @@ Version 0.1 | March 2026 | Working Draft
 
 ## 1. Vision and Purpose
 
-NarrativeForge is a cross-platform desktop application (Electron + React, TypeScript) that transforms educational source material into playable interactive fiction. A lecturer pastes in a case study, a set of lecture notes, a methodology document, or even just a topic or a "lesson to learn," and the tool uses AI to weave that content into a branching narrative. The finished story is exported as a playable file, shareable HTML, or pushed to a web URL.
+Playable Lessons is a cross-platform desktop application (Electron + React, TypeScript) that transforms educational source material into playable interactive fiction. A lecturer pastes in a case study, a set of lecture notes, a methodology document, or even just a topic or a "lesson to learn," and the tool uses AI to weave that content into a branching narrative. The finished story is exported as a playable file, shareable HTML, or pushed to a web URL.
 
 The tool serves two equal audiences:
 
@@ -34,7 +34,7 @@ The tool accepts six named input modes. The user selects one before pasting or u
 
 ### 2.2 Story Format: Ink
 
-NarrativeForge uses **Ink** (by Inkle Studios) as its native story format.
+Playable Lessons uses **Ink** (by Inkle Studios) as its native story format.
 
 **Why Ink over Twine/Twee:**
 
@@ -110,7 +110,7 @@ All logic runs in a single TypeScript/Node.js process inside Electron. There is 
 
 ### 3.4 Project File Format
 
-A NarrativeForge project is a single `.nfproj` file (ZIP archive containing):
+A Playable Lessons project is a single `.nfproj` file (ZIP archive containing):
 
 ```
 project.json          # metadata, settings, AI provider config
@@ -129,7 +129,7 @@ export/               # last export outputs (not committed to version control)
 ### 4.1 Lecturer Flow — New Story from Source Material
 
 ```
-1. Open NarrativeForge
+1. Open Playable Lessons
 2. New Project → select Input Mode (e.g. Case Study)
 3. Paste or upload source text
 4. AI asks 3–5 clarifying questions:
@@ -152,7 +152,7 @@ export/               # last export outputs (not committed to version control)
 ### 4.2 Student Flow — Topic or Lesson-to-Learn
 
 ```
-1. Open NarrativeForge (or receive a pre-configured template from lecturer)
+1. Open Playable Lessons (or receive a pre-configured template from lecturer)
 2. Select Input Mode: Topic or Lesson to Learn
 3. Enter text (e.g. "The cost of prioritising speed over experience in early career")
 4. Answer clarifying questions
@@ -165,7 +165,7 @@ export/               # last export outputs (not committed to version control)
 
 ```bash
 # Generate a story from a text file, no GUI
-narrativeforge generate \
+playable-lessons generate \
   --mode case-study \
   --input ./my_case_study.txt \
   --output ./output/ \
@@ -174,13 +174,13 @@ narrativeforge generate \
   --model llama3.2
 
 # Compile an existing .ink file and export
-narrativeforge export \
+playable-lessons export \
   --input ./story.ink \
   --format html \
   --output ./dist/
 
 # Validate an .ink file
-narrativeforge validate --input ./story.ink
+playable-lessons validate --input ./story.ink
 ```
 
 ---
@@ -284,13 +284,13 @@ All exports support embedded images. The PDF walkthrough uses a tree-layout algo
 
 ### 8.2 Web Publishing / Share Link
 
-NarrativeForge can push a standalone HTML export to a hosting target. Two options:
+Playable Lessons can push a standalone HTML export to a hosting target. Two options:
 
 **Option A — GitHub Pages (built-in)**
 The app can authenticate with GitHub (OAuth device flow, no browser redirect required from Electron) and push the export to a repository's `gh-pages` branch. Produces a permanent URL like `https://username.github.io/story-name`.
 
 **Option B — Custom endpoint**
-A configurable HTTP POST endpoint. The app sends a multipart form upload. A small companion server script (`narrativeforge-server`, ~50 lines of Node/Python) can be self-hosted on a VPS or the LocoLabo infrastructure. This would be the preferred route for locolabo.org or an institutional deployment.
+A configurable HTTP POST endpoint. The app sends a multipart form upload. A small companion server script (`playable-lessons-server`, ~50 lines of Node/Python) can be self-hosted on a VPS or the LocoLabo infrastructure. This would be the preferred route for locolabo.org or an institutional deployment.
 
 Share links are copyable from within the app immediately after publish. The share URL is also embedded as metadata in the exported HTML.
 
@@ -324,7 +324,7 @@ Share links are copyable from within the app immediately after publish. The shar
 
 ## 10. Media Support
 
-Images are supported at the passage level. The Ink standard does not have native image syntax, so NarrativeForge uses a custom tag convention that the bundled player interprets:
+Images are supported at the passage level. The Ink standard does not have native image syntax, so Playable Lessons uses a custom tag convention that the bundled player interprets:
 
 ```ink
 # IMAGE: assets/images/office_hallway.jpg
@@ -442,11 +442,11 @@ VAR trust = 50
     This is unfamiliar territory.
 }
 
-// Timed decision (NarrativeForge custom tag)
+// Timed decision (Playable Lessons custom tag)
 # TIMER: 15
 You have fifteen seconds to decide.
 
-// Image (NarrativeForge custom tag)
+// Image (Playable Lessons custom tag)
 # IMAGE: assets/images/boardroom.jpg
 ```
 
@@ -454,7 +454,7 @@ You have fifteen seconds to decide.
 
 ## Appendix B — Recommended Name
 
-**NarrativeForge** — working title. Alternatives considered: StoryLoom, Threadline, InkWeave, PathCraft. Any of the "weave/loom" family fits the metaphor of taking raw material and threading it into a story. Final name TBD.
+**Playable Lessons** — chosen name (renamed from the working title "NarrativeForge"). The name was picked to be self-describing: it states what the tool produces — interactive, playable lessons from source material — so the project's purpose is obvious at a glance. Earlier candidates included NarrativeForge, StoryLoom, Threadline, InkWeave, PathCraft, Lesson Loom, Branching Lessons, and Inkucate.
 
 ---
 

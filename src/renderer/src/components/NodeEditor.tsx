@@ -9,7 +9,7 @@ import {
   useEdgesState,
   type Node,
   type Edge,
-  type OnNodeClick,
+  type NodeMouseHandler,
   type NodeChange,
   addEdge,
   type Connection
@@ -172,7 +172,7 @@ export default function NodeEditor() {
     setEdges(initialEdges)
   }, [initialNodes, initialEdges]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onNodeClick: OnNodeClick = useCallback((_event, node) => {
+  const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
     setSelectedNodeId(node.id)
   }, [setSelectedNodeId])
 

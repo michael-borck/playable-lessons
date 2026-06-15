@@ -1,8 +1,49 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, session, safeStorage } from 'electron'
 import { join } from 'path'
 import { readFile, writeFile } from 'fs/promises'
 
 const isDev = !app.isPackaged
+
+/** Content-Security-Policy applied to renderer responses. */
+function contentSecurityPolicy(): string {
+  if (isDev) {
+    // Vite dev server needs inline/eval + websockets for HMR.
+    return [
+      "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:",
+      "img-src 'self' data: blob: https: http:",
+      "connect-src 'self' https: http://localhost:* ws://localhost:*"
+    ].join('; ')
+  }
+  return [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self'",
+    // AI providers + GitHub + a locally-running Ollama. `https:` covers a
+    // user-configured remote Ollama over TLS.
+    "connect-src 'self' https://api.anthropic.com https://api.openai.com https://api.github.com http://localhost:* https:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'"
+  ].join('; ')
+}
+
+function secretsPath(): string {
+  return join(app.getPath('userData'), 'secrets.json')
+}
+
+async function readSecrets(): Promise<Record<string, string>> {
+  try {
+    return JSON.parse(await readFile(secretsPath(), 'utf-8'))
+  } catch {
+    return {}
+  }
+}
+
+async function writeSecrets(map: Record<string, string>): Promise<void> {
+  await writeFile(secretsPath(), JSON.stringify(map), 'utf-8')
+}
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -22,8 +63,16 @@ function createWindow(): BrowserWindow {
     mainWindow.show()
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+  // Open external links in the user's browser — but only safe web schemes.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const protocol = new URL(url).protocol
+      if (protocol === 'https:' || protocol === 'http:') {
+        shell.openExternal(url)
+      }
+    } catch {
+      // Malformed URL — ignore.
+    }
     return { action: 'deny' }
   })
 
@@ -37,17 +86,17 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
-  app.setAppUserModelId?.('com.narrativeforge')
+  app.setAppUserModelId?.('com.playablelessons')
 
-  // IPC: Read file from disk
-  ipcMain.handle('file:read', async (_event, filePath: string) => {
-    const content = await readFile(filePath, 'utf-8')
-    return content
-  })
-
-  // IPC: Write file to disk
-  ipcMain.handle('file:write', async (_event, filePath: string, content: string) => {
-    await writeFile(filePath, content, 'utf-8')
+  // Apply a Content-Security-Policy to every response served to the renderer.
+  const csp = contentSecurityPolicy()
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp]
+      }
+    })
   })
 
   // IPC: Open file dialog
@@ -101,6 +150,33 @@ app.whenReady().then(() => {
     const dataUrl = `data:${mime};base64,${base64}`
     const fileName = filePath.split('/').pop() || `image.${ext}`
     return { dataUrl, fileName, filePath }
+  })
+
+  // IPC: Read a secret (e.g. API key) from the OS-encrypted store.
+  ipcMain.handle('secret:get', async (_event, key: string): Promise<string> => {
+    if (!safeStorage.isEncryptionAvailable()) return ''
+    const map = await readSecrets()
+    const enc = map[key]
+    if (!enc) return ''
+    try {
+      return safeStorage.decryptString(Buffer.from(enc, 'base64'))
+    } catch {
+      return ''
+    }
+  })
+
+  // IPC: Write a secret to the OS-encrypted store. Returns false if the OS
+  // provides no secure storage (in which case the secret is NOT persisted).
+  ipcMain.handle('secret:set', async (_event, key: string, value: string): Promise<boolean> => {
+    if (!safeStorage.isEncryptionAvailable()) return false
+    const map = await readSecrets()
+    if (value) {
+      map[key] = safeStorage.encryptString(value).toString('base64')
+    } else {
+      delete map[key]
+    }
+    await writeSecrets(map)
+    return true
   })
 
   createWindow()

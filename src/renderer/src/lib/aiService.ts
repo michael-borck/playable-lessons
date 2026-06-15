@@ -7,36 +7,86 @@ interface AIMessage {
   content: string
 }
 
-async function callAI(messages: AIMessage[]): Promise<string> {
-  const { aiProvider, apiKey, ollamaUrl, ollamaModel } = useAppStore.getState()
+// AI generations can be slow, but should not hang forever.
+const REQUEST_TIMEOUT_MS = 120_000
 
-  const provider = aiProvider === 'auto'
-    ? (apiKey ? 'claude' : 'ollama')
-    : aiProvider
-
-  if (provider === 'claude') {
-    return callClaude(messages, apiKey)
-  } else if (provider === 'openai') {
-    return callOpenAI(messages, apiKey)
-  } else {
-    return callOllama(messages, ollamaUrl, ollamaModel)
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs = REQUEST_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeoutMs / 1000}s`)
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
   }
 }
 
-async function callClaude(messages: AIMessage[], apiKey: string): Promise<string> {
+export type ResolvedProvider = 'claude' | 'openai' | 'ollama' | 'custom'
+
+/**
+ * Resolve the effective provider. `auto` uses Claude when an API key is set,
+ * otherwise falls back to a local Ollama.
+ */
+function resolveProvider(aiProvider: string, apiKey: string): ResolvedProvider {
+  if (aiProvider === 'auto') return apiKey ? 'claude' : 'ollama'
+  return aiProvider as ResolvedProvider
+}
+
+function anthropicHeaders(apiKey: string): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'x-api-key': apiKey,
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true'
+  }
+}
+
+/** Bearer headers, omitting Authorization when no token is configured. */
+function bearerHeaders(token: string): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  return headers
+}
+
+/** Strip trailing slashes so `${base}/chat/completions` is well-formed. */
+function normalizeBaseUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '')
+}
+
+async function callAI(messages: AIMessage[]): Promise<string> {
+  const s = useAppStore.getState()
+  const provider = resolveProvider(s.aiProvider, s.apiKey)
+
+  switch (provider) {
+    case 'claude':
+      return callClaude(messages, s.apiKey, s.claudeModel)
+    case 'openai':
+      return callOpenAICompatible(messages, s.apiKey, 'https://api.openai.com/v1', s.openaiModel)
+    case 'custom':
+      return callOpenAICompatible(messages, s.customApiKey, normalizeBaseUrl(s.customBaseUrl), s.customModel)
+    case 'ollama':
+    default:
+      return callOllama(messages, s.ollamaUrl, s.ollamaModel, s.ollamaToken)
+  }
+}
+
+async function callClaude(messages: AIMessage[], apiKey: string, model: string): Promise<string> {
   const systemMsg = messages.find((m) => m.role === 'system')?.content || ''
   const nonSystemMessages = messages.filter((m) => m.role !== 'system')
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
+    headers: anthropicHeaders(apiKey),
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model,
       max_tokens: 8192,
       system: systemMsg,
       messages: nonSystemMessages.map((m) => ({
@@ -52,18 +102,31 @@ async function callClaude(messages: AIMessage[], apiKey: string): Promise<string
   }
 
   const data = await response.json()
-  return data.content[0].text
+  const text = data?.content?.[0]?.text
+  if (typeof text !== 'string') {
+    throw new Error('Claude API returned an unexpected response shape')
+  }
+  return text
 }
 
-async function callOpenAI(messages: AIMessage[], apiKey: string): Promise<string> {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+/**
+ * Call any OpenAI-compatible /chat/completions endpoint. Covers OpenAI itself
+ * and custom gateways (OpenRouter, LiteLLM, vLLM, a remote Ollama, …) behind a
+ * bearer token.
+ */
+async function callOpenAICompatible(
+  messages: AIMessage[],
+  apiKey: string,
+  baseUrl: string,
+  model: string
+): Promise<string> {
+  if (!baseUrl) throw new Error('No base URL configured for the OpenAI-compatible endpoint')
+
+  const response = await fetchWithTimeout(`${baseUrl}/chat/completions`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
+    headers: bearerHeaders(apiKey),
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model,
       messages,
       max_tokens: 8192
     })
@@ -71,17 +134,26 @@ async function callOpenAI(messages: AIMessage[], apiKey: string): Promise<string
 
   if (!response.ok) {
     const err = await response.text()
-    throw new Error(`OpenAI API error (${response.status}): ${err}`)
+    throw new Error(`API error (${response.status}): ${err}`)
   }
 
   const data = await response.json()
-  return data.choices[0].message.content
+  const content = data?.choices?.[0]?.message?.content
+  if (typeof content !== 'string') {
+    throw new Error('API returned an unexpected response shape')
+  }
+  return content
 }
 
-async function callOllama(messages: AIMessage[], url: string, model: string): Promise<string> {
-  const response = await fetch(`${url}/api/chat`, {
+async function callOllama(
+  messages: AIMessage[],
+  url: string,
+  model: string,
+  token: string
+): Promise<string> {
+  const response = await fetchWithTimeout(`${normalizeBaseUrl(url)}/api/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: bearerHeaders(token),
     body: JSON.stringify({
       model,
       messages,
@@ -95,7 +167,75 @@ async function callOllama(messages: AIMessage[], url: string, model: string): Pr
   }
 
   const data = await response.json()
-  return data.message.content
+  const content = data?.message?.content
+  if (typeof content !== 'string') {
+    throw new Error('Ollama returned an unexpected response shape')
+  }
+  return content
+}
+
+// ─── Model discovery & connection testing ───
+
+/** List available models for the currently-configured provider. */
+export async function listModels(): Promise<string[]> {
+  const s = useAppStore.getState()
+  const provider = resolveProvider(s.aiProvider, s.apiKey)
+
+  switch (provider) {
+    case 'claude':
+      return listAnthropicModels(s.apiKey)
+    case 'openai':
+      return listOpenAICompatibleModels('https://api.openai.com/v1', s.apiKey)
+    case 'custom':
+      return listOpenAICompatibleModels(normalizeBaseUrl(s.customBaseUrl), s.customApiKey)
+    case 'ollama':
+    default:
+      return listOllamaModels(s.ollamaUrl, s.ollamaToken)
+  }
+}
+
+async function listAnthropicModels(apiKey: string): Promise<string[]> {
+  const response = await fetchWithTimeout('https://api.anthropic.com/v1/models?limit=100', {
+    method: 'GET',
+    headers: anthropicHeaders(apiKey)
+  }, 30_000)
+  if (!response.ok) throw new Error(`Claude API error (${response.status}): ${await response.text()}`)
+  const data = await response.json()
+  return (data?.data ?? []).map((m: { id: string }) => m.id).filter(Boolean)
+}
+
+async function listOpenAICompatibleModels(baseUrl: string, apiKey: string): Promise<string[]> {
+  if (!baseUrl) throw new Error('No base URL configured')
+  const response = await fetchWithTimeout(`${baseUrl}/models`, {
+    method: 'GET',
+    headers: bearerHeaders(apiKey)
+  }, 30_000)
+  if (!response.ok) throw new Error(`API error (${response.status}): ${await response.text()}`)
+  const data = await response.json()
+  return (data?.data ?? []).map((m: { id: string }) => m.id).filter(Boolean).sort()
+}
+
+async function listOllamaModels(url: string, token: string): Promise<string[]> {
+  const response = await fetchWithTimeout(`${normalizeBaseUrl(url)}/api/tags`, {
+    method: 'GET',
+    headers: bearerHeaders(token)
+  }, 30_000)
+  if (!response.ok) throw new Error(`Ollama error (${response.status}): ${await response.text()}`)
+  const data = await response.json()
+  return (data?.models ?? []).map((m: { name: string }) => m.name).filter(Boolean)
+}
+
+/**
+ * Probe the current provider's endpoint + credentials by listing models.
+ * Doubles as the "Test connection" check and the source for "Refresh models".
+ */
+export async function testConnection(): Promise<{ ok: boolean; message: string; models: string[] }> {
+  try {
+    const models = await listModels()
+    return { ok: true, message: `Connected — ${models.length} model(s) available.`, models }
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : 'Connection failed', models: [] }
+  }
 }
 
 /**
@@ -229,6 +369,8 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
   const correctedMatch = reviewResult.match(/```ink\s*([\s\S]*?)```/)
   if (correctedMatch) {
     const corrected = correctedMatch[1].trim()
+    // Guard against the review returning a truncated/partial snippet: only
+    // accept the rewrite if it retains at least half the original's length.
     if (corrected.length > inkSource.length * 0.5) {
       storeNow.setInkSource(corrected)
       inkSource = corrected
