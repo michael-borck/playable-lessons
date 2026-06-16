@@ -50,10 +50,12 @@ describe('exportStandaloneHTML', () => {
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
   })
 
-  it('pins the inkjs runtime version and includes an SRI integrity hash', async () => {
+  it('embeds the inkjs runtime inline (no CDN) for fully offline play', async () => {
     const html = await exportStandaloneHTML('=== start ===\nHi.\n-> END\n', 'Story')
-    expect(html).toContain('inkjs@2.4.0/dist/ink.js')
-    expect(html).toMatch(/integrity="sha384-/)
-    expect(html).toContain('crossorigin="anonymous"')
+    expect(html).not.toContain('cdn.jsdelivr.net')
+    expect(html).not.toMatch(/<script\s+src=/)
+    expect(html).toContain('new inkjs.Story')
+    // The runtime is ~128 KB — confirm it's actually inlined, not linked.
+    expect(html.length).toBeGreaterThan(100_000)
   })
 })

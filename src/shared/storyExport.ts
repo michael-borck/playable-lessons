@@ -1,17 +1,13 @@
 /**
- * Shared, dependency-light story logic used by BOTH the renderer (via Vite)
- * and the CLI (via tsc/NodeNext). Keep this file self-contained — it must not
- * import other local modules, so it resolves cleanly under both bundler and
- * NodeNext module resolution.
+ * Shared story logic used by BOTH the renderer (via Vite) and the CLI (via
+ * tsc/NodeNext). Intra-shared imports use explicit `.js` extensions so they
+ * resolve under both bundler and NodeNext module resolution.
  *
- * Only side dependency is a dynamic import of inkjs's Compiler.
+ * Side dependencies: a dynamic import of inkjs's Compiler, and the embedded
+ * inkjs runtime (so HTML exports are fully offline).
  */
 
-// inkjs runtime loaded by exported HTML. Pin to the same major/minor the app
-// compiles with (see package.json `inkjs`) so the compiled JSON format matches
-// the runtime that plays it, and lock it down with a Subresource Integrity hash.
-const INKJS_RUNTIME_URL = 'https://cdn.jsdelivr.net/npm/inkjs@2.4.0/dist/ink.js'
-const INKJS_RUNTIME_SRI = 'sha384-wR7zU2DW6Ji/8kGVhTaLk0TSOucJhD4Zhv7lR5G1k/HoXtcWhEw5nIlcyE/+GtMb'
+import { INKJS_RUNTIME, INKJS_VERSION } from './inkRuntime.generated.js'
 
 /**
  * Escape a string for safe interpolation into HTML text or double-quoted
@@ -25,6 +21,14 @@ export function escapeHtml(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+/**
+ * Neutralize any `</script>` sequence so embedded JS/JSON can't break out of
+ * its <script> element. Safe to apply to runtime code and JSON alike.
+ */
+function escapeScriptClose(text: string): string {
+  return text.replace(/<\/(script)/gi, '<\\/$1')
 }
 
 /**
@@ -79,14 +83,13 @@ export async function compileInk(inkSource: string): Promise<string> {
  * Exports a standalone HTML file that plays the story.
  * The inkjs runtime is loaded from a pinned CDN URL (with SRI) in the export.
  *
- * NOTE: all interpolated values are escaped — `title` is user/AI supplied and
- * the compiled JSON is embedded via JSON.stringify (which is safe inside a
- * <script> body as it cannot contain an unescaped `</script>` sequence for
- * ordinary story text).
+ * The inkjs runtime is embedded inline (no CDN), so the file is fully offline.
+ * `title` is escaped; the compiled JSON and the runtime are guarded against
+ * breaking out of their <script> elements.
  */
 export async function exportStandaloneHTML(inkSource: string, title: string): Promise<string> {
   const compiledJson = await compileInk(inkSource)
-  const escapedJson = JSON.stringify(compiledJson)
+  const escapedJson = escapeScriptClose(JSON.stringify(compiledJson))
   const safeTitle = escapeHtml(title)
 
   return `<!DOCTYPE html>
@@ -146,7 +149,8 @@ export async function exportStandaloneHTML(inkSource: string, title: string): Pr
   <div id="content"></div>
 </div>
 
-<script src="${INKJS_RUNTIME_URL}" integrity="${INKJS_RUNTIME_SRI}" crossorigin="anonymous"></script>
+<!-- inkjs ${INKJS_VERSION} runtime embedded inline so this file plays fully offline -->
+<script>${escapeScriptClose(INKJS_RUNTIME)}</script>
 <script>
 (function() {
   var storyJson = ${escapedJson};

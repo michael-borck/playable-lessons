@@ -232,5 +232,5 @@ yargs(hideBin(process.argv))
 
   .demandCommand(1, 'You must specify a command')
   .help()
-  .version('0.2.1')
+  .version('0.2.2')
   .parse()
