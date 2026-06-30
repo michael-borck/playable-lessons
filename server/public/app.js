@@ -49,10 +49,10 @@ function toggleCreate() {
   if (isOpen) {
     showcase.style.display = 'none'
     document.getElementById('try-btn').textContent = '✕ Close'
-    document.getElementById('source').focus()
+    setTimeout(() => document.getElementById('source')?.focus(), 300)
   } else {
     showcase.style.display = 'block'
-    document.getElementById('try-btn').textContent = 'Try it now →'
+    document.getElementById('try-btn').textContent = 'Create a story →'
   }
 }
 
@@ -67,7 +67,7 @@ function switchInputMode(mode) {
 function handleFileUpload(event) {
   const file = event.target.files[0]
   if (!file) return
-  document.getElementById('file-name').textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`
+  document.getElementById('file-name').textContent = `\u{1F4C4} ${file.name} (${(file.size / 1024).toFixed(1)} KB)`
   const reader = new FileReader()
   reader.onload = (e) => { uploadedText = e.target.result }
   reader.readAsText(file)
@@ -87,9 +87,12 @@ async function generate() {
   const errorArea = document.getElementById('error')
 
   btn.disabled = true
-  btn.textContent = 'Generating…'
+  const isStory = target === 'story'
+  btn.textContent = isStory ? 'Crafting the story…' : 'Generating…'
   errorArea.style.display = 'none'
-  resultArea.innerHTML = '<div class="loading">Generating</div>'
+  resultArea.innerHTML = isStory
+    ? '<div class="loading"><div class="loading-text">Crafting your branching narrative</div><div class="loading-hint">This takes a bit longer — 6 AI passes (analysis, outline, writing, review, compile)</div></div>'
+    : '<div class="loading">Generating</div>'
 
   try {
     const res = await fetch('/api/generate', {
@@ -120,7 +123,18 @@ function renderResult(result, target) {
   const area = document.getElementById('result')
   let html = ''
 
-  if (target === 'summary') {
+  if (target === 'story' || result.type === 'story') {
+    // Story: offer play + download
+    html += '<div class="story-result">'
+    html += '<h3 class="result-title">Your story is ready!</h3>'
+    html += '<p class="muted" style="margin-bottom:20px">A self-contained playable HTML file — works offline, no install needed.</p>'
+    // Create a blob URL for the "Play" button
+    const blob = new Blob([result.html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    html += `<a class="btn btn-primary play-btn" href="${url}" target="_blank">▶ Play Story</a>`
+    html += `<br><a class="download-link" href="${url}" download="playable-story.html">Download .html</a>`
+    html += '</div>'
+  } else if (target === 'summary') {
     if (result.title) html += `<h3 class="result-title">${esc(result.title)}</h3>`
     if (result.overview) html += `<p class="result-overview">${esc(result.overview)}</p>`
     if (result.keyPoints?.length) {
@@ -145,7 +159,7 @@ function renderResult(result, target) {
     result.questions?.forEach((q, i) => {
       html += `<div class="card-item"><span class="card-front">${i + 1}. ${esc(q.stem)}</span>`
       q.options?.forEach((opt, j) => {
-        const mark = j === q.correctIndex ? ' ✅' : ''
+        const mark = j === q.correctIndex ? ' \u2705' : ''
         html += `<span class="card-back">${'ABCD'[j]}) ${esc(opt)}${mark}</span>`
       })
       if (q.explanation) html += `<span class="card-hint">${esc(q.explanation)}</span>`
@@ -179,9 +193,11 @@ function loadHistory() {
 }
 
 function saveToHistory(result, target) {
+  // Don't save the full story HTML (too large for localStorage)
+  const toSave = target === 'story' ? { type: 'story', title: 'Interactive Story' } : result
   const history = loadHistory()
-  const title = result.title || result.deckTitle || result.quizTitle || `${target} ${new Date().toLocaleTimeString()}`
-  history.unshift({ id: Date.now(), title, type: target, date: new Date().toISOString(), result })
+  const title = result.title || result.deckTitle || result.quizTitle || (target === 'story' ? 'Interactive Story' : `${target}`)
+  history.unshift({ id: Date.now(), title, type: target, date: new Date().toISOString(), result: toSave })
   if (history.length > 50) history.pop()
   localStorage.setItem(STORAGE_KEY, JSON.stringify(history))
   renderHistory()
@@ -192,17 +208,17 @@ function renderHistory() {
   const area = document.getElementById('history')
   if (!area) return
   if (history.length === 0) {
-    area.innerHTML = '<p class="muted">Nothing yet — click "Try it now" to create something.</p>'
+    area.innerHTML = '<p class="muted">Nothing yet — click "Create a story" to begin.</p>'
     return
   }
-  const labels = { summary: '📝 Summary', flashcards: '🃏 Flashcards', quiz: '✅ Quiz', 'ai-task': '🤝 AI Task', 'case-study': '🔍 Case Study' }
+  const labels = { story: '\u{1F4D6} Story', summary: '\u{1F4DD} Summary', flashcards: '\u{1F0CF} Flashcards', quiz: '\u2705 Quiz', 'ai-task': '\u{1F91D} AI Task', 'case-study': '\u{1F50D} Case Study' }
   area.innerHTML = history.map((h) => {
     const date = new Date(h.date).toLocaleString()
     return `<div class="history-item" onclick="viewHistory(${h.id})">
       <span class="history-type">${labels[h.type] || h.type}</span>
       <span class="history-title">${esc(h.title)}</span>
       <span class="history-date">${date}</span>
-      <button class="history-delete" onclick="event.stopPropagation(); deleteHistory(${h.id})">×</button>
+      <button class="history-delete" onclick="event.stopPropagation(); deleteHistory(${h.id})">\u00d7</button>
     </div>`
   }).join('')
 }
@@ -210,10 +226,14 @@ function renderHistory() {
 function viewHistory(id) {
   const item = loadHistory().find((h) => h.id === id)
   if (item) {
-    // Open the create panel if closed, so the result is visible
     const panel = document.getElementById('create-panel')
     if (!panel.classList.contains('open')) toggleCreate()
-    renderResult(item.result, item.type)
+    if (item.type === 'story') {
+      // Story HTML isn't saved in history (too large) — just show a note
+      document.getElementById('result').innerHTML = '<div class="story-result"><p class="muted">Story HTML was not saved to history (too large). Generate again to play.</p></div>'
+    } else {
+      renderResult(item.result, item.type)
+    }
   }
 }
 
@@ -237,8 +257,21 @@ function esc(text) {
 // ─── Wire up ───
 document.getElementById('access-code-btn')?.addEventListener('click', submitAccessCode)
 document.getElementById('access-code-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitAccessCode() })
+
+// Show/hide depth selector for case-study; hide count for story (use length dropdown instead)
 document.getElementById('target')?.addEventListener('change', (e) => {
   document.getElementById('depth-group').style.display = e.target.value === 'case-study' ? 'flex' : 'none'
+  document.getElementById('count-group').style.display = e.target.value === 'case-study' ? 'none' : 'flex'
+  const countLabel = document.querySelector('#count-group label')
+  if (countLabel) {
+    countLabel.textContent = e.target.value === 'story' ? 'Length' : 'How many?'
+  }
+  const countSelect = document.getElementById('count')
+  if (e.target.value === 'story') {
+    countSelect.innerHTML = '<option value="5">Short (~5 scenes)</option><option value="12" selected>Medium (~12 scenes)</option><option value="25">Long (~25+ scenes)</option>'
+  } else {
+    countSelect.outerHTML = '<input id="count" type="number" value="8" min="1" max="20" />'
+  }
 })
 
 init()

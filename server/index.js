@@ -12,12 +12,14 @@
 const express = require('express')
 const path = require('path')
 const {
+  generateInk,
   generateSummary,
   generateFlashcards,
   generateQuiz,
   generateAiTask,
   generateCaseStudy
 } = require('../out/shared/generate.js')
+const { exportStandaloneHTML } = require('../out/shared/storyExport.js')
 
 const app = express()
 app.use(express.json({ limit: '1mb' }))
@@ -91,6 +93,15 @@ app.post('/api/generate', async (req, res) => {
   try {
     let result
     switch (target) {
+      case 'story': {
+        const story = await generateInk(
+          { ...params, storyLength: count > 15 ? 'long' : count > 8 ? 'medium' : 'short' },
+          config
+        )
+        const html = await exportStandaloneHTML(story.inkSource, 'Interactive Story')
+        result = { type: 'story', title: 'Interactive Story', html }
+        break
+      }
       case 'summary':
         result = await generateSummary({ ...params, keyPointCount: count || 8 }, config)
         break
