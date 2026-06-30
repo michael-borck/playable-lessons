@@ -19,7 +19,16 @@ const api = {
     ipcRenderer.invoke('secret:get', key),
 
   setSecret: (key: string, value: string): Promise<boolean> =>
-    ipcRenderer.invoke('secret:set', key, value)
+    ipcRenderer.invoke('secret:set', key, value),
+  // Projects (local dashboard) — each project is a folder on disk.
+  projects: {
+    root: (): Promise<string> => ipcRenderer.invoke('projects:root'),
+    list: (): Promise<any[]> => ipcRenderer.invoke('projects:list'),
+    read: (id: string): Promise<any> => ipcRenderer.invoke('projects:read', id),
+    save: (project: any): Promise<{ id: string; path: string }> =>
+      ipcRenderer.invoke('projects:save', project),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke('projects:delete', id)
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)

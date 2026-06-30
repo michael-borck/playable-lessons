@@ -1,11 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { FlashcardResult, QuizResult, SummaryResult, AiTaskResult, CaseStudyResult, PlanResult } from '../../../shared/generate'
+import type { ProjectMeta } from '../../../shared/project'
 
 export type InputMode = 'topic' | 'lesson' | 'methodology' | 'case-study' | 'lecture-notes' | 'scenario'
-export type View = 'input' | 'generation' | 'graph' | 'preview' | 'export' | 'settings'
+export type View = 'input' | 'generation' | 'graph' | 'preview' | 'study' | 'export' | 'settings' | 'projects'
 export type AIProvider = 'claude' | 'openai' | 'ollama' | 'custom' | 'auto'
 export type StoryLength = 'short' | 'medium' | 'long'
 export type GenerationStage = 'idle' | 'analysis' | 'clarification' | 'outline' | 'ink-generation' | 'review' | 'compile' | 'done' | 'error'
+export type GenerationTarget = 'story' | 'flashcards' | 'quiz' | 'summary' | 'ai-task' | 'case-study' | 'plan'
 
 export interface StoryOutlineNode {
   id: string
@@ -90,6 +93,28 @@ export interface AppState {
   compiledStoryJson: string
   setCompiledStoryJson: (json: string) => void
 
+  // Generation target & non-story artifacts
+  generationTarget: GenerationTarget
+  setGenerationTarget: (target: GenerationTarget) => void
+  flashcards: FlashcardResult | null
+  setFlashcards: (flashcards: FlashcardResult | null) => void
+  quiz: QuizResult | null
+  setQuiz: (quiz: QuizResult | null) => void
+  summary: SummaryResult | null
+  setSummary: (summary: SummaryResult | null) => void
+  aiTask: AiTaskResult | null
+  setAiTask: (aiTask: AiTaskResult | null) => void
+  caseStudy: CaseStudyResult | null
+  setCaseStudy: (caseStudy: CaseStudyResult | null) => void
+  plan: PlanResult | null
+  setPlan: (plan: PlanResult | null) => void
+
+  // Projects (local dashboard)
+  projects: ProjectMeta[]
+  setProjects: (projects: ProjectMeta[]) => void
+  loadedProjectId: string | null
+  setLoadedProjectId: (id: string | null) => void
+
   // Story preferences
   storyLength: StoryLength
   setStoryLength: (length: StoryLength) => void
@@ -116,7 +141,7 @@ export interface AppState {
 
 export const useAppStore = create<AppState>()(persist((set) => ({
   // Navigation
-  currentView: 'input',
+  currentView: 'projects',
   setCurrentView: (view) => set({ currentView: view }),
 
   // Project
@@ -176,6 +201,28 @@ export const useAppStore = create<AppState>()(persist((set) => ({
   compiledStoryJson: '',
   setCompiledStoryJson: (compiledStoryJson) => set({ compiledStoryJson }),
 
+  // Generation target & non-story artifacts
+  generationTarget: 'story',
+  setGenerationTarget: (generationTarget) => set({ generationTarget }),
+  flashcards: null,
+  setFlashcards: (flashcards) => set({ flashcards }),
+  quiz: null,
+  setQuiz: (quiz) => set({ quiz }),
+  summary: null,
+  setSummary: (summary) => set({ summary }),
+  aiTask: null,
+  setAiTask: (aiTask) => set({ aiTask }),
+  caseStudy: null,
+  setCaseStudy: (caseStudy) => set({ caseStudy }),
+  plan: null,
+  setPlan: (plan) => set({ plan }),
+
+  // Projects (local dashboard)
+  projects: [],
+  setProjects: (projects) => set({ projects }),
+  loadedProjectId: null,
+  setLoadedProjectId: (loadedProjectId) => set({ loadedProjectId }),
+
   // Story preferences
   storyLength: 'medium',
   setStoryLength: (storyLength) => set({ storyLength }),
@@ -215,6 +262,7 @@ export const useAppStore = create<AppState>()(persist((set) => ({
     theme: state.theme,
     storyLength: state.storyLength,
     protagonistType: state.protagonistType,
-    tone: state.tone
+    tone: state.tone,
+    generationTarget: state.generationTarget
   })
 }))

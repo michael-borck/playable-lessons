@@ -31,6 +31,14 @@ src/
         GenerationPanel.tsx # AI generation pipeline UI
         ExportPanel.tsx     # Export formats + GitHub Pages publish
         SettingsPanel.tsx   # AI provider and app settings
+        StudyView.tsx       # Renders the latest non-story artifact (deck / quiz / summary / ai-task / case-study)
+        FlashcardDeck.tsx   # Inline flip-card deck
+        QuizPlayer.tsx      # Inline self-marking quiz
+        SummarySheet.tsx    # Inline study summary (overview, key points, glossary)
+        AiTaskSheet.tsx    # Inline AI-collaboration task sheet (scenario, brief, specifics, rubric)
+        CaseStudySheet.tsx # Inline teaching case study (narrative + structured fields)
+        PlanSheet.tsx    # Recommender plan: recommended outputs + "generate all → project"
+        ProjectsView.tsx    # Local dashboard: list/save/open/delete on-disk projects
       stores/      # Zustand store (appStore.ts)
       lib/
         aiService.ts        # AI provider abstraction (Claude/OpenAI/Ollama)
@@ -44,10 +52,18 @@ src/
         sampleStory.ts      # Demo story for testing without AI
       styles/      # Global CSS
   shared/          # Code shared by the renderer AND the CLI (no store, no DOM)
-    storyExport.ts # escapeHtml, compileInk, standalone-HTML export
-    aiClient.ts    # provider-agnostic AI calls + model listing (config-driven)
-    prompts.ts     # AI prompt templates
-    generate.ts    # headless generation pipeline (outline → ink → review → compile)
+    storyExport.ts  # escapeHtml, compileInk, standalone-HTML export (story)
+    flashcardExport.ts # flashcard exports: CSV, Anki TSV, standalone-HTML deck
+    quizExport.ts   # quiz exports: standalone-HTML quiz, printable text
+    summaryExport.ts # summary exports: standalone-HTML sheet, printable text
+    aiTaskExport.ts  # AI-collaboration task exports: standalone-HTML sheet, printable text
+    caseStudyExport.ts # case-study exports: standalone-HTML sheet, printable text
+    planExport.ts    # recommender plan exports: standalone-HTML sheet, printable text
+    aiClient.ts     # provider-agnostic AI calls + model listing (config-driven)
+    prompts.ts      # AI prompt templates (story + flashcards/quiz/summary/ai-task/case-study/plan)
+    generate.ts     # generateInk (multi-stage story) + single-call JSON generators
+                    # (flashcards/quiz/summary/ai-task/case-study/plan) sharing callForJson;
+                    # generatePlan + applyPlan (run a plan's recommended set)
 resources/         # App icons and static assets
 ```
 

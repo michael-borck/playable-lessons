@@ -1,6 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, session, safeStorage } from 'electron'
 import { join } from 'path'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, readdir, mkdir, rm } from 'fs/promises'
 
 const isDev = !app.isPackaged
 
@@ -31,6 +31,11 @@ function contentSecurityPolicy(): string {
 
 function secretsPath(): string {
   return join(app.getPath('userData'), 'secrets.json')
+}
+
+/** Directory holding project folders — one project.json per folder. */
+function projectsRoot(): string {
+  return join(app.getPath('documents'), 'Playable Lessons')
 }
 
 async function readSecrets(): Promise<Record<string, string>> {
@@ -177,6 +182,72 @@ app.whenReady().then(() => {
     }
     await writeSecrets(map)
     return true
+  })
+
+  // ─── Projects (local dashboard) ───
+  // Each project is a folder under the projects root containing project.json.
+  ipcMain.handle('projects:root', () => projectsRoot())
+
+  ipcMain.handle('projects:list', async (): Promise<any[]> => {
+    const root = projectsRoot()
+    let entries: import('fs').Dirent[]
+    try {
+      entries = await readdir(root, { withFileTypes: true })
+    } catch {
+      return []
+    }
+    const metas: any[] = []
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      try {
+        const data = JSON.parse(
+          await readFile(join(root, entry.name, 'project.json'), 'utf-8')
+        )
+        metas.push({
+          id: data.id || entry.name,
+          name: data.name || entry.name,
+          inputMode: data.inputMode || 'topic',
+          createdAt: data.createdAt || 0,
+          updatedAt: data.updatedAt || 0,
+          artifacts: {
+            story: !!data.inkSource,
+            flashcards: !!data.flashcards,
+            quiz: !!data.quiz,
+            summary: !!data.summary,
+            aiTask: !!data.aiTask,
+            caseStudy: !!data.caseStudy
+          }
+        })
+      } catch {
+        // skip folders without a readable project.json
+      }
+    }
+    return metas.sort((a, b) => b.updatedAt - a.updatedAt)
+  })
+
+  ipcMain.handle('projects:read', async (_event, id: string): Promise<any> => {
+    try {
+      return JSON.parse(
+        await readFile(join(projectsRoot(), id, 'project.json'), 'utf-8')
+      )
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('projects:save', async (
+    _event,
+    project: any
+  ): Promise<{ id: string; path: string }> => {
+    const dir = join(projectsRoot(), project.id)
+    await mkdir(dir, { recursive: true })
+    const filePath = join(dir, 'project.json')
+    await writeFile(filePath, JSON.stringify(project, null, 2), 'utf-8')
+    return { id: project.id, path: filePath }
+  })
+
+  ipcMain.handle('projects:delete', async (_event, id: string): Promise<void> => {
+    await rm(join(projectsRoot(), id), { recursive: true, force: true })
   })
 
   createWindow()

@@ -888,3 +888,121 @@ body {
 .react-flow__controls button svg {
   fill: var(--text-primary) !important;
 }
+
+/* ─── Target selector (Generate) ─── */
+.target-selector { flex-wrap: wrap; }
+
+/* ─── Study: flashcard deck ─── */
+.deck { display: flex; flex-direction: column; align-items: center; }
+.deck-progress { color: var(--text-secondary); font-size: 14px; margin-bottom: 16px; }
+.flashcard {
+  width: 100%;
+  min-height: 220px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.flashcard:hover, .flashcard:focus { border-color: var(--accent); outline: none; }
+.flashcard.flipped { border-color: var(--accent-dim); }
+.flashcard-label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+.flashcard-text { font-size: 19px; line-height: 1.6; }
+.flashcard-hint { margin-top: 16px; font-size: 15px; color: var(--accent-hover); font-style: italic; }
+.deck-controls { justify-content: center; margin-top: 20px; }
+.study-hint { text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 16px; }
+
+/* ─── Study: quiz ─── */
+.quiz-score { text-align: center; font-size: 20px; color: var(--accent-hover); margin-bottom: 20px; }
+.quiz-question {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  min-width: 0;
+}
+.quiz-question legend { font-size: 17px; line-height: 1.5; padding: 0 4px; }
+.quiz-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  margin-top: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.quiz-option:hover { border-color: var(--border); }
+.quiz-option input { margin-top: 4px; accent-color: var(--accent); cursor: pointer; }
+.quiz-option.selected { border-color: var(--accent-dim); background: rgba(124, 110, 240, 0.12); }
+.quiz-option.correct { border-color: var(--success); background: rgba(76, 175, 124, 0.12); }
+.quiz-option.wrong { border-color: var(--error); background: rgba(232, 88, 88, 0.12); }
+.quiz-explanation {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(124, 110, 240, 0.1);
+  border-left: 3px solid var(--accent);
+  color: var(--accent-hover);
+  font-size: 15px;
+  line-height: 1.5;
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+}
+.quiz-controls { margin-top: 8px; }
+.study fieldset { border: none; }
+
+/* ─── Study: summary sheet ─── */
+.summary-overview { font-size: 17px; line-height: 1.7; color: var(--text-secondary); margin-bottom: 24px; }
+.summary-section-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin: 24px 0 12px; }
+.summary-points { list-style: none; counter-reset: spt; }
+.summary-points li { counter-increment: spt; position: relative; padding: 10px 0 10px 40px; border-bottom: 1px solid var(--bg-tertiary); line-height: 1.6; }
+.summary-points li::before { content: counter(spt); position: absolute; left: 0; top: 10px; width: 26px; height: 26px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 50%; color: var(--accent); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.summary-glossary { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; }
+.summary-glossary dt { color: var(--accent-hover); font-weight: 600; }
+.summary-glossary dd { color: var(--text-secondary); }
+
+/* ─── Projects dashboard ─── */
+.project-list { display: flex; flex-direction: column; gap: 12px; }
+.project-card { display: flex; justify-content: space-between; align-items: center; gap: 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; }
+.project-card-name { font-weight: 600; font-size: 15px; }
+.project-card-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.project-badges { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.badge { font-size: 11px; padding: 2px 8px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 10px; color: var(--text-secondary); }
+.project-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ─── Study: AI-collaboration task sheet ─── */
+.aitask-sheet { display: flex; flex-direction: column; gap: 18px; }
+.aitask-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; }
+.aitask-no { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.aitask-h { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); margin: 14px 0 4px; }
+.aitask-card p { color: var(--text-secondary); line-height: 1.6; }
+.aitask-brief { background: rgba(124, 110, 240, 0.08); border-left: 3px solid var(--accent); padding: 10px 12px; border-radius: 0 6px 6px 0; color: var(--text-primary); }
+.aitask-list { list-style: none; }
+.aitask-list li { padding: 6px 0 6px 16px; position: relative; }
+.aitask-list li::before { content: '•'; position: absolute; left: 0; color: var(--accent); }
+.aitask-why { display: block; color: var(--text-muted); font-size: 13px; }
+.aitask-works { color: var(--accent-hover); font-style: italic; }
+
+/* ─── Study: case-study sheet ─── */
+.casestudy-sheet { display: flex; flex-direction: column; gap: 14px; }
+.casestudy-narrative { font-size: 17px; line-height: 1.7; color: var(--text-primary); white-space: pre-wrap; background: rgba(124, 110, 240, 0.06); border-left: 3px solid var(--accent); padding: 12px 14px; border-radius: 0 6px 6px 0; }
+.casestudy-h { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); margin: 0 0 4px; }
+.casestudy-sheet p { color: var(--text-secondary); line-height: 1.6; }
+.casestudy-sheet ul { list-style: none; }
+.casestudy-sheet li { padding: 4px 0 4px 16px; position: relative; color: var(--text-secondary); }
+.casestudy-sheet li::before { content: '•'; position: absolute; left: 0; color: var(--accent); }
+
+/* ─── Study: recommender plan ─── */
+.plan-sheet { display: flex; flex-direction: column; gap: 12px; }
+.plan-summary { font-size: 16px; color: var(--text-secondary); line-height: 1.6; }
+.plan-recs { display: flex; flex-direction: column; gap: 10px; }
+.plan-rec { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; }
+.plan-rec-head { font-weight: 600; color: var(--accent); font-size: 15px; }
+.plan-rec-meta { font-weight: 400; color: var(--text-muted); font-size: 13px; margin-left: 6px; }
+.plan-rec-why { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
+.plan-hint { color: var(--text-muted); font-size: 13px; }

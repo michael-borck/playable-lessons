@@ -44,7 +44,6 @@ export function parseInkSource(source: string): ParsedInk {
   const knots: InkKnot[] = []
 
   // First pass: find variables and top-level divert
-  let firstKnotLine = lines.length
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim()
 
@@ -81,7 +80,6 @@ export function parseInkSource(source: string): ParsedInk {
     // Knot declaration
     const knotMatch = line.match(/^===\s*(\w+)\s*===?\s*$/)
     if (knotMatch) {
-      if (knots.length === 0) firstKnotLine = i
       knots.push({
         id: knotMatch[1],
         title: knotMatch[1].replace(/_/g, ' '),

@@ -1,7 +1,6 @@
 {
   "name": "playable-lessons",
-  "version": "0.2.2",
-  "description": "Interactive Fiction Authoring Tool for Education — Generate playable branching stories from source material using AI + Ink",
+  "version": "0.3.0",
   "main": "./out/main/index.mjs",
   "scripts": {
     "dev": "electron-vite dev",
@@ -16,7 +15,7 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "embed:runtime": "node scripts/embed-ink-runtime.mjs",
@@ -68,6 +67,7 @@
     "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
     "eslint": "^10.1.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tsx": "^4.21.0",

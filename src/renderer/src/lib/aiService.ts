@@ -9,7 +9,9 @@ import {
   type ProviderConfig,
   type ResolvedProvider
 } from '../../../shared/aiClient'
-import { extractInk } from '../../../shared/generate'
+import { extractInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan } from '../../../shared/generate'
+import { projectIdFromName, type ProjectFull } from '../../../shared/project'
+import { projectService } from './projectService'
 
 /** Build a provider config from the current store state, resolving `auto`. */
 function buildProviderConfig(): ProviderConfig {
@@ -220,6 +222,233 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
   }
 
   useAppStore.getState().setGenerationStage('done')
+}
+
+/**
+ * Generate a flashcard deck from the current input + provider settings. Single
+ * AI call (no clarification/compile loop). Stores the result and clears any quiz.
+ */
+export async function generateFlashcardsGUI(count: number): Promise<void> {
+  const store = useAppStore.getState()
+  const { inputMode, inputText, tone } = store
+  store.clearGenerationLog()
+  store.setGenerationStage('analysis')
+  const log = (msg: string) => useAppStore.getState().addGenerationLog(msg)
+  try {
+    const result = await generateFlashcards(
+      { inputMode, inputText, cardCount: count, tone },
+      buildProviderConfig(),
+      { log, call: ai }
+    )
+    useAppStore.getState().setFlashcards(result)
+    useAppStore.getState().setQuiz(null)
+    useAppStore.getState().setSummary(null)
+    useAppStore.getState().setAiTask(null)
+    useAppStore.getState().setCaseStudy(null)
+    useAppStore.getState().setGenerationStage('done')
+    log('[Done] Flashcards ready.')
+  } catch (err) {
+    useAppStore.getState().setGenerationStage('error')
+    log(`[Error] ${err instanceof Error ? err.message : 'Flashcard generation failed'}`)
+    throw err
+  }
+}
+
+/**
+ * Generate a multiple-choice quiz from the current input + provider settings.
+ * Single AI call. Stores the result and clears any flashcard deck.
+ */
+export async function generateQuizGUI(count: number): Promise<void> {
+  const store = useAppStore.getState()
+  const { inputMode, inputText, tone } = store
+  store.clearGenerationLog()
+  store.setGenerationStage('analysis')
+  const log = (msg: string) => useAppStore.getState().addGenerationLog(msg)
+  try {
+    const result = await generateQuiz(
+      { inputMode, inputText, questionCount: count, tone },
+      buildProviderConfig(),
+      { log, call: ai }
+    )
+    useAppStore.getState().setQuiz(result)
+    useAppStore.getState().setFlashcards(null)
+    useAppStore.getState().setSummary(null)
+    useAppStore.getState().setAiTask(null)
+    useAppStore.getState().setCaseStudy(null)
+    useAppStore.getState().setGenerationStage('done')
+    log('[Done] Quiz ready.')
+  } catch (err) {
+    useAppStore.getState().setGenerationStage('error')
+    log(`[Error] ${err instanceof Error ? err.message : 'Quiz generation failed'}`)
+    throw err
+  }
+}
+
+/**
+ * Generate a study summary from the current input + provider settings. Single
+ * AI call. Stores the result and clears any flashcard deck / quiz.
+ */
+export async function generateSummaryGUI(count: number): Promise<void> {
+  const store = useAppStore.getState()
+  const { inputMode, inputText, tone } = store
+  store.clearGenerationLog()
+  store.setGenerationStage('analysis')
+  const log = (msg: string) => useAppStore.getState().addGenerationLog(msg)
+  try {
+    const result = await generateSummary(
+      { inputMode, inputText, keyPointCount: count, tone },
+      buildProviderConfig(),
+      { log, call: ai }
+    )
+    useAppStore.getState().setSummary(result)
+    useAppStore.getState().setFlashcards(null)
+    useAppStore.getState().setQuiz(null)
+    useAppStore.getState().setAiTask(null)
+    useAppStore.getState().setCaseStudy(null)
+    useAppStore.getState().setGenerationStage('done')
+    log('[Done] Summary ready.')
+  } catch (err) {
+    useAppStore.getState().setGenerationStage('error')
+    log(`[Error] ${err instanceof Error ? err.message : 'Summary generation failed'}`)
+    throw err
+  }
+}
+
+/**
+ * Generate AI-collaboration tasks from the current input + provider settings.
+ * Single AI call. Stores the result and clears any other artifact.
+ */
+export async function generateAiTaskGUI(count: number): Promise<void> {
+  const store = useAppStore.getState()
+  const { inputMode, inputText, tone } = store
+  store.clearGenerationLog()
+  store.setGenerationStage('analysis')
+  const log = (msg: string) => useAppStore.getState().addGenerationLog(msg)
+  try {
+    const result = await generateAiTask(
+      { inputMode, inputText, taskCount: count, tone },
+      buildProviderConfig(),
+      { log, call: ai }
+    )
+    useAppStore.getState().setAiTask(result)
+    useAppStore.getState().setFlashcards(null)
+    useAppStore.getState().setQuiz(null)
+    useAppStore.getState().setSummary(null)
+    useAppStore.getState().setCaseStudy(null)
+    useAppStore.getState().setGenerationStage('done')
+    log('[Done] AI-collaboration tasks ready.')
+  } catch (err) {
+    useAppStore.getState().setGenerationStage('error')
+    log(`[Error] ${err instanceof Error ? err.message : 'AI-task generation failed'}`)
+    throw err
+  }
+}
+
+/**
+ * Generate a teaching case study from the current input + provider settings.
+ * Single AI call. Stores the result and clears any other artifact.
+ */
+export async function generateCaseStudyGUI(depth: 'idea' | 'outline' | 'complete'): Promise<void> {
+  const store = useAppStore.getState()
+  const { inputMode, inputText, tone } = store
+  store.clearGenerationLog()
+  store.setGenerationStage('analysis')
+  const log = (msg: string) => useAppStore.getState().addGenerationLog(msg)
+  try {
+    const result = await generateCaseStudy(
+      { inputMode, inputText, depth, tone },
+      buildProviderConfig(),
+      { log, call: ai }
+    )
+    useAppStore.getState().setCaseStudy(result)
+    useAppStore.getState().setFlashcards(null)
+    useAppStore.getState().setQuiz(null)
+    useAppStore.getState().setSummary(null)
+    useAppStore.getState().setAiTask(null)
+    useAppStore.getState().setGenerationStage('done')
+    log('[Done] Case study ready.')
+  } catch (err) {
+    useAppStore.getState().setGenerationStage('error')
+    log(`[Error] ${err instanceof Error ? err.message : 'Case-study generation failed'}`)
+    throw err
+  }
+}
+
+/**
+ * Recommend a set of outputs for the current input. Single AI call; stores the
+ * plan (shown in Study with a "generate all" action).
+ */
+export async function generatePlanGUI(): Promise<void> {
+  const store = useAppStore.getState()
+  const { inputMode, inputText, tone } = store
+  store.clearGenerationLog()
+  store.setGenerationStage('analysis')
+  const log = (msg: string) => useAppStore.getState().addGenerationLog(msg)
+  try {
+    const result = await generatePlan(
+      { inputMode, inputText, tone },
+      buildProviderConfig(),
+      { log, call: ai }
+    )
+    useAppStore.getState().setPlan(result)
+    useAppStore.getState().setGenerationStage('done')
+    log('[Done] Plan ready.')
+  } catch (err) {
+    useAppStore.getState().setGenerationStage('error')
+    log(`[Error] ${err instanceof Error ? err.message : 'Planning failed'}`)
+    throw err
+  }
+}
+
+/**
+ * Apply the current plan: generate every recommended output and save the set
+ * as a new on-disk project, then switch to the Projects dashboard. This is the
+ * "complete the loop" action — the recommendation becomes ownable artifacts.
+ */
+export async function generateAllToProject(): Promise<void> {
+  const store = useAppStore.getState()
+  const plan = store.plan
+  if (!plan) throw new Error('No plan to apply')
+  const { inputMode, inputText, tone } = store
+  store.clearGenerationLog()
+  store.setGenerationStage('analysis')
+  const log = (msg: string) => useAppStore.getState().addGenerationLog(msg)
+  try {
+    const artifacts = await applyPlan(
+      plan,
+      { inputMode, inputText, tone },
+      buildProviderConfig(),
+      { log, call: ai }
+    )
+    const name = store.projectName || plan.title || 'Generated set'
+    const project: ProjectFull = {
+      id: projectIdFromName(name),
+      name,
+      inputMode,
+      inputText,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      inkSource: artifacts.story?.inkSource,
+      compiledStoryJson: artifacts.story?.compiledJson,
+      flashcards: artifacts.flashcards,
+      quiz: artifacts.quiz,
+      summary: artifacts.summary,
+      aiTask: artifacts.aiTask,
+      caseStudy: artifacts.caseStudy
+    }
+    await projectService.save(project)
+    const list = await projectService.list()
+    useAppStore.getState().setProjects(list)
+    useAppStore.getState().setLoadedProjectId(project.id)
+    useAppStore.getState().setPlan(null)
+    useAppStore.getState().setGenerationStage('done')
+    log('[Done] Generated all outputs into a new project.')
+    useAppStore.getState().setCurrentView('projects')
+  } catch (err) {
+    useAppStore.getState().setGenerationStage('error')
+    log(`[Error] ${err instanceof Error ? err.message : 'Apply failed'}`)
+    throw err
+  }
 }
 
 function parseClarificationQuestions(raw: string): { id: string; question: string; answer: string }[] {
