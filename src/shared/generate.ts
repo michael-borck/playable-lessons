@@ -800,3 +800,30 @@ export async function applyPlan(
   }
   return artifacts
 }
+
+// ─── AI refinement (per-item) ────────────────────────────────────────────────
+
+/**
+ * Refine a single piece of text via the LLM. Returns the improved text (not
+ * JSON — just cleaned-up prose). Used by the inline "✨ Improve" buttons.
+ */
+export async function refineText(
+  text: string,
+  instruction: string,
+  config: ProviderConfig,
+  opts: GenerateOptions = {}
+): Promise<string> {
+  const call = opts.call ?? ((messages: AIMessage[]) => callAI(messages, config))
+  const result = await call([
+    {
+      role: 'system',
+      content:
+        'You improve educational content. Return ONLY the improved text — no preamble, no explanation, no markdown.'
+    },
+    {
+      role: 'user',
+      content: `${instruction}\n\nCurrent text:\n"""\n${text}\n"""\n\nReturn only the improved version.`
+    }
+  ])
+  return result.trim()
+}

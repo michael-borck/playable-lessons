@@ -9,9 +9,14 @@ import {
   type ProviderConfig,
   type ResolvedProvider
 } from '../../../shared/aiClient'
-import { extractInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan } from '../../../shared/generate'
+import { extractInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan, refineText } from '../../../shared/generate'
 import { projectIdFromName, type ProjectFull } from '../../../shared/project'
 import { projectService } from './projectService'
+
+/** Refine a single piece of text via the current provider (for the ✨ buttons). */
+export async function refineTextGUI(text: string, instruction: string): Promise<string> {
+  return refineText(text, instruction, buildProviderConfig(), { call: ai })
+}
 
 /** Build a provider config from the current store state, resolving `auto`. */
 function buildProviderConfig(): ProviderConfig {

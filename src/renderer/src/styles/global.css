@@ -1027,3 +1027,9 @@ body {
 .edit-option .edit-input { flex: 1; margin-bottom: 0; }
 .edit-option input[type="radio"] { margin: 0; accent-color: var(--accent); cursor: pointer; }
 .edit-delete { padding: 4px 10px; font-size: 13px; flex-shrink: 0; }
+
+/* ─── AI refine button ─── */
+.refine-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+.refine-direction { flex: 1; margin-bottom: 0; font-size: 13px; }
+.refine-btn { padding: 4px 10px; font-size: 16px; line-height: 1; }
+.refine-dir-btn { padding: 4px 8px; font-size: 14px; line-height: 1; }
