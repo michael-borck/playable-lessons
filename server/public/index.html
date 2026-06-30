@@ -39,9 +39,7 @@
     .story-demo-header .live-dot::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: blink 1.4s infinite; }
     @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
 
-    .story-demo-body { padding: 20px; min-height: 240px; }
-    .scene { opacity: 0; transition: opacity 0.5s ease; position: absolute; width: calc(100% - 40px); }
-    .scene.active { opacity: 1; position: relative; }
+    .story-demo-body { padding: 20px; min-height: 220px; transition: opacity 0.35s ease; }
     .scene-text { font-family: var(--serif); font-size: 16px; line-height: 1.7; color: var(--text); margin-bottom: 16px; min-height: 60px; }
     .scene-choices { display: flex; flex-direction: column; gap: 8px; }
     .scene-choice {
@@ -317,44 +315,51 @@
       var body = document.getElementById('demo-body')
       if (!body) return
 
-      // Build scene HTML
-      var html = '<div class="scene active" id="current-scene">'
-      html += '<div class="scene-text">' + s.text + '</div>'
-      html += '<div class="scene-choices">'
-      s.choices.forEach(function (c, i) {
-        html += '<div class="scene-choice" data-idx="' + i + '">' + c.label + '</div>'
-      })
-      html += '</div></div>'
-      body.innerHTML = html
+      // Fade out current content
+      body.style.opacity = '0'
 
-      // Update variables
-      trust = Math.max(0, Math.min(100, trust))
-      exp = Math.max(0, Math.min(100, exp))
-      document.getElementById('var-trust').style.width = trust + '%'
-      document.getElementById('var-trust-val').textContent = trust + '%'
-      document.getElementById('var-exp').style.width = exp + '%'
-      document.getElementById('var-exp-val').textContent = exp + '%'
-
-      // After 3s, auto-select the choice and advance
+      // After fade-out, swap content + fade in
       setTimeout(function () {
-        var picked = s.choices.find(function (c) { return c.pick }) || s.choices[0]
-        var choiceEls = body.querySelectorAll('.scene-choice')
-        var pickIdx = s.choices.indexOf(picked)
-        if (choiceEls[pickIdx]) choiceEls[pickIdx].classList.add('selected')
-        trust += picked.trust || 0
-        exp += picked.exp || 0
-      }, 2500)
+        var html = '<div class="scene-text">' + s.text + '</div>'
+        html += '<div class="scene-choices">'
+        s.choices.forEach(function (c, i) {
+          html += '<div class="scene-choice" data-idx="' + i + '">' + c.label + '</div>'
+        })
+        html += '</div>'
+        body.innerHTML = html
 
-      // After 4.5s, advance to next scene
-      setTimeout(function () {
-        var old = document.getElementById('current-scene')
-        if (old) { old.classList.remove('active'); old.style.opacity = '0' }
+        // Update variables
+        trust = Math.max(0, Math.min(100, trust))
+        exp = Math.max(0, Math.min(100, exp))
+        document.getElementById('var-trust').style.width = trust + '%'
+        document.getElementById('var-trust-val').textContent = trust + '%'
+        document.getElementById('var-exp').style.width = exp + '%'
+        document.getElementById('var-exp-val').textContent = exp + '%'
+
+        // Fade in
+        body.style.opacity = '1'
+
+        // After 2.5s, auto-select the choice
+        setTimeout(function () {
+          var picked = s.choices.find(function (c) { return c.pick }) || s.choices[0]
+          var choiceEls = body.querySelectorAll('.scene-choice')
+          var pickIdx = s.choices.indexOf(picked)
+          if (choiceEls[pickIdx]) choiceEls[pickIdx].classList.add('selected')
+          trust += picked.trust || 0
+          exp += picked.exp || 0
+          document.getElementById('var-trust').style.width = Math.max(0, Math.min(100, trust)) + '%'
+          document.getElementById('var-trust-val').textContent = Math.max(0, Math.min(100, trust)) + '%'
+          document.getElementById('var-exp').style.width = Math.max(0, Math.min(100, exp)) + '%'
+          document.getElementById('var-exp-val').textContent = Math.max(0, Math.min(100, exp)) + '%'
+        }, 2500)
+
+        // After 4.5s, advance to next scene
         setTimeout(function () {
           sceneIdx = (sceneIdx + 1) % scenes.length
-          if (sceneIdx === 0) { trust = 50; exp = 20 } // reset on loop
+          if (sceneIdx === 0) { trust = 50; exp = 20 }
           renderScene()
-        }, 500)
-      }, 4500)
+        }, 4500)
+      }, 350)
     }
 
     // Start the animation once the app is visible
