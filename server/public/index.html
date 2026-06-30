@@ -25,7 +25,16 @@
     .hero-text .tagline { font-size: 22px; margin: 10px 0; }
     .hero-text .tagline .accent { color: var(--accent-hover); }
     .hero-text .desc { font-size: 16px; color: var(--text-muted); margin-bottom: 24px; }
-    .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
+    .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+
+    /* Desktop download (auto-detected) */
+    .desktop-download { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .desktop-download .dl-label { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+    .dl-primary { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .dl-primary a { font-size: 15px; }
+    .dl-other { display: flex; gap: 12px; font-size: 13px; }
+    .dl-other a { color: var(--text-muted); text-decoration: none; }
+    .dl-other a:hover { color: var(--accent-hover); }
 
     /* Story demo card */
     .story-demo { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
@@ -56,16 +65,25 @@
 
     /* ─── Create view ─── */
     #create-view { display: none; min-height: 100vh; padding: 40px 0; }
-    .create-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+    .create-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
     .create-header h2 { font-size: 24px; }
     .back-link { color: var(--text-muted); text-decoration: none; font-size: 14px; cursor: pointer; }
     .back-link:hover { color: var(--accent-hover); }
+
+    /* Desktop app pitch (on create page) */
+    .app-pitch { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 28px; }
+    .app-pitch h3 { font-size: 16px; color: var(--accent-hover); margin-bottom: 8px; }
+    .app-pitch p { font-size: 14px; color: var(--text-muted); margin-bottom: 12px; }
+    .app-pitch .features { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+    .app-pitch .feature { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+    .app-pitch .dl-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .app-pitch .dl-row a { font-size: 14px; }
+    .app-pitch .dl-row .dl-other { margin-left: auto; }
 
     .input-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
     .input-tab { padding: 10px 20px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 15px; cursor: pointer; transition: all 0.15s; }
     .input-tab:hover { color: var(--text); }
     .input-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
     label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
     textarea, input, select { width: 100%; padding: 12px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 16px; font-family: inherit; }
     textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); }
@@ -73,45 +91,34 @@
     .form-row { display: flex; gap: 12px; margin-bottom: 16px; }
     .form-row > div { flex: 1; }
     .form-group { margin-bottom: 16px; }
-
-    /* File drop zone */
     .drop-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 40px; text-align: center; cursor: pointer; transition: border-color 0.15s; }
     .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); }
     .drop-zone p { color: var(--text-muted); font-size: 15px; }
-    .drop-zone .file-name { color: var(--accent-hover); margin-top: 8px; }
-
     .error { background: rgba(232,88,88,0.12); border: 1px solid var(--error); border-radius: 8px; padding: 12px 16px; color: var(--error); margin: 16px 0; display: none; }
-
-    /* Loading */
     .gen-loading { text-align: center; padding: 60px 20px; }
-    .gen-loading .gen-text { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+    .gen-loading .gen-text { font-size: 18px; margin-bottom: 8px; }
     .gen-loading .gen-hint { font-size: 14px; color: var(--text-muted); }
     .gen-loading .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 20px; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Result */
     .gen-result { text-align: center; padding: 40px 20px; }
     .gen-result h3 { font-size: 24px; color: var(--accent-hover); margin-bottom: 8px; }
     .gen-result p { color: var(--text-muted); margin-bottom: 24px; }
     .play-btn { font-size: 20px; padding: 18px 48px; margin-bottom: 16px; }
     .download-link { display: inline-block; color: var(--text-muted); font-size: 15px; text-decoration: none; border-bottom: 1px dashed var(--border); padding-bottom: 2px; }
     .download-link:hover { color: var(--accent-hover); }
-
-    /* Quiz / flashcard results (inline) */
     .inline-result { margin: 24px 0; text-align: left; }
     .inline-result h3 { font-size: 22px; color: var(--accent-hover); margin-bottom: 12px; }
     .result-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; }
-    .result-card .front { font-weight: 600; color: var(--accent-hover); }
-    .result-card .back { margin-top: 4px; }
-    .result-card .hint { font-size: 13px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
+    .result-card .front { display: block; font-weight: 600; color: var(--accent-hover); }
+    .result-card .back { display: block; margin-top: 4px; }
+    .result-card .hint { display: block; font-size: 13px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
     .result-h { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 18px 0 8px; }
-
     @media (max-width: 760px) { .hero-grid { grid-template-columns: 1fr; } .form-row { flex-direction: column; } .hero-cta { flex-direction: column; } }
   </style>
 </head>
 <body>
 
-  <!-- ─── Access-code gate ─── -->
+  <!-- Gate -->
   <div id="gate" class="container" style="display:none; text-align:center; padding-top:80px">
     <h1 style="font-size:32px;color:var(--accent-hover)">Playable Lessons</h1>
     <p style="color:var(--text-muted);font-size:14px;margin:8px 0 24px">This instance requires an access code.</p>
@@ -133,7 +140,12 @@
               learners <em>play</em> by making choices. Not a summary. A story they live through.</p>
             <div class="hero-cta">
               <button class="btn btn-primary btn-lg" onclick="showCreate()">Create a story &rarr;</button>
-              <a class="btn btn-secondary btn-lg" href="https://github.com/michael-borck/playable-lessons/releases/latest">&darr; Get the app</a>
+            </div>
+            <!-- Auto-detected desktop download -->
+            <div class="desktop-download" id="desktop-download">
+              <div class="dl-label">Or get the full desktop app</div>
+              <div class="dl-primary" id="dl-primary"></div>
+              <div class="dl-other" id="dl-other"></div>
             </div>
           </div>
           <div>
@@ -158,7 +170,6 @@
         </div>
       </div>
     </div>
-
     <div class="other-outputs">
       <div class="container">
         <h3>Also generates</h3>
@@ -170,17 +181,15 @@
         </div>
       </div>
     </div>
-
     <div class="landing-footer">
       <div class="container">
-        <a href="https://github.com/michael-borck/playable-lessons">GitHub</a>
         <a href="https://michael-borck.github.io/playable-lessons/">Landing page</a>
         <span style="color:var(--text-muted);font-size:14px">MIT</span>
       </div>
     </div>
   </div>
 
-  <!-- ─── Create view (one-off: paste → generate → download) ─── -->
+  <!-- ─── Create view ─── -->
   <div id="create-view">
     <div class="container">
       <div class="create-header">
@@ -188,20 +197,29 @@
         <span class="back-link" onclick="showLanding()">&larr; Back</span>
       </div>
 
-      <!-- Input mode tabs -->
+      <!-- Desktop app pitch -->
+      <div class="app-pitch">
+        <h3>This is the web version — the desktop app does more</h3>
+        <div class="features">
+          <span class="feature">&#10003; Inline editing + AI refinement</span>
+          <span class="feature">&#10003; Projects dashboard</span>
+          <span class="feature">&#10003; Offline (Ollama)</span>
+          <span class="feature">&#10003; No rate limits</span>
+        </div>
+        <div class="dl-row" id="pitch-dl-row"></div>
+      </div>
+
+      <!-- Input tabs -->
       <div class="input-tabs">
         <button class="input-tab active" data-mode="text" onclick="switchInputMode('text')">Type / Paste</button>
         <button class="input-tab" data-mode="file" onclick="switchInputMode('file')">Upload file</button>
       </div>
 
-      <!-- Text input -->
       <div id="text-input-mode">
         <div class="form-group">
           <textarea id="source" placeholder="Paste a case study, lecture notes, a topic, or any text..." rows="6"></textarea>
         </div>
       </div>
-
-      <!-- File upload -->
       <div id="file-input-mode" style="display:none">
         <div class="form-group">
           <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-upload').click()">
@@ -213,7 +231,6 @@
         </div>
       </div>
 
-      <!-- Target + options -->
       <div class="form-row">
         <div class="form-group">
           <label>What to generate</label>
@@ -246,7 +263,6 @@
       </div>
 
       <button id="generate-btn" class="btn btn-primary btn-lg" style="width:100%" onclick="generate()">Generate</button>
-
       <div id="error" class="error"></div>
       <div id="result-area"></div>
     </div>
@@ -272,44 +288,98 @@
           { label: "\u2192 Document lessons learned", trust: 5, exp: 15, pick: true } ] }
     ]
     var sceneIdx = 0, trust = 50, exp = 20
-
     function renderScene() {
-      var s = scenes[sceneIdx]
-      var body = document.getElementById('demo-body')
+      var s = scenes[sceneIdx], body = document.getElementById('demo-body')
       if (!body) return
       body.style.opacity = '0'
       setTimeout(function () {
         var html = '<div class="scene-text">' + s.text + '</div><div class="scene-choices">'
-        s.choices.forEach(function (c, i) { html += '<div class="scene-choice">' + c.label + '</div>' })
-        html += '</div>'
-        body.innerHTML = html
-        trust = Math.max(0, Math.min(100, trust)); exp = Math.max(0, Math.min(100, exp))
-        document.getElementById('var-trust').style.width = trust + '%'
-        document.getElementById('var-trust-val').textContent = trust + '%'
-        document.getElementById('var-exp').style.width = exp + '%'
-        document.getElementById('var-exp-val').textContent = exp + '%'
+        s.choices.forEach(function (c) { html += '<div class="scene-choice">' + c.label + '</div>' })
+        html += '</div>'; body.innerHTML = html
+        trust = Math.max(0,Math.min(100,trust)); exp = Math.max(0,Math.min(100,exp))
+        document.getElementById('var-trust').style.width = trust+'%'; document.getElementById('var-trust-val').textContent = trust+'%'
+        document.getElementById('var-exp').style.width = exp+'%'; document.getElementById('var-exp-val').textContent = exp+'%'
         body.style.opacity = '1'
         setTimeout(function () {
-          var picked = s.choices.find(function (c) { return c.pick }) || s.choices[0]
-          var els = body.querySelectorAll('.scene-choice')
-          if (els[s.choices.indexOf(picked)]) els[s.choices.indexOf(picked)].classList.add('selected')
-          trust += picked.trust || 0; exp += picked.exp || 0
-          document.getElementById('var-trust').style.width = Math.max(0,Math.min(100,trust)) + '%'
-          document.getElementById('var-trust-val').textContent = Math.max(0,Math.min(100,trust)) + '%'
-          document.getElementById('var-exp').style.width = Math.max(0,Math.min(100,exp)) + '%'
-          document.getElementById('var-exp-val').textContent = Math.max(0,Math.min(100,exp)) + '%'
+          var picked = s.choices.find(function(c){return c.pick})||s.choices[0]
+          var els = body.querySelectorAll('.scene-choice'); var pi = s.choices.indexOf(picked)
+          if (els[pi]) els[pi].classList.add('selected')
+          trust += picked.trust||0; exp += picked.exp||0
+          document.getElementById('var-trust').style.width = Math.max(0,Math.min(100,trust))+'%'
+          document.getElementById('var-trust-val').textContent = Math.max(0,Math.min(100,trust))+'%'
+          document.getElementById('var-exp').style.width = Math.max(0,Math.min(100,exp))+'%'
+          document.getElementById('var-exp-val').textContent = Math.max(0,Math.min(100,exp))+'%'
         }, 2500)
-        setTimeout(function () {
-          sceneIdx = (sceneIdx + 1) % scenes.length
-          if (sceneIdx === 0) { trust = 50; exp = 20 }
-          renderScene()
-        }, 4500)
+        setTimeout(function () { sceneIdx = (sceneIdx+1)%scenes.length; if(sceneIdx===0){trust=50;exp=20} renderScene() }, 4500)
       }, 350)
     }
-    var check = setInterval(function () {
-      if (document.getElementById('demo-body')) { clearInterval(check); renderScene() }
-    }, 200)
+    var check = setInterval(function(){ if(document.getElementById('demo-body')){clearInterval(check);renderScene()} }, 200)
   })()
+  </script>
+
+  <!-- ─── Platform detection + download links ─── -->
+  <script>
+  var REPO = 'michael-borck/playable-lessons'
+  var PLATFORM_EXT = { mac: '.dmg', windows: '.exe', linux: '.AppImage' }
+  var PLATFORM_LABEL = { mac: 'macOS', windows: 'Windows', linux: 'Linux' }
+  var detectedPlatform = (function () {
+    var ua = navigator.userAgent.toLowerCase(), p = (navigator.platform || '').toLowerCase()
+    if (p.includes('mac') || ua.includes('macintosh') || ua.includes('mac os')) return 'mac'
+    if (p.includes('win') || ua.includes('windows')) return 'windows'
+    if (ua.includes('linux') || p.includes('linux')) return 'linux'
+    return 'mac'
+  })()
+  var releaseAssets = [], releaseVersion = ''
+
+  // Fetch latest release from GitHub API
+  fetch('https://api.github.com/repos/' + REPO + '/releases/latest')
+    .then(function (r) { return r.json() })
+    .then(function (data) {
+      releaseAssets = data.assets || []
+      releaseVersion = data.tag_name || ''
+      renderDownloads()
+    })
+    .catch(function () { /* offline or rate-limited — links fall back to releases page */ })
+
+  function matchAsset(platform) {
+    var ext = PLATFORM_EXT[platform]
+    return releaseAssets.find(function (a) { return a.name.endsWith(ext) }) || null
+  }
+
+  function renderDownloads() {
+    var primaryAsset = matchAsset(detectedPlatform)
+    var primaryUrl = primaryAsset ? primaryAsset.browser_download_url : 'https://github.com/' + REPO + '/releases/latest'
+    var primaryLabel = '&darr; Download for ' + PLATFORM_LABEL[detectedPlatform]
+    var versionText = releaseVersion ? ('<span style="color:var(--text-muted);font-size:12px;margin-left:8px">' + releaseVersion + '</span>') : ''
+
+    // Landing page download
+    var dlPrimary = document.getElementById('dl-primary')
+    if (dlPrimary) dlPrimary.innerHTML = '<a class="btn btn-secondary" href="' + primaryUrl + '">' + primaryLabel + '</a>' + versionText
+
+    var otherPlatforms = Object.keys(PLATFORM_EXT).filter(function (k) { return k !== detectedPlatform })
+    var dlOther = document.getElementById('dl-other')
+    if (dlOther) {
+      dlOther.innerHTML = otherPlatforms.map(function (p) {
+        var a = matchAsset(p)
+        var url = a ? a.browser_download_url : 'https://github.com/' + REPO + '/releases/latest'
+        return '<a href="' + url + '">' + PLATFORM_LABEL[p] + '</a>'
+      }).join(' \u00b7 ')
+    }
+
+    // Create page pitch download
+    var pitchDl = document.getElementById('pitch-dl-row')
+    if (pitchDl) {
+      pitchDl.innerHTML = '<a class="btn btn-secondary" href="' + primaryUrl + '">' + primaryLabel + '</a>' +
+        '<div class="dl-other">' + otherPlatforms.map(function (p) {
+          var a = matchAsset(p)
+          var url = a ? a.browser_download_url : 'https://github.com/' + REPO + '/releases/latest'
+          return '<a href="' + url + '">' + PLATFORM_LABEL[p] + '</a>'
+        }).join(' \u00b7 ') + '</div>'
+    }
+  }
+
+  // Render once immediately (before API responds — uses fallback URL)
+  renderDownloads()
   </script>
 
   <!-- ─── App logic ─── -->
@@ -319,173 +389,80 @@
 
   async function init() {
     try {
-      const res = await fetch('/api/health')
-      const data = await res.json()
-      if (data.requiresAccessCode && !accessCode) { showGate() }
+      var res = await fetch('/api/health')
+      var data = await res.json()
+      if (data.requiresAccessCode && !accessCode) showGate()
       else if (data.requiresAccessCode) {
-        const check = await fetch('/api/health', { headers: { 'x-access-code': accessCode } })
+        var check = await fetch('/api/health', { headers: { 'x-access-code': accessCode } })
         if (check.ok) showLanding(); else { localStorage.removeItem('pl-access-code'); accessCode = ''; showGate() }
-      } else { showLanding() }
-    } catch { showLanding() }
+      } else showLanding()
+    } catch (e) { showLanding() }
   }
+  function showGate() { document.getElementById('gate').style.display='block'; document.getElementById('landing-view').style.display='none'; document.getElementById('create-view').style.display='none' }
+  function showLanding() { document.getElementById('gate').style.display='none'; document.getElementById('landing-view').style.display='flex'; document.getElementById('create-view').style.display='none'; window.scrollTo(0,0) }
+  function showCreate() { document.getElementById('landing-view').style.display='none'; document.getElementById('create-view').style.display='block'; window.scrollTo(0,0); setTimeout(function(){var s=document.getElementById('source');if(s)s.focus()},100) }
 
-  function showGate() { document.getElementById('gate').style.display = 'block'; document.getElementById('landing-view').style.display = 'none'; document.getElementById('create-view').style.display = 'none' }
-  function showLanding() { document.getElementById('gate').style.display = 'none'; document.getElementById('landing-view').style.display = 'flex'; document.getElementById('create-view').style.display = 'none'; window.scrollTo(0, 0) }
-  function showCreate() { document.getElementById('landing-view').style.display = 'none'; document.getElementById('create-view').style.display = 'block'; window.scrollTo(0, 0); setTimeout(function () { document.getElementById('source') && document.getElementById('source').focus() }, 100) }
+  function submitAccessCode() { var c = document.getElementById('access-code-input').value.trim(); if(!c)return; accessCode=c; localStorage.setItem('pl-access-code',c); init() }
+  function switchInputMode(m) { document.querySelectorAll('.input-tab').forEach(function(t){t.classList.toggle('active',t.dataset.mode===m)}); document.getElementById('text-input-mode').style.display=m==='text'?'block':'none'; document.getElementById('file-input-mode').style.display=m==='file'?'block':'none' }
 
-  function submitAccessCode() {
-    var code = document.getElementById('access-code-input').value.trim()
-    if (!code) return
-    accessCode = code; localStorage.setItem('pl-access-code', code); init()
+  function handleFileUpload(e) {
+    var f = e.target.files[0]; if(!f) return
+    var n = document.getElementById('file-name'); n.textContent = f.name+' ('+(f.size/1024).toFixed(1)+' KB)'; n.style.display='block'
+    var r = new FileReader(); r.onload = function(ev){uploadedText=ev.target.result}; r.readAsText(f)
   }
+  var dz = document.getElementById('drop-zone')
+  if (dz) { dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('dragover')}); dz.addEventListener('dragleave',function(){dz.classList.remove('dragover')}); dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('dragover');if(e.dataTransfer.files.length){document.getElementById('file-upload').files=e.dataTransfer.files;handleFileUpload({target:{files:e.dataTransfer.files}})}}) }
 
-  function switchInputMode(mode) {
-    document.querySelectorAll('.input-tab').forEach(function (t) { t.classList.toggle('active', t.dataset.mode === mode) })
-    document.getElementById('text-input-mode').style.display = mode === 'text' ? 'block' : 'none'
-    document.getElementById('file-input-mode').style.display = mode === 'file' ? 'block' : 'none'
-  }
-
-  function handleFileUpload(event) {
-    var file = event.target.files[0]; if (!file) return
-    var nameEl = document.getElementById('file-name')
-    nameEl.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)'
-    nameEl.style.display = 'block'
-    var reader = new FileReader()
-    reader.onload = function (e) { uploadedText = e.target.result }
-    reader.readAsText(file)
-  }
-
-  // Drag and drop
-  var dropZone = document.getElementById('drop-zone')
-  if (dropZone) {
-    dropZone.addEventListener('dragover', function (e) { e.preventDefault(); dropZone.classList.add('dragover') })
-    dropZone.addEventListener('dragleave', function () { dropZone.classList.remove('dragover') })
-    dropZone.addEventListener('drop', function (e) {
-      e.preventDefault(); dropZone.classList.remove('dragover')
-      if (e.dataTransfer.files.length) { document.getElementById('file-upload').files = e.dataTransfer.files; handleFileUpload({ target: { files: e.dataTransfer.files } }) }
-    })
-  }
-
-  // Target selector changes
-  document.getElementById('target').addEventListener('change', function (e) {
+  document.getElementById('target').addEventListener('change', function(e) {
     document.getElementById('depth-group').style.display = e.target.value === 'case-study' ? 'flex' : 'none'
-    var countGroup = document.getElementById('count-group')
-    var countLabel = countGroup.querySelector('label')
-    if (e.target.value === 'story') {
-      countLabel.textContent = 'Length'
-      countGroup.querySelector('select').innerHTML = '<option value="5">Short (~5 scenes)</option><option value="12" selected>Medium (~12 scenes)</option><option value="25">Long (~25+ scenes)</option>'
-    } else if (e.target.value === 'case-study') {
-      countGroup.style.display = 'none'
-    } else {
-      countGroup.style.display = 'flex'
-      countLabel.textContent = 'How many?'
-      countGroup.querySelector('select').outerHTML = '<input id="count" type="number" value="8" min="1" max="20" />'
-    }
+    var cg = document.getElementById('count-group'), cl = cg.querySelector('label')
+    if (e.target.value === 'story') { cg.style.display='flex'; cl.textContent='Length'; cg.querySelector('select').innerHTML='<option value="5">Short (~5 scenes)</option><option value="12" selected>Medium (~12 scenes)</option><option value="25">Long (~25+ scenes)</option>' }
+    else if (e.target.value === 'case-study') { cg.style.display='none' }
+    else { cg.style.display='flex'; cl.textContent='How many?'; cg.querySelector('select').outerHTML='<input id="count" type="number" value="8" min="1" max="20" />' }
   })
 
   async function generate() {
     var source = uploadedText || document.getElementById('source').value.trim()
     var target = document.getElementById('target').value
-    var countEl = document.getElementById('count')
-    var count = countEl ? (parseInt(countEl.value, 10) || 8) : 8
+    var countEl = document.getElementById('count'); var count = countEl ? (parseInt(countEl.value,10)||8) : 8
     var depth = document.getElementById('depth').value
-
     if (!source) { showError('Please enter or upload some source material first.'); return }
-
-    var btn = document.getElementById('generate-btn')
-    var resultArea = document.getElementById('result-area')
-    var errorArea = document.getElementById('error')
+    var btn = document.getElementById('generate-btn'), ra = document.getElementById('result-area'), ea = document.getElementById('error')
     var isStory = target === 'story'
-
-    btn.disabled = true; btn.textContent = isStory ? 'Crafting...' : 'Generating...'
-    errorArea.style.display = 'none'
-
-    resultArea.innerHTML = '<div class="gen-loading"><div class="spinner"></div>' +
-      '<div class="gen-text">' + (isStory ? 'Crafting your branching narrative' : 'Generating') + '</div>' +
-      '<div class="gen-hint">' + (isStory ? '6 AI passes — this takes a bit longer' : '') + '</div></div>'
-
+    btn.disabled = true; btn.textContent = isStory ? 'Crafting...' : 'Generating...'; ea.style.display = 'none'
+    ra.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div class="gen-text">' + (isStory?'Crafting your branching narrative':'Generating') + '</div><div class="gen-hint">' + (isStory?'6 AI passes \u2014 this takes a bit longer':'') + '</div></div>'
     try {
-      var res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(accessCode ? { 'x-access-code': accessCode } : {}) },
-        body: JSON.stringify({ source: source, target: target, count: count, depth: depth })
-      })
-      var data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Generation failed.')
+      var res = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json',...(accessCode?{'x-access-code':accessCode}:{})}, body:JSON.stringify({source:source,target:target,count:count,depth:depth}) })
+      var data = await res.json(); if(!res.ok) throw new Error(data.error||'Generation failed.')
       renderResult(data.result, target)
-    } catch (err) {
-      errorArea.textContent = err.message; errorArea.style.display = 'block'; resultArea.innerHTML = ''
-    } finally {
-      btn.disabled = false; btn.textContent = 'Generate'
-    }
+    } catch(err) { ea.textContent=err.message; ea.style.display='block'; ra.innerHTML='' }
+    finally { btn.disabled=false; btn.textContent='Generate' }
   }
 
   function renderResult(result, target) {
     var area = document.getElementById('result-area')
     if (target === 'story' || result.type === 'story') {
-      var blob = new Blob([result.html], { type: 'text/html' })
-      var url = URL.createObjectURL(blob)
-      area.innerHTML = '<div class="gen-result">' +
-        '<h3>Your story is ready!</h3>' +
-        '<p>A self-contained playable HTML file. Works offline — share via email or LMS.</p>' +
-        '<a class="btn btn-primary play-btn" href="' + url + '" target="_blank">\u25B6 Play Story</a>' +
-        '<br><a class="download-link" href="' + url + '" download="playable-story.html">Download .html</a>' +
-        '</div>'
+      var blob = new Blob([result.html], {type:'text/html'}); var url = URL.createObjectURL(blob)
+      area.innerHTML = '<div class="gen-result"><h3>Your story is ready!</h3><p>A self-contained playable HTML file. Works offline \u2014 share via email or LMS.</p><a class="btn btn-primary play-btn" href="'+url+'" target="_blank">\u25B6 Play Story</a><br><a class="download-link" href="'+url+'" download="playable-story.html">Download .html</a></div>'
       return
     }
-
-    // Non-story: render inline
-    var html = '<div class="inline-result">'
-    var labels = { summary: 'Summary', flashcards: 'Flashcards', quiz: 'Quiz', 'ai-task': 'AI Tasks', 'case-study': 'Case Study' }
-    html += '<h3>' + (labels[target] || target) + ' \u2014 ready</h3>'
-
-    if (target === 'flashcards') {
-      if (result.deckTitle) html += '<p style="color:var(--text-muted);margin-bottom:12px">' + esc(result.deckTitle) + '</p>'
-      result.cards.forEach(function (c) {
-        html += '<div class="result-card"><span class="front">' + esc(c.front) + '</span><span class="back">' + esc(c.back) + '</span>'
-        if (c.hint) html += '<span class="hint">Hint: ' + esc(c.hint) + '</span>'
-        html += '</div>'
-      })
-    } else if (target === 'quiz') {
-      result.questions.forEach(function (q, i) {
-        html += '<div class="result-card"><span class="front">' + (i+1) + '. ' + esc(q.stem) + '</span>'
-        q.options.forEach(function (o, j) { html += '<span class="back">' + 'ABCD'[j] + ') ' + esc(o) + (j === q.correctIndex ? ' \u2705' : '') + '</span>' })
-        if (q.explanation) html += '<span class="hint">' + esc(q.explanation) + '</span>'
-        html += '</div>'
-      })
-    } else if (target === 'summary') {
-      if (result.overview) html += '<p style="margin-bottom:12px">' + esc(result.overview) + '</p>'
-      if (result.keyPoints && result.keyPoints.length) {
-        html += '<div class="result-h">Key Points</div><ol>'
-        result.keyPoints.forEach(function (p) { html += '<li>' + esc(p) + '</li>' })
-        html += '</ol>'
-      }
-    } else if (target === 'ai-task') {
-      result.tasks.forEach(function (t, i) {
-        html += '<div class="result-card"><span class="front">Task ' + (i+1) + ': ' + esc(t.scenario) + '</span>'
-        html += '<span class="back">Brief: ' + esc(t.brief) + '</span>'
-        html += '<span class="back">Deliverable: ' + esc(t.deliverable) + '</span></div>'
-      })
-    } else if (target === 'case-study') {
-      var cs = result.caseStudy
-      if (result.title) html += '<p style="margin-bottom:12px">' + esc(result.title) + '</p>'
-      if (cs && cs.situation) html += '<div class="result-h">Situation</div><p>' + esc(cs.situation) + '</p>'
-      if (cs && cs.conflict) html += '<div class="result-h">Conflict</div><p>' + esc(cs.conflict) + '</p>'
-    }
-
-    // Download as JSON
-    var jsonBlob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' })
-    var jsonUrl = URL.createObjectURL(jsonBlob)
-    html += '<div style="text-align:center;margin-top:24px"><a class="download-link" href="' + jsonUrl + '" download="' + target + '.json">Download .json</a></div>'
-    html += '</div>'
+    var labels = { summary:'Summary', flashcards:'Flashcards', quiz:'Quiz', 'ai-task':'AI Tasks', 'case-study':'Case Study' }
+    var html = '<div class="inline-result"><h3>'+labels[target]+' \u2014 ready</h3>'
+    if (target==='flashcards') { if(result.deckTitle)html+='<p style="color:var(--text-muted);margin-bottom:12px">'+esc(result.deckTitle)+'</p>'; result.cards.forEach(function(c){html+='<div class="result-card"><span class="front">'+esc(c.front)+'</span><span class="back">'+esc(c.back)+'</span>';if(c.hint)html+='<span class="hint">Hint: '+esc(c.hint)+'</span>';html+='</div>'}) }
+    else if (target==='quiz') { result.questions.forEach(function(q,i){html+='<div class="result-card"><span class="front">'+(i+1)+'. '+esc(q.stem)+'</span>';q.options.forEach(function(o,j){html+='<span class="back">'+'ABCD'[j]+') '+esc(o)+(j===q.correctIndex?' \u2705':'')+'</span>'});if(q.explanation)html+='<span class="hint">'+esc(q.explanation)+'</span>';html+='</div>'}) }
+    else if (target==='summary') { if(result.overview)html+='<p style="margin-bottom:12px">'+esc(result.overview)+'</p>'; if(result.keyPoints&&result.keyPoints.length){html+='<div class="result-h">Key Points</div><ol>';result.keyPoints.forEach(function(p){html+='<li>'+esc(p)+'</li>'});html+='</ol>'} }
+    else if (target==='ai-task') { result.tasks.forEach(function(t,i){html+='<div class="result-card"><span class="front">Task '+(i+1)+': '+esc(t.scenario)+'</span><span class="back">Brief: '+esc(t.brief)+'</span><span class="back">Deliverable: '+esc(t.deliverable)+'</span></div>'}) }
+    else if (target==='case-study') { var cs=result.caseStudy; if(result.title)html+='<p style="margin-bottom:12px">'+esc(result.title)+'</p>'; if(cs&&cs.situation)html+='<div class="result-h">Situation</div><p>'+esc(cs.situation)+'</p>'; if(cs&&cs.conflict)html+='<div class="result-h">Conflict</div><p>'+esc(cs.conflict)+'</p>' }
+    var jb=new Blob([JSON.stringify(result,null,2)],{type:'application/json'}); var ju=URL.createObjectURL(jb)
+    html += '<div style="text-align:center;margin-top:24px"><a class="download-link" href="'+ju+'" download="'+target+'.json">Download .json</a></div></div>'
     area.innerHTML = html
   }
 
-  function showError(msg) { var a = document.getElementById('error'); a.textContent = msg; a.style.display = 'block' }
-  function esc(text) { var d = document.createElement('div'); d.textContent = String(text || ''); return d.innerHTML }
+  function showError(m) { var a=document.getElementById('error'); a.textContent=m; a.style.display='block' }
+  function esc(t) { var d=document.createElement('div'); d.textContent=String(t||''); return d.innerHTML }
 
   document.getElementById('access-code-btn').addEventListener('click', submitAccessCode)
-  document.getElementById('access-code-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitAccessCode() })
+  document.getElementById('access-code-input').addEventListener('keydown', function(e){if(e.key==='Enter')submitAccessCode()})
   init()
   </script>
 </body>
