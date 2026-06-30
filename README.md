@@ -4,10 +4,13 @@ Turn educational source material into **playable interactive fiction**. Paste in
 
 It ships in two forms:
 
-- **Desktop app** (Electron + React) — the full authoring experience: AI generation with an interactive clarification step, a node-graph editor, live player, a **Projects dashboard** (save / reopen / delete lessons as ownable folders on disk), and exports. Aimed at non-technical authors (e.g. educators).
+- **Desktop app** (Electron + React) — the full authoring experience: AI generation with an interactive clarification step, a node-graph editor, live player, a **Projects dashboard** (save / reopen / delete lessons as ownable folders on disk), **inline editing** with AI refinement (✨), and exports. Aimed at non-technical authors (e.g. educators).
 - **CLI** (`playable-lessons`, on npm) — the same engine, headless: **generate** an Ink story, **flashcards**, a **quiz**, a **summary**, **AI-collaboration tasks**, or a **case study**; **plan** a recommended set; **validate**, and **export**. Handy for scripts, CI, batch runs, and local/offline generation against Ollama.
+- **Self-hosted web** (Docker) — a browser-based version for institutions (e.g. university staff). The server holds the API key; users just enter an access code. No per-user keys, no accounts — work is stored per-browser.
 
-The desktop app and the CLI share one generation pipeline; the app adds the interactive clarification step and visual editor on top.
+The desktop app and the CLI share one generation pipeline; the app adds the interactive clarification step, visual editor, and inline editing on top.
+
+A public landing page with a **try-it demo** (bring your own key) is at **[michael-borck.github.io/playable-lessons](https://michael-borck.github.io/playable-lessons/)**.
 
 ---
 
@@ -203,11 +206,45 @@ npm test
 
 The desktop app supports **Claude**, **OpenAI**, a local **Ollama**, and any **OpenAI-compatible endpoint** (remote Ollama, OpenRouter, LiteLLM, vLLM, …) via a base URL + bearer token. Model IDs are editable, with live model listing and a connection test. API keys are stored in your OS keychain (via Electron `safeStorage`), not in plain config.
 
+### Inline editing + AI refinement
+
+After generating any output (flashcards, quiz, summary, AI-collaboration tasks, case study), switch to **Study → Edit** to tweak the content inline — edit text fields, add/delete items, and use the **✨** button to AI-refine individual fields. Click **💬** before ✨ to give a custom direction (e.g. "simplify for beginners"). Changes flow through to exports.
+
+---
+
+## Self-hosted web (Docker)
+
+For institutions or teams that want a browser-based version without per-user API keys. The server holds the key; users enter a shared access code.
+
+### Quick start
+
+```bash
+# 1. Grab the files
+curl -sL https://raw.githubusercontent.com/michael-borck/playable-lessons/main/docker-compose.yml -o docker-compose.yml
+mkdir -p server
+curl -sL https://raw.githubusercontent.com/michael-borck/playable-lessons/main/server/.env.example -o server/.env
+
+# 2. Edit server/.env — set your API key + optional access code
+#    ANTHROPIC_API_KEY=sk-ant-...
+#    ACCESS_CODE=staff-2024   (comma-separated for multiple groups; blank = no gate)
+
+# 3. Swap build for the prebuilt image in docker-compose.yml
+#    image: ghcr.io/michael-borck/playable-lessons:latest
+
+# 4. Deploy
+docker compose pull && docker compose up -d
+```
+
+Staff access the server at `http://your-server:3000`, enter the access code, and generate. Work is stored per-browser (localStorage); the AI key stays server-side. Rate limiting is configurable (`RATE_LIMIT_PER_HOUR`, default 30).
+
+To revoke a group: remove their code from `.env` → `docker compose restart`. To update: change the image tag → `docker compose pull && docker compose up -d`.
+
 ---
 
 ## Tech stack
 
-Electron + electron-vite · React 19 + TypeScript · Zustand · [inkjs](https://github.com/y-lohse/inkjs) (Ink compiler + runtime) · @xyflow/react (graph editor) · yargs (CLI).
+Electron + electron-vite · React 19 + TypeScript · Zustand · [inkjs](https://github.com/y-lohse/inkjs) (Ink compiler + runtime) · @xyflow/react (graph editor) · yargs (CLI) · Express (self-hosted server).
+
 
 ## License
 
