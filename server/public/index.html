@@ -5,18 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Playable Lessons — Turn material into playable stories</title>
   <style>
-    :root { --bg: #1a1a2e; --bg-card: #252540; --text: #e8e8f0; --text-muted: #a0a0b8; --accent: #7c6ef0; --accent-hover: #9488f8; --border: #3a3b55; --radius: 8px; --error: #e85858; }
+    :root { --bg: #1a1a2e; --bg-card: #252540; --bg-card-2: #2a2a4a; --text: #e8e8f0; --text-muted: #a0a0b8; --accent: #7c6ef0; --accent-hover: #9488f8; --border: #3a3b55; --radius: 8px; --error: #e85858; --success: #4ade80; --serif: Georgia, 'Times New Roman', serif; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
-    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
-
-    /* ─── Hero ─── */
-    .hero { text-align: center; padding: 72px 0 40px; }
-    .hero h1 { font-size: 42px; font-weight: 800; color: var(--accent-hover); letter-spacing: -1px; }
-    .hero .tagline { font-size: 24px; margin: 12px 0 16px; }
-    .hero .tagline .accent { color: var(--accent-hover); }
-    .hero .desc { font-size: 17px; color: var(--text-muted); max-width: 580px; margin: 0 auto 32px; }
-    .hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
 
     /* ─── Buttons ─── */
     .btn { display: inline-block; padding: 14px 32px; border-radius: var(--radius); font-size: 17px; font-weight: 600; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
@@ -27,23 +19,51 @@
     .btn-secondary:hover { border-color: var(--accent); }
     .btn-lg { padding: 16px 40px; font-size: 18px; }
 
-    /* ─── Story showcase ─── */
-    .story-feature { padding: 40px 0; text-align: center; }
-    .story-feature h2 { font-size: 26px; margin-bottom: 12px; }
-    .story-feature p { font-size: 16px; color: var(--text-muted); max-width: 500px; margin: 0 auto 24px; }
-    .story-preview {
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
-      padding: 32px; max-width: 480px; margin: 0 auto 24px; text-align: left;
-      font-family: Georgia, serif; font-size: 16px; color: var(--text-muted); line-height: 1.8;
-    }
-    .story-preview .choice { display: block; padding: 10px 14px; margin-top: 8px; background: rgba(124,110,240,0.08); border: 1px solid var(--border); border-radius: 6px; color: var(--text); cursor: pointer; }
-    .story-preview .choice:hover { border-color: var(--accent); }
+    /* ─── Hero (two-column) ─── */
+    .hero { padding: 56px 0 32px; }
+    .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+    .hero-text h1 { font-size: 38px; font-weight: 800; color: var(--accent-hover); letter-spacing: -1px; line-height: 1.2; }
+    .hero-text .tagline { font-size: 22px; margin: 10px 0; }
+    .hero-text .tagline .accent { color: var(--accent-hover); }
+    .hero-text .desc { font-size: 16px; color: var(--text-muted); margin-bottom: 24px; }
+    .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
 
-    /* ─── Other outputs ─── */
-    .other-outputs { padding: 32px 0; }
-    .other-outputs h3 { font-size: 16px; color: var(--text-muted); text-align: center; margin-bottom: 18px; text-transform: uppercase; letter-spacing: 0.05em; }
+    /* ─── Story demo card (right side) ─── */
+    .story-demo {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+      overflow: hidden; position: relative;
+    }
+    .story-demo-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+    .story-demo-header .badge { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+    .story-demo-header .live-dot { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--success); }
+    .story-demo-header .live-dot::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: blink 1.4s infinite; }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+    .story-demo-body { padding: 20px; min-height: 240px; }
+    .scene { opacity: 0; transition: opacity 0.5s ease; position: absolute; width: calc(100% - 40px); }
+    .scene.active { opacity: 1; position: relative; }
+    .scene-text { font-family: var(--serif); font-size: 16px; line-height: 1.7; color: var(--text); margin-bottom: 16px; min-height: 60px; }
+    .scene-choices { display: flex; flex-direction: column; gap: 8px; }
+    .scene-choice {
+      padding: 10px 14px; background: var(--bg-card-2); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-size: 14px; cursor: default; transition: all 0.4s cubic-bezier(0.22,1,0.36,1);
+    }
+    .scene-choice.selected { border-color: var(--accent); background: rgba(124,110,240,0.15); transform: translateX(4px); }
+
+    /* Variable tracker */
+    .story-demo-vars { display: flex; gap: 16px; padding: 12px 16px; border-top: 1px solid var(--border); }
+    .var-bar { flex: 1; }
+    .var-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
+    .var-track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+    .var-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.22,1,0.36,1); }
+    .var-fill.trust { background: linear-gradient(90deg, var(--accent), var(--accent-hover)); }
+    .var-fill.experience { background: linear-gradient(90deg, var(--success), #86efac); }
+
+    /* ─── Other outputs pills ─── */
+    .other-outputs { padding: 28px 0; text-align: center; }
+    .other-outputs h3 { font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; }
     .output-pills { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-    .output-pill { padding: 8px 18px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; font-size: 14px; color: var(--text-muted); }
+    .output-pill { padding: 6px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; font-size: 14px; color: var(--text-muted); }
 
     /* ─── Create panel ─── */
     .create-panel { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
@@ -61,21 +81,18 @@
     .form-row > div { flex: 1; }
     .form-group { margin-bottom: 16px; }
 
-    /* ─── Input mode tabs ─── */
     .input-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
     .input-tab { padding: 8px 18px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all 0.15s; }
     .input-tab:hover { color: var(--text); }
     .input-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-    /* ─── Error + loading ─── */
     .error { background: rgba(232,88,88,0.12); border: 1px solid var(--error); border-radius: 8px; padding: 12px 16px; color: var(--error); margin: 16px 0; display: none; }
     .loading { text-align: center; padding: 40px; color: var(--text-muted); }
     .loading .loading-text { font-size: 17px; }
-    .loading .loading-hint { font-size: 14px; margin-top: 8px; color: var(--text-muted); }
-    .loading::after { content: '...'; display: inline-block; animation: dots 1.5s steps(4) infinite; }
+    .loading .loading-hint { font-size: 14px; margin-top: 8px; }
     @keyframes dots { 0%,100% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+    .loading::after { content: '...'; display: inline-block; animation: dots 1.5s steps(4) infinite; }
 
-    /* ─── Results ─── */
     .result { margin: 24px 0; }
     .result-title { font-size: 22px; color: var(--accent-hover); margin-bottom: 10px; }
     .result-overview { font-size: 17px; margin-bottom: 16px; line-height: 1.7; }
@@ -87,15 +104,12 @@
     .card-front { display: block; font-weight: 600; color: var(--accent-hover); }
     .card-back { display: block; margin-top: 4px; }
     .card-hint { display: block; font-size: 13px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
-
-    /* ─── Story result ─── */
     .story-result { text-align: center; padding: 20px 0; }
     .story-result .play-btn { font-size: 20px; padding: 18px 48px; margin-bottom: 12px; }
     .story-result .download-link { display: inline-block; margin-top: 8px; color: var(--text-muted); font-size: 14px; text-decoration: none; border-bottom: 1px dashed var(--border); }
     .story-result .download-link:hover { color: var(--accent-hover); }
 
-    /* ─── History ─── */
-    .history-section { padding: 32px 0; }
+    .history-section { padding: 28px 0; }
     .history-section h3 { font-size: 18px; margin-bottom: 14px; }
     .history-item { display: flex; align-items: center; gap: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s; }
     .history-item:hover { border-color: var(--accent); }
@@ -106,15 +120,14 @@
     .history-delete:hover { color: var(--error); }
     .muted { color: var(--text-muted); font-size: 14px; }
 
-    /* ─── Footer / download ─── */
-    .download-pitch { text-align: center; padding: 40px 0; }
+    .download-pitch { text-align: center; padding: 36px 0; }
     .download-pitch h3 { font-size: 20px; color: var(--accent-hover); margin-bottom: 8px; }
     .download-pitch p { color: var(--text-muted); font-size: 15px; margin-bottom: 16px; }
     .footer { text-align: center; padding: 24px 0; border-top: 1px solid var(--border); }
     .footer a { color: var(--text-muted); text-decoration: none; font-size: 14px; margin: 0 8px; }
     .footer a:hover { color: var(--accent-hover); }
 
-    @media (max-width: 600px) { .form-row, .hero-cta { flex-direction: column; } .hero h1 { font-size: 32px; } }
+    @media (max-width: 760px) { .hero-grid { grid-template-columns: 1fr; } .form-row { flex-direction: column; } .hero-cta { flex-direction: column; } }
   </style>
 </head>
 <body>
@@ -132,46 +145,55 @@
   <!-- ─── Main landing ─── -->
   <div id="app" style="display:none">
 
-    <!-- Hero -->
+    <!-- Hero (two-column: text left, story demo right) -->
     <header class="hero">
       <div class="container">
-        <h1>Playable Lessons</h1>
-        <p class="tagline">Turn material into a <span class="accent">playable story</span></p>
-        <p class="desc">Paste a case study, lecture notes, or a topic — and get a branching interactive narrative
-          learners <em>play</em> by making choices. Not a summary. Not a quiz. A story they live through.</p>
-        <div class="hero-cta">
-          <button class="btn btn-primary btn-lg" id="try-btn" onclick="toggleCreate()">Create a story →</button>
-          <a class="btn btn-secondary btn-lg" href="https://github.com/michael-borck/playable-lessons/releases/latest">↓ Get the app</a>
+        <div class="hero-grid">
+          <div class="hero-text">
+            <h1>Playable Lessons</h1>
+            <p class="tagline">Turn material into a <span class="accent">playable story</span></p>
+            <p class="desc">Paste a case study, lecture notes, or a topic — and get a branching narrative
+              learners <em>play</em> by making choices. Not a summary. Not a quiz. A story they live through.</p>
+            <div class="hero-cta">
+              <button class="btn btn-primary btn-lg" id="try-btn" onclick="toggleCreate()">Create a story &rarr;</button>
+              <a class="btn btn-secondary btn-lg" href="https://github.com/michael-borck/playable-lessons/releases/latest">&darr; Get the app</a>
+            </div>
+          </div>
+          <div class="hero-demo">
+            <!-- Animated story demo card -->
+            <div class="story-demo" id="story-demo">
+              <div class="story-demo-header">
+                <span class="badge">Interactive Fiction</span>
+                <span class="live-dot">LIVE DEMO</span>
+              </div>
+              <div class="story-demo-body" id="demo-body">
+                <!-- Scenes injected by JS -->
+              </div>
+              <div class="story-demo-vars">
+                <div class="var-bar">
+                  <div class="var-label"><span>Trust</span><span id="var-trust-val">50%</span></div>
+                  <div class="var-track"><div class="var-fill trust" id="var-trust" style="width:50%"></div></div>
+                </div>
+                <div class="var-bar">
+                  <div class="var-label"><span>Experience</span><span id="var-exp-val">20%</span></div>
+                  <div class="var-track"><div class="var-fill experience" id="var-exp" style="width:20%"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </header>
 
-    <!-- Story showcase (what it looks like) -->
-    <div id="showcase" class="story-feature">
-      <div class="container">
-        <h2>What's a playable story?</h2>
-        <p>The AI turns your material into a branching narrative. The learner reads a scene, makes a choice,
-          and the story responds — tracking variables, revealing consequences, reaching different endings.</p>
-        <div class="story-preview">
-          You're the new project manager. The deadline is in two weeks, and the team just lost a key developer.
-          <span class="choice">→ Push the team to hit the deadline</span>
-          <span class="choice">→ Negotiate for more time</span>
-          <span class="choice">→ Reassign priorities quietly</span>
-          <em style="display:block;margin-top:12px;font-size:14px;color:var(--text-muted)">Each choice leads to a different path. Variables like <strong>trust</strong> and <strong>experience</strong> shift based on decisions.</em>
-        </div>
-        <p style="font-size:14px">The result is a self-contained HTML file — works offline, share via email or LMS, no install needed.</p>
-      </div>
-    </div>
-
-    <!-- Other outputs (secondary) -->
+    <!-- Other outputs -->
     <div class="other-outputs">
       <div class="container">
         <h3>Also generates</h3>
         <div class="output-pills">
-          <span class="output-pill">🃏 Flashcards</span>
-          <span class="output-pill">✅ Quiz</span>
-          <span class="output-pill">🤝 AI-Collaboration Tasks</span>
-          <span class="output-pill">🔍 Case Study</span>
+          <span class="output-pill">ð Flashcards</span>
+          <span class="output-pill">â Quiz</span>
+          <span class="output-pill">ð¤ AI-Collaboration Tasks</span>
+          <span class="output-pill">ð Case Study</span>
         </div>
       </div>
     </div>
@@ -181,21 +203,15 @@
       <div class="container create-inner">
         <h2>Create</h2>
         <p class="sub">Enter a topic or paste your material below.</p>
-
-        <!-- Input mode tabs -->
         <div class="input-tabs">
-          <button class="input-tab active" data-mode="text" onclick="switchInputMode('text')">✍️ Type / Paste</button>
-          <button class="input-tab" data-mode="file" onclick="switchInputMode('file')">📄 Upload file</button>
+          <button class="input-tab active" data-mode="text" onclick="switchInputMode('text')">âï¸ Type / Paste</button>
+          <button class="input-tab" data-mode="file" onclick="switchInputMode('file')">ð Upload file</button>
         </div>
-
-        <!-- Text input -->
         <div id="text-input-mode">
           <div class="form-group">
             <textarea id="source" placeholder="Paste a case study, lecture notes, a topic, or any text..." rows="5"></textarea>
           </div>
         </div>
-
-        <!-- File upload -->
         <div id="file-input-mode" style="display:none">
           <div class="form-group">
             <label>Upload a text file (.txt, .md)</label>
@@ -203,17 +219,15 @@
             <p id="file-name" class="muted" style="margin-top:8px"></p>
           </div>
         </div>
-
-        <!-- Target selector -->
         <div class="form-row">
           <div class="form-group">
             <label>What to generate</label>
             <select id="target">
-              <option value="story">📖 Interactive Story</option>
-              <option value="flashcards">🃏 Flashcards</option>
-              <option value="quiz">✅ Quiz</option>
-              <option value="ai-task">🤝 AI-Collaboration Tasks</option>
-              <option value="case-study">🔍 Case Study</option>
+              <option value="story">ð Interactive Story</option>
+              <option value="flashcards">ð Flashcards</option>
+              <option value="quiz">â Quiz</option>
+              <option value="ai-task">ð¤ AI-Collaboration Tasks</option>
+              <option value="case-study">ð Case Study</option>
             </select>
           </div>
           <div class="form-group" id="count-group">
@@ -236,7 +250,6 @@
           </div>
         </div>
         <button id="generate-btn" class="btn btn-primary" style="width:100%" onclick="generate()">Generate</button>
-
         <div id="error" class="error"></div>
         <div id="result" class="result"></div>
       </div>
@@ -255,18 +268,104 @@
       <div class="container">
         <h3>The desktop app does more</h3>
         <p>Inline editing with AI refinement, a node-graph story editor, a Projects dashboard,
-           offline Ollama use, and no rate limits. Plus all the outputs above.</p>
-        <a class="btn btn-secondary btn-lg" href="https://github.com/michael-borck/playable-lessons/releases/latest">↓ Download the desktop app</a>
+           offline Ollama use, and no rate limits.</p>
+        <a class="btn btn-secondary btn-lg" href="https://github.com/michael-borck/playable-lessons/releases/latest">&darr; Download the desktop app</a>
       </div>
     </div>
 
-    <!-- Footer -->
     <div class="footer">
       <a href="https://github.com/michael-borck/playable-lessons">GitHub</a>
       <a href="https://michael-borck.github.io/playable-lessons/">Landing page</a>
-      <span style="color:var(--text-muted);font-size:14px">MIT © michael-borck</span>
+      <span style="color:var(--text-muted);font-size:14px">MIT Â© michael-borck</span>
     </div>
   </div>
+
+  <script>
+  // ─── Story demo animation (cycles through scenes like a real interactive story) ───
+  (function () {
+    var scenes = [
+      {
+        text: "You're the new project manager. The deadline is in two weeks, and the team just lost a key developer. The stakeholder wants a status update by end of day.",
+        choices: [
+          { label: "\u2192 Push the team to hit the original deadline", trust: -10, exp: 5 },
+          { label: "\u2192 Negotiate for an extra week", trust: 15, exp: 10, pick: true },
+          { label: "\u2192 Reassign priorities quietly", trust: 5, exp: 5 }
+        ]
+      },
+      {
+        text: "Your request is approved \u2014 one extra week. But the stakeholder adds: 'I'll be checking in daily.' The team looks to you for guidance.",
+        choices: [
+          { label: "\u2192 Set up a daily 15-minute standup", trust: 10, exp: 10, pick: true },
+          { label: "\u2192 Push back on daily check-ins", trust: -5, exp: 5 },
+          { label: "\u2192 Accept it silently and manage the pressure", trust: -10, exp: 15 }
+        ]
+      },
+      {
+        text: "The project ships on time. Your team feels heard, and the stakeholder trusts your judgement. You've earned respect for navigating a tough situation.",
+        choices: [
+          { label: "\u2192 Celebrate with the team", trust: 10, exp: 5 },
+          { label: "\u2192 Document lessons learned", trust: 5, exp: 15, pick: true }
+        ]
+      }
+    ]
+    var sceneIdx = 0
+    var trust = 50
+    var exp = 20
+
+    function renderScene() {
+      var s = scenes[sceneIdx]
+      var body = document.getElementById('demo-body')
+      if (!body) return
+
+      // Build scene HTML
+      var html = '<div class="scene active" id="current-scene">'
+      html += '<div class="scene-text">' + s.text + '</div>'
+      html += '<div class="scene-choices">'
+      s.choices.forEach(function (c, i) {
+        html += '<div class="scene-choice" data-idx="' + i + '">' + c.label + '</div>'
+      })
+      html += '</div></div>'
+      body.innerHTML = html
+
+      // Update variables
+      trust = Math.max(0, Math.min(100, trust))
+      exp = Math.max(0, Math.min(100, exp))
+      document.getElementById('var-trust').style.width = trust + '%'
+      document.getElementById('var-trust-val').textContent = trust + '%'
+      document.getElementById('var-exp').style.width = exp + '%'
+      document.getElementById('var-exp-val').textContent = exp + '%'
+
+      // After 3s, auto-select the choice and advance
+      setTimeout(function () {
+        var picked = s.choices.find(function (c) { return c.pick }) || s.choices[0]
+        var choiceEls = body.querySelectorAll('.scene-choice')
+        var pickIdx = s.choices.indexOf(picked)
+        if (choiceEls[pickIdx]) choiceEls[pickIdx].classList.add('selected')
+        trust += picked.trust || 0
+        exp += picked.exp || 0
+      }, 2500)
+
+      // After 4.5s, advance to next scene
+      setTimeout(function () {
+        var old = document.getElementById('current-scene')
+        if (old) { old.classList.remove('active'); old.style.opacity = '0' }
+        setTimeout(function () {
+          sceneIdx = (sceneIdx + 1) % scenes.length
+          if (sceneIdx === 0) { trust = 50; exp = 20 } // reset on loop
+          renderScene()
+        }, 500)
+      }, 4500)
+    }
+
+    // Start the animation once the app is visible
+    var checkVisible = setInterval(function () {
+      if (document.getElementById('demo-body')) {
+        clearInterval(checkVisible)
+        renderScene()
+      }
+    }, 200)
+  })()
+  </script>
 
   <script src="app.js"></script>
 </body>
