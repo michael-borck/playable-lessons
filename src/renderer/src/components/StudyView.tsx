@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useAppStore } from '../stores/appStore'
 import FlashcardDeck from './FlashcardDeck'
 import QuizPlayer from './QuizPlayer'
@@ -15,8 +16,10 @@ export default function StudyView() {
   const caseStudy = useAppStore((s) => s.caseStudy)
   const plan = useAppStore((s) => s.plan)
   const setView = useAppStore((s) => s.setCurrentView)
+  const [editing, setEditing] = useState(false)
 
   const hasContent = !!(flashcards || quiz || summary || aiTask || caseStudy)
+  const canEdit = !!(flashcards || quiz || summary)
 
   if (!hasContent && !plan) {
     return (
@@ -57,10 +60,20 @@ export default function StudyView() {
     <div className="panel study">
       <h2 className="panel-title">{title}</h2>
       {subtitle && <p className="panel-subtitle">{subtitle}</p>}
+      {canEdit && (
+        <div className="btn-row" style={{ marginBottom: 16 }}>
+          <button
+            className={`btn ${editing ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setEditing(!editing)}
+          >
+            {editing ? '✓ Done editing' : '✎ Edit'}
+          </button>
+        </div>
+      )}
       {plan && <PlanSheet result={plan} />}
-      {flashcards && <FlashcardDeck result={flashcards} />}
-      {quiz && <QuizPlayer result={quiz} />}
-      {summary && <SummarySheet result={summary} />}
+      {flashcards && <FlashcardDeck result={flashcards} editable={editing} />}
+      {quiz && <QuizPlayer result={quiz} editable={editing} />}
+      {summary && <SummarySheet result={summary} editable={editing} />}
       {aiTask && <AiTaskSheet result={aiTask} />}
       {caseStudy && <CaseStudySheet result={caseStudy} />}
     </div>

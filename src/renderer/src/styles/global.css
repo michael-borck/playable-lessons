@@ -1006,3 +1006,24 @@ body {
 .plan-rec-meta { font-weight: 400; color: var(--text-muted); font-size: 13px; margin-left: 6px; }
 .plan-rec-why { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
 .plan-hint { color: var(--text-muted); font-size: 13px; }
+
+/* ─── Inline editing ─── */
+.deck-editor, .quiz-editor { display: flex; flex-direction: column; gap: 16px; }
+.edit-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+.edit-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.edit-card-no { font-size: 13px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
+.edit-input {
+  width: 100%; padding: 8px 10px; background: var(--bg-primary); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); font-size: 15px; font-family: inherit; margin-bottom: 8px;
+  resize: vertical;
+}
+.edit-input:focus { outline: none; border-color: var(--accent); }
+.edit-input:last-child { margin-bottom: 0; }
+.edit-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+.edit-item .edit-input { flex: 1; margin-bottom: 0; }
+.edit-glossary-fields { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.edit-glossary-fields .edit-input { margin-bottom: 0; }
+.edit-option { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.edit-option .edit-input { flex: 1; margin-bottom: 0; }
+.edit-option input[type="radio"] { margin: 0; accent-color: var(--accent); cursor: pointer; }
+.edit-delete { padding: 4px 10px; font-size: 13px; flex-shrink: 0; }

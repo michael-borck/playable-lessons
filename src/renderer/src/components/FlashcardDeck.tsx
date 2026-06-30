@@ -1,12 +1,55 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { FlashcardResult } from '../../../shared/generate'
+import { useAppStore } from '../stores/appStore'
 
-/** Inline flip-card deck. Mirrors the offline HTML deck's UX (flip/nav/shuffle). */
-export default function FlashcardDeck({ result }: { result: FlashcardResult }) {
+/** Inline flip-card deck. When editable, shows a list editor instead. */
+export default function FlashcardDeck({ result, editable }: { result: FlashcardResult; editable?: boolean }) {
+  const setFlashcards = useAppStore((s) => s.setFlashcards)
   const [cards, setCards] = useState(result.cards)
   const [idx, setIdx] = useState(0)
   const [flipped, setFlipped] = useState(false)
 
+  // Sync local state when leaving edit mode (the store may have changed).
+  useEffect(() => {
+    if (!editable) {
+      setCards(result.cards)
+      setIdx(0)
+      setFlipped(false)
+    }
+  }, [editable]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Editable mode: list of editable cards ───
+  if (editable) {
+    const updateCard = (i: number, field: 'front' | 'back' | 'hint' | 'tag', value: string) => {
+      setFlashcards({
+        ...result,
+        cards: result.cards.map((c, j) => (j === i ? { ...c, [field]: value } : c))
+      })
+    }
+    const addCard = () => setFlashcards({ ...result, cards: [...result.cards, { front: '', back: '' }] })
+    const deleteCard = (i: number) =>
+      setFlashcards({ ...result, cards: result.cards.filter((_, j) => j !== i) })
+
+    return (
+      <div className="deck-editor">
+        {result.cards.map((c, i) => (
+          <div className="edit-card" key={i}>
+            <div className="edit-card-head">
+              <span className="edit-card-no">Card {i + 1}</span>
+              <button className="btn btn-secondary edit-delete" onClick={() => deleteCard(i)}>Delete</button>
+            </div>
+            <textarea className="edit-input" value={c.front} onChange={(e) => updateCard(i, 'front', e.target.value)} placeholder="Front (question or term)" rows={2} />
+            <textarea className="edit-input" value={c.back} onChange={(e) => updateCard(i, 'back', e.target.value)} placeholder="Back (answer)" rows={2} />
+            <input className="edit-input" value={c.hint ?? ''} onChange={(e) => updateCard(i, 'hint', e.target.value)} placeholder="Hint (optional)" />
+            <input className="edit-input" value={c.tag ?? ''} onChange={(e) => updateCard(i, 'tag', e.target.value)} placeholder="Tag (optional)" />
+          </div>
+        ))}
+        <button className="btn btn-secondary" onClick={addCard}>+ Add card</button>
+      </div>
+    )
+  }
+
+  // ─── Read-only mode: flip-card study UX ───
   const card = cards[idx]
   if (!card) return null
 
