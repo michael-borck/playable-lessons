@@ -1,7 +1,8 @@
 const STORAGE_KEY = 'pl-history'
 let accessCode = localStorage.getItem('pl-access-code') || ''
+let uploadedText = ''
 
-// ─── On load: check if access code is needed ───
+// ─── On load ───
 async function init() {
   try {
     const res = await fetch('/api/health')
@@ -10,15 +11,14 @@ async function init() {
       showGate()
     } else if (data.requiresAccessCode) {
       const check = await fetch('/api/health', { headers: { 'x-access-code': accessCode } })
-      if (check.ok) showApp(data)
+      if (check.ok) showApp()
       else { localStorage.removeItem('pl-access-code'); accessCode = ''; showGate() }
     } else {
-      showApp(data)
+      showApp()
     }
   } catch {
     document.getElementById('gate').style.display = 'none'
     document.getElementById('app').style.display = 'block'
-    document.getElementById('provider-info').textContent = 'Server unreachable.'
   }
 }
 
@@ -27,10 +27,9 @@ function showGate() {
   document.getElementById('app').style.display = 'none'
 }
 
-function showApp(health) {
+function showApp() {
   document.getElementById('gate').style.display = 'none'
   document.getElementById('app').style.display = 'block'
-  document.getElementById('provider-info').textContent = `${health.provider} · ${health.model}`
   renderHistory()
 }
 
@@ -42,14 +41,46 @@ function submitAccessCode() {
   init()
 }
 
+// ─── Toggle create panel ───
+function toggleCreate() {
+  const panel = document.getElementById('create-panel')
+  const showcase = document.getElementById('showcase')
+  const isOpen = panel.classList.toggle('open')
+  if (isOpen) {
+    showcase.style.display = 'none'
+    document.getElementById('try-btn').textContent = '✕ Close'
+    document.getElementById('source').focus()
+  } else {
+    showcase.style.display = 'block'
+    document.getElementById('try-btn').textContent = 'Try it now →'
+  }
+}
+
+// ─── Input mode tabs ───
+function switchInputMode(mode) {
+  document.querySelectorAll('.input-tab').forEach((t) => t.classList.toggle('active', t.dataset.mode === mode))
+  document.getElementById('text-input-mode').style.display = mode === 'text' ? 'block' : 'none'
+  document.getElementById('file-input-mode').style.display = mode === 'file' ? 'block' : 'none'
+}
+
+// ─── File upload ───
+function handleFileUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  document.getElementById('file-name').textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`
+  const reader = new FileReader()
+  reader.onload = (e) => { uploadedText = e.target.result }
+  reader.readAsText(file)
+}
+
 // ─── Generate ───
 async function generate() {
-  const source = document.getElementById('source').value.trim()
+  const source = uploadedText || document.getElementById('source').value.trim()
   const target = document.getElementById('target').value
   const count = parseInt(document.getElementById('count').value, 10) || 8
   const depth = document.getElementById('depth').value
 
-  if (!source) { showError('Please paste some source material.'); return }
+  if (!source) { showError('Please enter or upload some source material first.'); return }
 
   const btn = document.getElementById('generate-btn')
   const resultArea = document.getElementById('result')
@@ -139,7 +170,7 @@ function renderResult(result, target) {
     }
   }
 
-  area.innerHTML = html || '<p>No content returned.</p>'
+  area.innerHTML = html || '<p class="muted">No content returned.</p>'
 }
 
 // ─── localStorage history ───
@@ -159,8 +190,9 @@ function saveToHistory(result, target) {
 function renderHistory() {
   const history = loadHistory()
   const area = document.getElementById('history')
+  if (!area) return
   if (history.length === 0) {
-    area.innerHTML = '<p class="muted">Nothing yet — generate something above.</p>'
+    area.innerHTML = '<p class="muted">Nothing yet — click "Try it now" to create something.</p>'
     return
   }
   const labels = { summary: '📝 Summary', flashcards: '🃏 Flashcards', quiz: '✅ Quiz', 'ai-task': '🤝 AI Task', 'case-study': '🔍 Case Study' }
@@ -177,7 +209,12 @@ function renderHistory() {
 
 function viewHistory(id) {
   const item = loadHistory().find((h) => h.id === id)
-  if (item) renderResult(item.result, item.type)
+  if (item) {
+    // Open the create panel if closed, so the result is visible
+    const panel = document.getElementById('create-panel')
+    if (!panel.classList.contains('open')) toggleCreate()
+    renderResult(item.result, item.type)
+  }
 }
 
 function deleteHistory(id) {
@@ -187,11 +224,14 @@ function deleteHistory(id) {
 
 function showError(msg) {
   const a = document.getElementById('error')
-  a.textContent = msg; a.style.display = 'block'
+  a.textContent = msg
+  a.style.display = 'block'
 }
 
 function esc(text) {
-  const d = document.createElement('div'); d.textContent = String(text || ''); return d.innerHTML
+  const d = document.createElement('div')
+  d.textContent = String(text || '')
+  return d.innerHTML
 }
 
 // ─── Wire up ───

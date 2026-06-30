@@ -8,17 +8,43 @@
     :root { --bg: #1a1a2e; --bg-card: #252540; --text: #e8e8f0; --text-muted: #a0a0b8; --accent: #7c6ef0; --accent-hover: #9488f8; --border: #3a3b55; --radius: 8px; --error: #e85858; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
-    .container { max-width: 760px; margin: 0 auto; padding: 24px; }
-    h1 { font-size: 28px; color: var(--accent-hover); margin-bottom: 4px; }
-    .sub { font-size: 15px; color: var(--text-muted); margin-bottom: 24px; }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
 
-    /* Gate */
-    #gate { text-align: center; padding: 60px 0; }
-    #gate h2 { margin-bottom: 16px; }
-    #gate input { padding: 12px 16px; font-size: 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); width: 240px; }
-    #gate button { padding: 12px 24px; font-size: 16px; margin-left: 8px; }
+    /* ─── Hero (landing) ─── */
+    .hero { text-align: center; padding: 80px 0 48px; }
+    .hero h1 { font-size: 42px; font-weight: 800; color: var(--accent-hover); letter-spacing: -1px; }
+    .hero .tagline { font-size: 22px; margin: 12px 0 16px; }
+    .hero .tagline .accent { color: var(--accent-hover); }
+    .hero .desc { font-size: 16px; color: var(--text-muted); max-width: 560px; margin: 0 auto 32px; }
+    .hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
-    /* Form */
+    /* ─── Buttons ─── */
+    .btn { display: inline-block; padding: 14px 32px; border-radius: var(--radius); font-size: 17px; font-weight: 600; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: wait; transform: none; }
+    .btn-secondary { background: var(--bg-card); color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover { border-color: var(--accent); }
+    .btn-lg { padding: 16px 40px; font-size: 18px; }
+
+    /* ─── Output showcase ─── */
+    .showcase { padding: 48px 0; }
+    .showcase h2 { font-size: 26px; text-align: center; margin-bottom: 28px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: border-color 0.15s; }
+    .card:hover { border-color: var(--accent); }
+    .card-icon { font-size: 28px; margin-bottom: 10px; }
+    .card h3 { font-size: 17px; color: var(--accent-hover); margin-bottom: 6px; }
+    .card p { font-size: 14px; color: var(--text-muted); }
+
+    /* ─── Create panel (expands from hero) ─── */
+    .create-panel { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+    .create-panel.open { max-height: 800px; }
+    .create-inner { padding: 32px 0; }
+    .create-inner h2 { font-size: 24px; text-align: center; margin-bottom: 8px; }
+    .create-inner .sub { font-size: 15px; color: var(--text-muted); text-align: center; margin-bottom: 24px; }
+
+    /* ─── Form ─── */
     label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
     textarea, input, select { width: 100%; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 15px; font-family: inherit; }
     textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); }
@@ -27,15 +53,20 @@
     .form-row > div { flex: 1; }
     .form-group { margin-bottom: 16px; }
 
-    .btn { display: inline-block; padding: 12px 28px; border-radius: var(--radius); font-size: 16px; font-weight: 600; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-primary:hover { background: var(--accent-hover); }
-    .btn-primary:disabled { opacity: 0.5; cursor: wait; }
-    .btn-secondary { background: var(--bg-card); color: var(--text); border-color: var(--border); }
+    /* ─── Input mode tabs ─── */
+    .input-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .input-tab { padding: 8px 18px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all 0.15s; }
+    .input-tab:hover { color: var(--text); }
+    .input-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-    .error { background: rgba(232,88,88,0.12); border: 1px solid var(--error); border-radius: 8px; padding: 12px 16px; color: var(--error); margin-bottom: 16px; display: none; }
+    /* ─── Error + loading ─── */
+    .error { background: rgba(232,88,88,0.12); border: 1px solid var(--error); border-radius: 8px; padding: 12px 16px; color: var(--error); margin: 16px 0; display: none; }
+    .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+    .loading::after { content: '...'; animation: dots 1.5s steps(4) infinite; }
+    @keyframes dots { 0%,100% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
 
-    .result { margin-bottom: 28px; }
+    /* ─── Results ─── */
+    .result { margin: 24px 0; }
     .result-title { font-size: 22px; color: var(--accent-hover); margin-bottom: 10px; }
     .result-overview { font-size: 17px; margin-bottom: 16px; line-height: 1.7; }
     .result-h { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 18px 0 8px; }
@@ -46,11 +77,10 @@
     .card-front { display: block; font-weight: 600; color: var(--accent-hover); }
     .card-back { display: block; margin-top: 4px; }
     .card-hint { display: block; font-size: 13px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
-    .loading { text-align: center; padding: 40px; color: var(--text-muted); }
-    .loading::after { content: '...'; animation: dots 1.5s steps(4) infinite; }
-    @keyframes dots { 0%,100% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
 
-    .result-h2 { font-size: 18px; margin: 32px 0 12px; color: var(--text); }
+    /* ─── History ─── */
+    .history-section { padding: 32px 0; }
+    .history-section h2 { font-size: 20px; margin-bottom: 14px; }
     .history-item { display: flex; align-items: center; gap: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s; }
     .history-item:hover { border-color: var(--accent); }
     .history-type { font-size: 14px; flex-shrink: 0; }
@@ -60,92 +90,145 @@
     .history-delete:hover { color: var(--error); }
     .muted { color: var(--text-muted); font-size: 14px; }
 
-    .privacy { background: rgba(124,110,240,0.08); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+    /* ─── Footer / download ─── */
+    .download-pitch { text-align: center; padding: 40px 0; }
+    .download-pitch h3 { font-size: 20px; color: var(--accent-hover); margin-bottom: 8px; }
+    .download-pitch p { color: var(--text-muted); font-size: 15px; margin-bottom: 16px; }
+    .footer { text-align: center; padding: 24px 0; border-top: 1px solid var(--border); }
+    .footer a { color: var(--text-muted); text-decoration: none; font-size: 14px; margin: 0 8px; }
+    .footer a:hover { color: var(--accent-hover); }
 
-    hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
-    .footer { text-align: center; padding: 20px 0; }
-    .footer a { color: var(--accent-hover); text-decoration: none; }
-    .download-pitch { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; margin-top: 20px; }
-    .download-pitch h3 { color: var(--accent-hover); margin-bottom: 8px; }
-    .download-pitch p { color: var(--text-muted); font-size: 14px; margin-bottom: 12px; }
-
-    @media (max-width: 600px) { .form-row { flex-direction: column; } }
+    @media (max-width: 600px) { .form-row, .hero-cta { flex-direction: column; } .hero h1 { font-size: 32px; } }
   </style>
 </head>
 <body>
-  <!-- Access-code gate -->
-  <div id="gate" class="container" style="display:none">
-    <h2>Enter access code</h2>
-    <p class="muted">This instance requires an access code. Contact your administrator.</p>
-    <div style="margin-top:16px">
-      <input id="access-code-input" type="password" placeholder="Access code" />
+
+  <!-- ─── Access-code gate ─── -->
+  <div id="gate" class="container" style="display:none; text-align:center; padding-top:80px">
+    <h1 style="font-size:32px;color:var(--accent-hover)">Playable Lessons</h1>
+    <p class="muted" style="margin:8px 0 24px">This instance requires an access code. Contact your administrator.</p>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <input id="access-code-input" type="password" placeholder="Access code" style="width:240px" />
       <button id="access-code-btn" class="btn btn-primary">Enter</button>
     </div>
   </div>
 
-  <!-- Main app -->
-  <div id="app" class="container" style="display:none">
-    <h1>Playable Lessons</h1>
-    <p class="sub">Turn source material into summaries, flashcards, quizzes, and more. <span id="provider-info" class="muted"></span></p>
+  <!-- ─── Main landing + app ─── -->
+  <div id="app" style="display:none">
 
-    <div class="form-group">
-      <label>Source material</label>
-      <textarea id="source" placeholder="Paste a case study, lecture notes, a topic, or any text..." rows="5"></textarea>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>What to generate</label>
-        <select id="target">
-          <option value="summary">Summary</option>
-          <option value="flashcards">Flashcards</option>
-          <option value="quiz">Quiz</option>
-          <option value="ai-task">AI-Collaboration Tasks</option>
-          <option value="case-study">Case Study</option>
-        </select>
+    <!-- Hero -->
+    <header class="hero">
+      <div class="container">
+        <h1>Playable Lessons</h1>
+        <p class="tagline">Turn material into <span class="accent">playable lessons</span></p>
+        <p class="desc">Paste a case study, lecture notes, or a topic — and get a summary, flashcards,
+          a quiz, an AI-collaboration task, or a case study. One source, five outputs.</p>
+        <div class="hero-cta">
+          <button class="btn btn-primary btn-lg" id="try-btn" onclick="toggleCreate()">Try it now →</button>
+          <a class="btn btn-secondary btn-lg" href="https://github.com/michael-borck/playable-lessons/releases/latest">↓ Desktop app</a>
+        </div>
       </div>
-      <div class="form-group">
-        <label>How many?</label>
-        <input id="count" type="number" value="8" min="1" max="20" />
+    </header>
+
+    <!-- Create panel (expands when "Try it now" is clicked) -->
+    <div id="create-panel" class="create-panel">
+      <div class="container create-inner">
+        <h2>Create</h2>
+        <p class="sub">Enter a topic or paste your material below.</p>
+
+        <!-- Input mode tabs -->
+        <div class="input-tabs">
+          <button class="input-tab active" data-mode="text" onclick="switchInputMode('text')">✍️ Type / Paste</button>
+          <button class="input-tab" data-mode="file" onclick="switchInputMode('file')">📄 Upload file</button>
+        </div>
+
+        <!-- Text input -->
+        <div id="text-input-mode">
+          <div class="form-group">
+            <textarea id="source" placeholder="Paste a case study, lecture notes, a topic, or any text..." rows="5"></textarea>
+          </div>
+        </div>
+
+        <!-- File upload (hidden by default) -->
+        <div id="file-input-mode" style="display:none">
+          <div class="form-group">
+            <label>Upload a text file (.txt, .md)</label>
+            <input id="file-upload" type="file" accept=".txt,.md,.csv" onchange="handleFileUpload(event)" />
+            <p id="file-name" class="muted" style="margin-top:8px"></p>
+          </div>
+        </div>
+
+        <!-- Target + count -->
+        <div class="form-row">
+          <div class="form-group">
+            <label>What to generate</label>
+            <select id="target">
+              <option value="summary">📝 Summary</option>
+              <option value="flashcards">🃏 Flashcards</option>
+              <option value="quiz">✅ Quiz</option>
+              <option value="ai-task">🤝 AI-Collaboration Tasks</option>
+              <option value="case-study">🔍 Case Study</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>How many?</label>
+            <input id="count" type="number" value="8" min="1" max="20" />
+          </div>
+        </div>
+        <div class="form-row" id="depth-group" style="display:none">
+          <div class="form-group">
+            <label>Case-study depth</label>
+            <select id="depth">
+              <option value="idea">Idea (a premise)</option>
+              <option value="outline">Outline (a skeleton)</option>
+              <option value="complete" selected>Complete (full case study)</option>
+            </select>
+          </div>
+        </div>
+        <button id="generate-btn" class="btn btn-primary" style="width:100%" onclick="generate()">Generate</button>
+
+        <div id="error" class="error"></div>
+        <div id="result" class="result"></div>
       </div>
     </div>
-    <div class="form-row" id="depth-group" style="display:none">
-      <div class="form-group">
-        <label>Case-study depth</label>
-        <select id="depth">
-          <option value="idea">Idea (a premise)</option>
-          <option value="outline">Outline (a skeleton)</option>
-          <option value="complete" selected>Complete (full case study)</option>
-        </select>
+
+    <!-- Output showcase (hidden when creating) -->
+    <div id="showcase" class="showcase">
+      <div class="container">
+        <h2>Five outputs from one source</h2>
+        <div class="grid">
+          <div class="card"><div class="card-icon">📝</div><h3>Summary</h3><p>A concise overview with key points and a glossary.</p></div>
+          <div class="card"><div class="card-icon">🃏</div><h3>Flashcards</h3><p>Front/back study cards with hints and tags.</p></div>
+          <div class="card"><div class="card-icon">✅</div><h3>Quiz</h3><p>Self-marking multiple-choice with explanations.</p></div>
+          <div class="card"><div class="card-icon">🤝</div><h3>AI Tasks</h3><p>Tasks where interrogating a chatbot is what wins.</p></div>
+          <div class="card"><div class="card-icon">🔍</div><h3>Case Study</h3><p>A teaching dilemma with decision points.</p></div>
+        </div>
       </div>
     </div>
-    <button id="generate-btn" class="btn btn-primary" style="width:100%;margin-bottom:16px">Generate</button>
 
-    <div class="privacy">
-      <strong>Your work is stored only in this browser.</strong> History is saved to
-      localStorage — clear your cache to reset. The AI key is held by the server, not your browser.
+    <!-- History -->
+    <div id="history-section" class="history-section">
+      <div class="container">
+        <h2>Your work (this browser)</h2>
+        <div id="history"></div>
+      </div>
     </div>
 
-    <div id="error" class="error"></div>
-    <div id="result" class="result"></div>
-
-    <h2 class="result-h2">Your work (this browser)</h2>
-    <div id="history"></div>
-
-    <hr />
-
+    <!-- Download pitch -->
     <div class="download-pitch">
-      <h3>Want the full experience?</h3>
-      <p>Download the desktop app for all 7 outputs, the story editor, the Projects dashboard,
-         offline Ollama use, and no rate limits.</p>
-      <a class="btn btn-secondary" href="https://github.com/michael-borck/playable-lessons/releases/latest">
-        ↓ Download the desktop app
-      </a>
+      <div class="container">
+        <h3>Want the full experience?</h3>
+        <p>Download the desktop app for all 7 outputs, the story editor, inline editing with AI refinement,
+           the Projects dashboard, and offline Ollama use.</p>
+        <a class="btn btn-secondary btn-lg" href="https://github.com/michael-borck/playable-lessons/releases/latest">↓ Download the desktop app</a>
+      </div>
     </div>
 
+    <!-- Footer -->
     <div class="footer">
-      <a href="https://github.com/michael-borck/playable-lessons">GitHub</a> ·
-      <a href="https://michael-borck.github.io/playable-lessons/">Landing page</a> ·
-      MIT © michael-borck
+      <a href="https://github.com/michael-borck/playable-lessons">GitHub</a>
+      <a href="https://michael-borck.github.io/playable-lessons/">Landing page</a>
+      <span style="color:var(--text-muted);font-size:14px">MIT © michael-borck</span>
     </div>
   </div>
 
