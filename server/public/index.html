@@ -9,8 +9,6 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
     .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
-
-    /* ─── Buttons ─── */
     .btn { display: inline-block; padding: 14px 32px; border-radius: var(--radius); font-size: 17px; font-weight: 600; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
     .btn-primary { background: var(--accent); color: #fff; }
     .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
@@ -19,8 +17,9 @@
     .btn-secondary:hover { border-color: var(--accent); }
     .btn-lg { padding: 16px 40px; font-size: 18px; }
 
-    /* ─── Hero (two-column) ─── */
-    .hero { padding: 56px 0 32px; }
+    /* ─── Landing view ─── */
+    #landing-view { min-height: 100vh; display: flex; flex-direction: column; }
+    .hero { flex: 1; display: flex; align-items: center; padding: 40px 0; }
     .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
     .hero-text h1 { font-size: 38px; font-weight: 800; color: var(--accent-hover); letter-spacing: -1px; line-height: 1.2; }
     .hero-text .tagline { font-size: 22px; margin: 10px 0; }
@@ -28,27 +27,18 @@
     .hero-text .desc { font-size: 16px; color: var(--text-muted); margin-bottom: 24px; }
     .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
 
-    /* ─── Story demo card (right side) ─── */
-    .story-demo {
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
-      overflow: hidden; position: relative;
-    }
+    /* Story demo card */
+    .story-demo { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
     .story-demo-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); }
     .story-demo-header .badge { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
     .story-demo-header .live-dot { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--success); }
     .story-demo-header .live-dot::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: blink 1.4s infinite; }
     @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
-
     .story-demo-body { padding: 20px; min-height: 220px; transition: opacity 0.35s ease; }
     .scene-text { font-family: var(--serif); font-size: 16px; line-height: 1.7; color: var(--text); margin-bottom: 16px; min-height: 60px; }
     .scene-choices { display: flex; flex-direction: column; gap: 8px; }
-    .scene-choice {
-      padding: 10px 14px; background: var(--bg-card-2); border: 1px solid var(--border); border-radius: 8px;
-      color: var(--text); font-size: 14px; cursor: default; transition: all 0.4s cubic-bezier(0.22,1,0.36,1);
-    }
+    .scene-choice { padding: 10px 14px; background: var(--bg-card-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; cursor: default; transition: all 0.4s cubic-bezier(0.22,1,0.36,1); }
     .scene-choice.selected { border-color: var(--accent); background: rgba(124,110,240,0.15); transform: translateX(4px); }
-
-    /* Variable tracker */
     .story-demo-vars { display: flex; gap: 16px; padding: 12px 16px; border-top: 1px solid var(--border); }
     .var-bar { flex: 1; }
     .var-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
@@ -57,73 +47,64 @@
     .var-fill.trust { background: linear-gradient(90deg, var(--accent), var(--accent-hover)); }
     .var-fill.experience { background: linear-gradient(90deg, var(--success), #86efac); }
 
-    /* ─── Other outputs pills ─── */
-    .other-outputs { padding: 28px 0; text-align: center; }
-    .other-outputs h3 { font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; }
+    .other-outputs { padding: 20px 0; text-align: center; }
+    .other-outputs h3 { font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
     .output-pills { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
     .output-pill { padding: 6px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; font-size: 14px; color: var(--text-muted); }
+    .landing-footer { text-align: center; padding: 20px 0; border-top: 1px solid var(--border); }
+    .landing-footer a { color: var(--text-muted); text-decoration: none; font-size: 14px; margin: 0 8px; }
 
-    /* ─── Create panel ─── */
-    .create-panel { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
-    .create-panel.open { max-height: 1000px; }
-    .create-inner { padding: 24px 0; }
-    .create-inner h2 { font-size: 24px; text-align: center; margin-bottom: 4px; }
-    .create-inner .sub { font-size: 15px; color: var(--text-muted); text-align: center; margin-bottom: 24px; }
+    /* ─── Create view ─── */
+    #create-view { display: none; min-height: 100vh; padding: 40px 0; }
+    .create-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+    .create-header h2 { font-size: 24px; }
+    .back-link { color: var(--text-muted); text-decoration: none; font-size: 14px; cursor: pointer; }
+    .back-link:hover { color: var(--accent-hover); }
 
-    /* ─── Form ─── */
+    .input-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .input-tab { padding: 10px 20px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 15px; cursor: pointer; transition: all 0.15s; }
+    .input-tab:hover { color: var(--text); }
+    .input-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
     label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
-    textarea, input, select { width: 100%; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 15px; font-family: inherit; }
+    textarea, input, select { width: 100%; padding: 12px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 16px; font-family: inherit; }
     textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); }
-    textarea { resize: vertical; min-height: 100px; }
+    textarea { resize: vertical; min-height: 140px; }
     .form-row { display: flex; gap: 12px; margin-bottom: 16px; }
     .form-row > div { flex: 1; }
     .form-group { margin-bottom: 16px; }
 
-    .input-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-    .input-tab { padding: 8px 18px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all 0.15s; }
-    .input-tab:hover { color: var(--text); }
-    .input-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    /* File drop zone */
+    .drop-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 40px; text-align: center; cursor: pointer; transition: border-color 0.15s; }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); }
+    .drop-zone p { color: var(--text-muted); font-size: 15px; }
+    .drop-zone .file-name { color: var(--accent-hover); margin-top: 8px; }
 
     .error { background: rgba(232,88,88,0.12); border: 1px solid var(--error); border-radius: 8px; padding: 12px 16px; color: var(--error); margin: 16px 0; display: none; }
-    .loading { text-align: center; padding: 40px; color: var(--text-muted); }
-    .loading .loading-text { font-size: 17px; }
-    .loading .loading-hint { font-size: 14px; margin-top: 8px; }
-    @keyframes dots { 0%,100% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
-    .loading::after { content: '...'; display: inline-block; animation: dots 1.5s steps(4) infinite; }
 
-    .result { margin: 24px 0; }
-    .result-title { font-size: 22px; color: var(--accent-hover); margin-bottom: 10px; }
-    .result-overview { font-size: 17px; margin-bottom: 16px; line-height: 1.7; }
-    .result-h { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 18px 0 8px; }
-    .result-points { list-style: none; counter-reset: pt; }
-    .result-points li { counter-increment: pt; padding: 6px 0 6px 32px; position: relative; border-bottom: 1px solid var(--bg-card); }
-    .result-points li::before { content: counter(pt); position: absolute; left: 0; top: 6px; width: 22px; height: 22px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 50%; color: var(--accent); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-    .card-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; }
-    .card-front { display: block; font-weight: 600; color: var(--accent-hover); }
-    .card-back { display: block; margin-top: 4px; }
-    .card-hint { display: block; font-size: 13px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
-    .story-result { text-align: center; padding: 20px 0; }
-    .story-result .play-btn { font-size: 20px; padding: 18px 48px; margin-bottom: 12px; }
-    .story-result .download-link { display: inline-block; margin-top: 8px; color: var(--text-muted); font-size: 14px; text-decoration: none; border-bottom: 1px dashed var(--border); }
-    .story-result .download-link:hover { color: var(--accent-hover); }
+    /* Loading */
+    .gen-loading { text-align: center; padding: 60px 20px; }
+    .gen-loading .gen-text { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+    .gen-loading .gen-hint { font-size: 14px; color: var(--text-muted); }
+    .gen-loading .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 20px; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .history-section { padding: 28px 0; }
-    .history-section h3 { font-size: 18px; margin-bottom: 14px; }
-    .history-item { display: flex; align-items: center; gap: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s; }
-    .history-item:hover { border-color: var(--accent); }
-    .history-type { font-size: 14px; flex-shrink: 0; }
-    .history-title { flex: 1; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .history-date { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
-    .history-delete { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; padding: 0 4px; }
-    .history-delete:hover { color: var(--error); }
-    .muted { color: var(--text-muted); font-size: 14px; }
+    /* Result */
+    .gen-result { text-align: center; padding: 40px 20px; }
+    .gen-result h3 { font-size: 24px; color: var(--accent-hover); margin-bottom: 8px; }
+    .gen-result p { color: var(--text-muted); margin-bottom: 24px; }
+    .play-btn { font-size: 20px; padding: 18px 48px; margin-bottom: 16px; }
+    .download-link { display: inline-block; color: var(--text-muted); font-size: 15px; text-decoration: none; border-bottom: 1px dashed var(--border); padding-bottom: 2px; }
+    .download-link:hover { color: var(--accent-hover); }
 
-    .download-pitch { text-align: center; padding: 36px 0; }
-    .download-pitch h3 { font-size: 20px; color: var(--accent-hover); margin-bottom: 8px; }
-    .download-pitch p { color: var(--text-muted); font-size: 15px; margin-bottom: 16px; }
-    .footer { text-align: center; padding: 24px 0; border-top: 1px solid var(--border); }
-    .footer a { color: var(--text-muted); text-decoration: none; font-size: 14px; margin: 0 8px; }
-    .footer a:hover { color: var(--accent-hover); }
+    /* Quiz / flashcard results (inline) */
+    .inline-result { margin: 24px 0; text-align: left; }
+    .inline-result h3 { font-size: 22px; color: var(--accent-hover); margin-bottom: 12px; }
+    .result-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; }
+    .result-card .front { font-weight: 600; color: var(--accent-hover); }
+    .result-card .back { margin-top: 4px; }
+    .result-card .hint { font-size: 13px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
+    .result-h { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 18px 0 8px; }
 
     @media (max-width: 760px) { .hero-grid { grid-template-columns: 1fr; } .form-row { flex-direction: column; } .hero-cta { flex-direction: column; } }
   </style>
@@ -133,40 +114,35 @@
   <!-- ─── Access-code gate ─── -->
   <div id="gate" class="container" style="display:none; text-align:center; padding-top:80px">
     <h1 style="font-size:32px;color:var(--accent-hover)">Playable Lessons</h1>
-    <p class="muted" style="margin:8px 0 24px">This instance requires an access code. Contact your administrator.</p>
+    <p style="color:var(--text-muted);font-size:14px;margin:8px 0 24px">This instance requires an access code.</p>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
       <input id="access-code-input" type="password" placeholder="Access code" style="width:240px" />
       <button id="access-code-btn" class="btn btn-primary">Enter</button>
     </div>
   </div>
 
-  <!-- ─── Main landing ─── -->
-  <div id="app" style="display:none">
-
-    <!-- Hero (two-column: text left, story demo right) -->
-    <header class="hero">
+  <!-- ─── Landing view ─── -->
+  <div id="landing-view" style="display:none">
+    <div class="hero">
       <div class="container">
         <div class="hero-grid">
           <div class="hero-text">
             <h1>Playable Lessons</h1>
             <p class="tagline">Turn material into a <span class="accent">playable story</span></p>
-            <p class="desc">Paste a case study, lecture notes, or a topic — and get a branching narrative
-              learners <em>play</em> by making choices. Not a summary. Not a quiz. A story they live through.</p>
+            <p class="desc">Paste a case study, lecture notes, or a topic — get a branching narrative
+              learners <em>play</em> by making choices. Not a summary. A story they live through.</p>
             <div class="hero-cta">
-              <button class="btn btn-primary btn-lg" id="try-btn" onclick="toggleCreate()">Create a story &rarr;</button>
+              <button class="btn btn-primary btn-lg" onclick="showCreate()">Create a story &rarr;</button>
               <a class="btn btn-secondary btn-lg" href="https://github.com/michael-borck/playable-lessons/releases/latest">&darr; Get the app</a>
             </div>
           </div>
-          <div class="hero-demo">
-            <!-- Animated story demo card -->
-            <div class="story-demo" id="story-demo">
+          <div>
+            <div class="story-demo">
               <div class="story-demo-header">
                 <span class="badge">Interactive Fiction</span>
                 <span class="live-dot">LIVE DEMO</span>
               </div>
-              <div class="story-demo-body" id="demo-body">
-                <!-- Scenes injected by JS -->
-              </div>
+              <div class="story-demo-body" id="demo-body"></div>
               <div class="story-demo-vars">
                 <div class="var-bar">
                   <div class="var-label"><span>Trust</span><span id="var-trust-val">50%</span></div>
@@ -181,179 +157,148 @@
           </div>
         </div>
       </div>
-    </header>
+    </div>
 
-    <!-- Other outputs -->
     <div class="other-outputs">
       <div class="container">
         <h3>Also generates</h3>
         <div class="output-pills">
-          <span class="output-pill">ð Flashcards</span>
-          <span class="output-pill">â Quiz</span>
-          <span class="output-pill">ð¤ AI-Collaboration Tasks</span>
-          <span class="output-pill">ð Case Study</span>
+          <span class="output-pill">Flashcards</span>
+          <span class="output-pill">Quiz</span>
+          <span class="output-pill">AI-Collaboration Tasks</span>
+          <span class="output-pill">Case Study</span>
         </div>
       </div>
     </div>
 
-    <!-- Create panel -->
-    <div id="create-panel" class="create-panel">
-      <div class="container create-inner">
-        <h2>Create</h2>
-        <p class="sub">Enter a topic or paste your material below.</p>
-        <div class="input-tabs">
-          <button class="input-tab active" data-mode="text" onclick="switchInputMode('text')">âï¸ Type / Paste</button>
-          <button class="input-tab" data-mode="file" onclick="switchInputMode('file')">ð Upload file</button>
-        </div>
-        <div id="text-input-mode">
-          <div class="form-group">
-            <textarea id="source" placeholder="Paste a case study, lecture notes, a topic, or any text..." rows="5"></textarea>
-          </div>
-        </div>
-        <div id="file-input-mode" style="display:none">
-          <div class="form-group">
-            <label>Upload a text file (.txt, .md)</label>
-            <input id="file-upload" type="file" accept=".txt,.md,.csv" onchange="handleFileUpload(event)" />
-            <p id="file-name" class="muted" style="margin-top:8px"></p>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>What to generate</label>
-            <select id="target">
-              <option value="story">ð Interactive Story</option>
-              <option value="flashcards">ð Flashcards</option>
-              <option value="quiz">â Quiz</option>
-              <option value="ai-task">ð¤ AI-Collaboration Tasks</option>
-              <option value="case-study">ð Case Study</option>
-            </select>
-          </div>
-          <div class="form-group" id="count-group">
-            <label>Length</label>
-            <select id="count">
-              <option value="5">Short (~5 scenes)</option>
-              <option value="12" selected>Medium (~12 scenes)</option>
-              <option value="25">Long (~25+ scenes)</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row" id="depth-group" style="display:none">
-          <div class="form-group">
-            <label>Case-study depth</label>
-            <select id="depth">
-              <option value="idea">Idea (a premise)</option>
-              <option value="outline">Outline (a skeleton)</option>
-              <option value="complete" selected>Complete (full case study)</option>
-            </select>
-          </div>
-        </div>
-        <button id="generate-btn" class="btn btn-primary" style="width:100%" onclick="generate()">Generate</button>
-        <div id="error" class="error"></div>
-        <div id="result" class="result"></div>
-      </div>
-    </div>
-
-    <!-- History -->
-    <div id="history-section" class="history-section">
+    <div class="landing-footer">
       <div class="container">
-        <h3>Your work (this browser)</h3>
-        <div id="history"></div>
+        <a href="https://github.com/michael-borck/playable-lessons">GitHub</a>
+        <a href="https://michael-borck.github.io/playable-lessons/">Landing page</a>
+        <span style="color:var(--text-muted);font-size:14px">MIT</span>
       </div>
-    </div>
-
-    <!-- Download pitch -->
-    <div class="download-pitch">
-      <div class="container">
-        <h3>The desktop app does more</h3>
-        <p>Inline editing with AI refinement, a node-graph story editor, a Projects dashboard,
-           offline Ollama use, and no rate limits.</p>
-        <a class="btn btn-secondary btn-lg" href="https://github.com/michael-borck/playable-lessons/releases/latest">&darr; Download the desktop app</a>
-      </div>
-    </div>
-
-    <div class="footer">
-      <a href="https://github.com/michael-borck/playable-lessons">GitHub</a>
-      <a href="https://michael-borck.github.io/playable-lessons/">Landing page</a>
-      <span style="color:var(--text-muted);font-size:14px">MIT Â© michael-borck</span>
     </div>
   </div>
 
+  <!-- ─── Create view (one-off: paste → generate → download) ─── -->
+  <div id="create-view">
+    <div class="container">
+      <div class="create-header">
+        <h2>Create</h2>
+        <span class="back-link" onclick="showLanding()">&larr; Back</span>
+      </div>
+
+      <!-- Input mode tabs -->
+      <div class="input-tabs">
+        <button class="input-tab active" data-mode="text" onclick="switchInputMode('text')">Type / Paste</button>
+        <button class="input-tab" data-mode="file" onclick="switchInputMode('file')">Upload file</button>
+      </div>
+
+      <!-- Text input -->
+      <div id="text-input-mode">
+        <div class="form-group">
+          <textarea id="source" placeholder="Paste a case study, lecture notes, a topic, or any text..." rows="6"></textarea>
+        </div>
+      </div>
+
+      <!-- File upload -->
+      <div id="file-input-mode" style="display:none">
+        <div class="form-group">
+          <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-upload').click()">
+            <p>Click to browse or drag a file here</p>
+            <p style="font-size:13px;margin-top:4px">.txt, .md, .csv accepted</p>
+            <p class="file-name" id="file-name" style="display:none"></p>
+          </div>
+          <input id="file-upload" type="file" accept=".txt,.md,.csv" style="display:none" onchange="handleFileUpload(event)" />
+        </div>
+      </div>
+
+      <!-- Target + options -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>What to generate</label>
+          <select id="target">
+            <option value="story">Interactive Story</option>
+            <option value="flashcards">Flashcards</option>
+            <option value="quiz">Quiz</option>
+            <option value="ai-task">AI-Collaboration Tasks</option>
+            <option value="case-study">Case Study</option>
+          </select>
+        </div>
+        <div class="form-group" id="count-group">
+          <label>Length</label>
+          <select id="count">
+            <option value="5">Short (~5 scenes)</option>
+            <option value="12" selected>Medium (~12 scenes)</option>
+            <option value="25">Long (~25+ scenes)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row" id="depth-group" style="display:none">
+        <div class="form-group">
+          <label>Case-study depth</label>
+          <select id="depth">
+            <option value="idea">Idea (a premise)</option>
+            <option value="outline">Outline (a skeleton)</option>
+            <option value="complete" selected>Complete (full case study)</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="generate-btn" class="btn btn-primary btn-lg" style="width:100%" onclick="generate()">Generate</button>
+
+      <div id="error" class="error"></div>
+      <div id="result-area"></div>
+    </div>
+  </div>
+
+  <!-- ─── Story demo animation ─── -->
   <script>
-  // ─── Story demo animation (cycles through scenes like a real interactive story) ───
   (function () {
     var scenes = [
-      {
-        text: "You're the new project manager. The deadline is in two weeks, and the team just lost a key developer. The stakeholder wants a status update by end of day.",
+      { text: "You're the new project manager. The deadline is in two weeks, and the team just lost a key developer. The stakeholder wants a status update by end of day.",
         choices: [
           { label: "\u2192 Push the team to hit the original deadline", trust: -10, exp: 5 },
           { label: "\u2192 Negotiate for an extra week", trust: 15, exp: 10, pick: true },
-          { label: "\u2192 Reassign priorities quietly", trust: 5, exp: 5 }
-        ]
-      },
-      {
-        text: "Your request is approved \u2014 one extra week. But the stakeholder adds: 'I'll be checking in daily.' The team looks to you for guidance.",
+          { label: "\u2192 Reassign priorities quietly", trust: 5, exp: 5 } ] },
+      { text: "Your request is approved \u2014 one extra week. But the stakeholder adds: 'I'll be checking in daily.' The team looks to you for guidance.",
         choices: [
           { label: "\u2192 Set up a daily 15-minute standup", trust: 10, exp: 10, pick: true },
           { label: "\u2192 Push back on daily check-ins", trust: -5, exp: 5 },
-          { label: "\u2192 Accept it silently and manage the pressure", trust: -10, exp: 15 }
-        ]
-      },
-      {
-        text: "The project ships on time. Your team feels heard, and the stakeholder trusts your judgement. You've earned respect for navigating a tough situation.",
+          { label: "\u2192 Accept it silently and manage the pressure", trust: -10, exp: 15 } ] },
+      { text: "The project ships on time. Your team feels heard, and the stakeholder trusts your judgement. You've earned respect for navigating a tough situation.",
         choices: [
           { label: "\u2192 Celebrate with the team", trust: 10, exp: 5 },
-          { label: "\u2192 Document lessons learned", trust: 5, exp: 15, pick: true }
-        ]
-      }
+          { label: "\u2192 Document lessons learned", trust: 5, exp: 15, pick: true } ] }
     ]
-    var sceneIdx = 0
-    var trust = 50
-    var exp = 20
+    var sceneIdx = 0, trust = 50, exp = 20
 
     function renderScene() {
       var s = scenes[sceneIdx]
       var body = document.getElementById('demo-body')
       if (!body) return
-
-      // Fade out current content
       body.style.opacity = '0'
-
-      // After fade-out, swap content + fade in
       setTimeout(function () {
-        var html = '<div class="scene-text">' + s.text + '</div>'
-        html += '<div class="scene-choices">'
-        s.choices.forEach(function (c, i) {
-          html += '<div class="scene-choice" data-idx="' + i + '">' + c.label + '</div>'
-        })
+        var html = '<div class="scene-text">' + s.text + '</div><div class="scene-choices">'
+        s.choices.forEach(function (c, i) { html += '<div class="scene-choice">' + c.label + '</div>' })
         html += '</div>'
         body.innerHTML = html
-
-        // Update variables
-        trust = Math.max(0, Math.min(100, trust))
-        exp = Math.max(0, Math.min(100, exp))
+        trust = Math.max(0, Math.min(100, trust)); exp = Math.max(0, Math.min(100, exp))
         document.getElementById('var-trust').style.width = trust + '%'
         document.getElementById('var-trust-val').textContent = trust + '%'
         document.getElementById('var-exp').style.width = exp + '%'
         document.getElementById('var-exp-val').textContent = exp + '%'
-
-        // Fade in
         body.style.opacity = '1'
-
-        // After 2.5s, auto-select the choice
         setTimeout(function () {
           var picked = s.choices.find(function (c) { return c.pick }) || s.choices[0]
-          var choiceEls = body.querySelectorAll('.scene-choice')
-          var pickIdx = s.choices.indexOf(picked)
-          if (choiceEls[pickIdx]) choiceEls[pickIdx].classList.add('selected')
-          trust += picked.trust || 0
-          exp += picked.exp || 0
-          document.getElementById('var-trust').style.width = Math.max(0, Math.min(100, trust)) + '%'
-          document.getElementById('var-trust-val').textContent = Math.max(0, Math.min(100, trust)) + '%'
-          document.getElementById('var-exp').style.width = Math.max(0, Math.min(100, exp)) + '%'
-          document.getElementById('var-exp-val').textContent = Math.max(0, Math.min(100, exp)) + '%'
+          var els = body.querySelectorAll('.scene-choice')
+          if (els[s.choices.indexOf(picked)]) els[s.choices.indexOf(picked)].classList.add('selected')
+          trust += picked.trust || 0; exp += picked.exp || 0
+          document.getElementById('var-trust').style.width = Math.max(0,Math.min(100,trust)) + '%'
+          document.getElementById('var-trust-val').textContent = Math.max(0,Math.min(100,trust)) + '%'
+          document.getElementById('var-exp').style.width = Math.max(0,Math.min(100,exp)) + '%'
+          document.getElementById('var-exp-val').textContent = Math.max(0,Math.min(100,exp)) + '%'
         }, 2500)
-
-        // After 4.5s, advance to next scene
         setTimeout(function () {
           sceneIdx = (sceneIdx + 1) % scenes.length
           if (sceneIdx === 0) { trust = 50; exp = 20 }
@@ -361,17 +306,187 @@
         }, 4500)
       }, 350)
     }
-
-    // Start the animation once the app is visible
-    var checkVisible = setInterval(function () {
-      if (document.getElementById('demo-body')) {
-        clearInterval(checkVisible)
-        renderScene()
-      }
+    var check = setInterval(function () {
+      if (document.getElementById('demo-body')) { clearInterval(check); renderScene() }
     }, 200)
   })()
   </script>
 
-  <script src="app.js"></script>
+  <!-- ─── App logic ─── -->
+  <script>
+  let accessCode = localStorage.getItem('pl-access-code') || ''
+  let uploadedText = ''
+
+  async function init() {
+    try {
+      const res = await fetch('/api/health')
+      const data = await res.json()
+      if (data.requiresAccessCode && !accessCode) { showGate() }
+      else if (data.requiresAccessCode) {
+        const check = await fetch('/api/health', { headers: { 'x-access-code': accessCode } })
+        if (check.ok) showLanding(); else { localStorage.removeItem('pl-access-code'); accessCode = ''; showGate() }
+      } else { showLanding() }
+    } catch { showLanding() }
+  }
+
+  function showGate() { document.getElementById('gate').style.display = 'block'; document.getElementById('landing-view').style.display = 'none'; document.getElementById('create-view').style.display = 'none' }
+  function showLanding() { document.getElementById('gate').style.display = 'none'; document.getElementById('landing-view').style.display = 'flex'; document.getElementById('create-view').style.display = 'none'; window.scrollTo(0, 0) }
+  function showCreate() { document.getElementById('landing-view').style.display = 'none'; document.getElementById('create-view').style.display = 'block'; window.scrollTo(0, 0); setTimeout(function () { document.getElementById('source') && document.getElementById('source').focus() }, 100) }
+
+  function submitAccessCode() {
+    var code = document.getElementById('access-code-input').value.trim()
+    if (!code) return
+    accessCode = code; localStorage.setItem('pl-access-code', code); init()
+  }
+
+  function switchInputMode(mode) {
+    document.querySelectorAll('.input-tab').forEach(function (t) { t.classList.toggle('active', t.dataset.mode === mode) })
+    document.getElementById('text-input-mode').style.display = mode === 'text' ? 'block' : 'none'
+    document.getElementById('file-input-mode').style.display = mode === 'file' ? 'block' : 'none'
+  }
+
+  function handleFileUpload(event) {
+    var file = event.target.files[0]; if (!file) return
+    var nameEl = document.getElementById('file-name')
+    nameEl.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)'
+    nameEl.style.display = 'block'
+    var reader = new FileReader()
+    reader.onload = function (e) { uploadedText = e.target.result }
+    reader.readAsText(file)
+  }
+
+  // Drag and drop
+  var dropZone = document.getElementById('drop-zone')
+  if (dropZone) {
+    dropZone.addEventListener('dragover', function (e) { e.preventDefault(); dropZone.classList.add('dragover') })
+    dropZone.addEventListener('dragleave', function () { dropZone.classList.remove('dragover') })
+    dropZone.addEventListener('drop', function (e) {
+      e.preventDefault(); dropZone.classList.remove('dragover')
+      if (e.dataTransfer.files.length) { document.getElementById('file-upload').files = e.dataTransfer.files; handleFileUpload({ target: { files: e.dataTransfer.files } }) }
+    })
+  }
+
+  // Target selector changes
+  document.getElementById('target').addEventListener('change', function (e) {
+    document.getElementById('depth-group').style.display = e.target.value === 'case-study' ? 'flex' : 'none'
+    var countGroup = document.getElementById('count-group')
+    var countLabel = countGroup.querySelector('label')
+    if (e.target.value === 'story') {
+      countLabel.textContent = 'Length'
+      countGroup.querySelector('select').innerHTML = '<option value="5">Short (~5 scenes)</option><option value="12" selected>Medium (~12 scenes)</option><option value="25">Long (~25+ scenes)</option>'
+    } else if (e.target.value === 'case-study') {
+      countGroup.style.display = 'none'
+    } else {
+      countGroup.style.display = 'flex'
+      countLabel.textContent = 'How many?'
+      countGroup.querySelector('select').outerHTML = '<input id="count" type="number" value="8" min="1" max="20" />'
+    }
+  })
+
+  async function generate() {
+    var source = uploadedText || document.getElementById('source').value.trim()
+    var target = document.getElementById('target').value
+    var countEl = document.getElementById('count')
+    var count = countEl ? (parseInt(countEl.value, 10) || 8) : 8
+    var depth = document.getElementById('depth').value
+
+    if (!source) { showError('Please enter or upload some source material first.'); return }
+
+    var btn = document.getElementById('generate-btn')
+    var resultArea = document.getElementById('result-area')
+    var errorArea = document.getElementById('error')
+    var isStory = target === 'story'
+
+    btn.disabled = true; btn.textContent = isStory ? 'Crafting...' : 'Generating...'
+    errorArea.style.display = 'none'
+
+    resultArea.innerHTML = '<div class="gen-loading"><div class="spinner"></div>' +
+      '<div class="gen-text">' + (isStory ? 'Crafting your branching narrative' : 'Generating') + '</div>' +
+      '<div class="gen-hint">' + (isStory ? '6 AI passes — this takes a bit longer' : '') + '</div></div>'
+
+    try {
+      var res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(accessCode ? { 'x-access-code': accessCode } : {}) },
+        body: JSON.stringify({ source: source, target: target, count: count, depth: depth })
+      })
+      var data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Generation failed.')
+      renderResult(data.result, target)
+    } catch (err) {
+      errorArea.textContent = err.message; errorArea.style.display = 'block'; resultArea.innerHTML = ''
+    } finally {
+      btn.disabled = false; btn.textContent = 'Generate'
+    }
+  }
+
+  function renderResult(result, target) {
+    var area = document.getElementById('result-area')
+    if (target === 'story' || result.type === 'story') {
+      var blob = new Blob([result.html], { type: 'text/html' })
+      var url = URL.createObjectURL(blob)
+      area.innerHTML = '<div class="gen-result">' +
+        '<h3>Your story is ready!</h3>' +
+        '<p>A self-contained playable HTML file. Works offline — share via email or LMS.</p>' +
+        '<a class="btn btn-primary play-btn" href="' + url + '" target="_blank">\u25B6 Play Story</a>' +
+        '<br><a class="download-link" href="' + url + '" download="playable-story.html">Download .html</a>' +
+        '</div>'
+      return
+    }
+
+    // Non-story: render inline
+    var html = '<div class="inline-result">'
+    var labels = { summary: 'Summary', flashcards: 'Flashcards', quiz: 'Quiz', 'ai-task': 'AI Tasks', 'case-study': 'Case Study' }
+    html += '<h3>' + (labels[target] || target) + ' \u2014 ready</h3>'
+
+    if (target === 'flashcards') {
+      if (result.deckTitle) html += '<p style="color:var(--text-muted);margin-bottom:12px">' + esc(result.deckTitle) + '</p>'
+      result.cards.forEach(function (c) {
+        html += '<div class="result-card"><span class="front">' + esc(c.front) + '</span><span class="back">' + esc(c.back) + '</span>'
+        if (c.hint) html += '<span class="hint">Hint: ' + esc(c.hint) + '</span>'
+        html += '</div>'
+      })
+    } else if (target === 'quiz') {
+      result.questions.forEach(function (q, i) {
+        html += '<div class="result-card"><span class="front">' + (i+1) + '. ' + esc(q.stem) + '</span>'
+        q.options.forEach(function (o, j) { html += '<span class="back">' + 'ABCD'[j] + ') ' + esc(o) + (j === q.correctIndex ? ' \u2705' : '') + '</span>' })
+        if (q.explanation) html += '<span class="hint">' + esc(q.explanation) + '</span>'
+        html += '</div>'
+      })
+    } else if (target === 'summary') {
+      if (result.overview) html += '<p style="margin-bottom:12px">' + esc(result.overview) + '</p>'
+      if (result.keyPoints && result.keyPoints.length) {
+        html += '<div class="result-h">Key Points</div><ol>'
+        result.keyPoints.forEach(function (p) { html += '<li>' + esc(p) + '</li>' })
+        html += '</ol>'
+      }
+    } else if (target === 'ai-task') {
+      result.tasks.forEach(function (t, i) {
+        html += '<div class="result-card"><span class="front">Task ' + (i+1) + ': ' + esc(t.scenario) + '</span>'
+        html += '<span class="back">Brief: ' + esc(t.brief) + '</span>'
+        html += '<span class="back">Deliverable: ' + esc(t.deliverable) + '</span></div>'
+      })
+    } else if (target === 'case-study') {
+      var cs = result.caseStudy
+      if (result.title) html += '<p style="margin-bottom:12px">' + esc(result.title) + '</p>'
+      if (cs && cs.situation) html += '<div class="result-h">Situation</div><p>' + esc(cs.situation) + '</p>'
+      if (cs && cs.conflict) html += '<div class="result-h">Conflict</div><p>' + esc(cs.conflict) + '</p>'
+    }
+
+    // Download as JSON
+    var jsonBlob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' })
+    var jsonUrl = URL.createObjectURL(jsonBlob)
+    html += '<div style="text-align:center;margin-top:24px"><a class="download-link" href="' + jsonUrl + '" download="' + target + '.json">Download .json</a></div>'
+    html += '</div>'
+    area.innerHTML = html
+  }
+
+  function showError(msg) { var a = document.getElementById('error'); a.textContent = msg; a.style.display = 'block' }
+  function esc(text) { var d = document.createElement('div'); d.textContent = String(text || ''); return d.innerHTML }
+
+  document.getElementById('access-code-btn').addEventListener('click', submitAccessCode)
+  document.getElementById('access-code-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitAccessCode() })
+  init()
+  </script>
 </body>
 </html>
