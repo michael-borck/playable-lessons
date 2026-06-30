@@ -1,0 +1,12 @@
+node_modules
+out
+.git
+release
+dist
+*.log
+npm-debug.*
+.DS_Store
+._*
+.env
+server/.env
+docs
