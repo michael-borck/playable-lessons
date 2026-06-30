@@ -12,6 +12,7 @@ import { toStandaloneHTML as toSummaryHTML, toPlainText as toSummaryText } from 
 import { toStandaloneHTML as toAiTaskHTML, toPlainText as toAiTaskText } from '../shared/aiTaskExport.js'
 import { toStandaloneHTML as toCaseStudyHTML, toPlainText as toCaseStudyText } from '../shared/caseStudyExport.js'
 import { toStandaloneHTML as toPlanHTML, toPlainText as toPlanText } from '../shared/planExport.js'
+import { APP_VERSION } from '../shared/version.generated.js'
 import type { ProviderConfig, ResolvedProvider } from '../shared/aiClient.js'
 
 /** Pick a provider from the environment when --provider isn't given. */
@@ -525,5 +526,5 @@ yargs(hideBin(process.argv))
 
   .demandCommand(1, 'You must specify a command')
   .help()
-  .version('0.3.0')
+  .version(APP_VERSION)
   .parse()

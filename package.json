@@ -19,7 +19,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "embed:runtime": "node scripts/embed-ink-runtime.mjs",
-    "build:cli": "tsc -p tsconfig.cli.json",
+    "embed:version": "node scripts/embed-version.mjs",
+    "build:cli": "node scripts/embed-version.mjs && tsc -p tsconfig.cli.json",
     "prepublishOnly": "npm run embed:runtime && npm run build:cli",
     "cli": "npx tsx src/cli/index.ts"
   },
