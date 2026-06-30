@@ -1,0 +1,103 @@
+/* Playable Lessons — landing page styles.
+   Themed to match the desktop app: dark bg, purple accent, clean serif headings. */
+
+:root {
+  --bg: #1a1a2e;
+  --bg-card: #252540;
+  --bg-card-hover: #2f3052;
+  --text: #e8e8f0;
+  --text-muted: #a0a0b8;
+  --accent: #7c6ef0;
+  --accent-hover: #9488f8;
+  --border: #3a3b55;
+  --radius: 10px;
+  --max-width: 860px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.container { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; }
+
+/* Hero */
+.hero { padding: 80px 0 60px; text-align: center; }
+.logo { font-size: 42px; font-weight: 800; color: var(--accent-hover); letter-spacing: -1px; }
+.tagline { font-size: 24px; margin: 12px 0 16px; }
+.tagline .accent { color: var(--accent-hover); }
+.sub { font-size: 17px; color: var(--text-muted); max-width: 620px; margin: 0 auto 36px; }
+
+/* Download block */
+.download-block { margin-bottom: 20px; }
+.btn {
+  display: inline-block; padding: 14px 36px; border-radius: var(--radius);
+  font-size: 17px; font-weight: 600; text-decoration: none; cursor: pointer;
+  border: 1px solid transparent; transition: all 0.15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.btn-secondary { background: var(--bg-card); color: var(--text); border-color: var(--border); }
+.btn-secondary:hover { border-color: var(--accent); }
+
+.platform-toggle { margin: 16px 0 8px; display: flex; gap: 8px; justify-content: center; }
+.platform-btn {
+  padding: 6px 16px; background: transparent; border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-muted); font-size: 14px; cursor: pointer;
+  transition: all 0.15s;
+}
+.platform-btn:hover { color: var(--text); border-color: var(--accent); }
+.platform-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.version { font-size: 13px; color: var(--text-muted); }
+.alt-install { font-size: 15px; color: var(--text-muted); margin-top: 28px; }
+.alt-install code, .cta-card code {
+  background: var(--bg-card); padding: 3px 8px; border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace; font-size: 14px;
+}
+
+/* Sections */
+section { padding: 60px 0; }
+h2 { font-size: 28px; margin-bottom: 32px; text-align: center; }
+
+/* Outputs grid */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; transition: border-color 0.15s, background 0.15s;
+}
+.card:hover { border-color: var(--accent); background: var(--bg-card-hover); }
+.card-icon { font-size: 32px; margin-bottom: 12px; }
+.card h3 { font-size: 18px; margin-bottom: 8px; color: var(--accent-hover); }
+.card p { font-size: 14px; color: var(--text-muted); }
+
+/* Privacy */
+.privacy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+.privacy-item h3 { font-size: 17px; color: var(--accent-hover); margin-bottom: 8px; }
+.privacy-item p { font-size: 15px; color: var(--text-muted); }
+
+/* CTA */
+.cta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.cta-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 28px; text-align: center;
+}
+.cta-card h3 { font-size: 20px; margin-bottom: 12px; color: var(--accent-hover); }
+.cta-card p { font-size: 15px; color: var(--text-muted); margin-bottom: 20px; }
+
+/* Footer */
+.footer { border-top: 1px solid var(--border); padding: 32px 0; margin-top: 40px; }
+.footer .container { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.footer a { color: var(--text-muted); text-decoration: none; font-size: 14px; }
+.footer a:hover { color: var(--accent-hover); }
+.footer .copyright { margin-left: auto; color: var(--text-muted); font-size: 14px; }
+
+@media (max-width: 600px) {
+  .cta-grid { grid-template-columns: 1fr; }
+  .logo { font-size: 32px; }
+  .tagline { font-size: 20px; }
+}

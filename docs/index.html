@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Playable Lessons — Turn material into playable lessons</title>
+  <meta name="description" content="Turn educational source material into a branching story, flashcards, a quiz, a summary, AI-collaboration tasks, or a case study. Runs locally; outputs are standalone offline HTML." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="container">
+      <h1 class="logo">Playable Lessons</h1>
+      <p class="tagline">Turn educational material into <span class="accent">playable lessons</span>.</p>
+      <p class="sub">Paste in a case study, lecture notes, a methodology, or just a topic — and get a branching
+        interactive story, flashcards, a quiz, a summary, an AI-collaboration task, or a case study.
+        One source, seven artifacts. Runs locally; every output is a standalone offline HTML file you own.</p>
+
+      <div class="download-block">
+        <a id="download-btn" class="btn btn-primary" href="#">Loading…</a>
+        <div class="platform-toggle">
+          <button data-platform="mac" class="platform-btn">macOS</button>
+          <button data-platform="windows" class="platform-btn">Windows</button>
+          <button data-platform="linux" class="platform-btn">Linux</button>
+        </div>
+        <p class="version" id="version">&nbsp;</p>
+      </div>
+
+      <p class="alt-install">Or install the CLI: <code>npm i -g playable-lessons</code></p>
+    </div>
+  </header>
+
+  <section class="container outputs">
+    <h2>Seven outputs from one source</h2>
+    <div class="grid">
+      <div class="card"><div class="card-icon">📖</div><h3>Story</h3><p>A branching, playable interactive-fiction narrative (Ink) — learners make choices.</p></div>
+      <div class="card"><div class="card-icon">🃏</div><h3>Flashcards</h3><p>A flip-card deck — front/back, hints, tags. Exports to Anki, CSV, and HTML.</p></div>
+      <div class="card"><div class="card-icon">✅</div><h3>Quiz</h3><p>A self-marking multiple-choice quiz with instant scoring and explanations.</p></div>
+      <div class="card"><div class="card-icon">📝</div><h3>Summary</h3><p>A concise study summary — overview, key points, and a glossary.</p></div>
+      <div class="card"><div class="card-icon">🤝</div><h3>AI-Collaboration Tasks</h3><p>Tasks where interrogating a chatbot — not pasting its first answer — is what wins.</p></div>
+      <div class="card"><div class="card-icon">🔍</div><h3>Case Study</h3><p>A teaching case with a dilemma, decision points, and discussion questions.</p></div>
+      <div class="card"><div class="card-icon">✨</div><h3>Plan</h3><p>Not sure what to make? The recommender picks a set and generates them all.</p></div>
+    </div>
+  </section>
+
+  <section class="container privacy">
+    <h2>Yours, offline, private</h2>
+    <div class="privacy-grid">
+      <div class="privacy-item">
+        <h3>Nothing leaves your machine</h3>
+        <p>The desktop app runs locally. Your source material and your API key never touch our servers — there are no servers.</p>
+      </div>
+      <div class="privacy-item">
+        <h3>Outputs you own</h3>
+        <p>Every artifact is a self-contained, offline HTML file (or CSV/JSON). Host it on GitHub Pages, drop it in an LMS, or email it.</p>
+      </div>
+      <div class="privacy-item">
+        <h3>Bring your own AI</h3>
+        <p>Use Claude or OpenAI with your own key — or run fully offline with a local Ollama model. Your choice.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="container cta">
+    <h2>Two ways to run</h2>
+    <div class="cta-grid">
+      <div class="cta-card">
+        <h3>Desktop app</h3>
+        <p>The full authoring experience: a target selector, a node-graph story editor, a live player, a Projects dashboard, and exports.</p>
+        <a class="btn btn-secondary" href="#top">↓ Download above</a>
+      </div>
+      <div class="cta-card">
+        <h3>CLI</h3>
+        <p>The same engine, headless — for scripts, CI, batch runs, and offline generation against Ollama.</p>
+        <code>npm i -g playable-lessons</code>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <a href="https://github.com/michael-borck/playable-lessons">GitHub</a>
+      <a href="https://github.com/michael-borck/playable-lessons/releases">Releases</a>
+      <a href="https://github.com/michael-borck/playable-lessons/blob/main/README.md">Docs</a>
+      <span class="copyright">MIT © michael-borck</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
