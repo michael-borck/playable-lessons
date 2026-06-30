@@ -1,0 +1,19 @@
+# Playable Lessons — self-hosted Docker deployment
+#
+# Quick start:
+#   1. Copy server/.env.example to server/.env and fill in your API key + access code.
+#   2. docker compose up
+#   3. Open http://localhost:3000
+#
+# To pull the prebuilt image instead of building locally:
+#   Replace `build: .` with `image: ghcr.io/michael-borck/playable-lessons:latest`
+
+services:
+  playable-lessons:
+    build: .
+    # image: ghcr.io/michael-borck/playable-lessons:latest
+    ports:
+      - "3000:3000"
+    env_file:
+      - server/.env
+    restart: unless-stopped
