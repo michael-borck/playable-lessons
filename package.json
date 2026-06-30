@@ -1,6 +1,6 @@
 {
   "name": "playable-lessons",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "main": "./out/main/index.mjs",
   "scripts": {
     "dev": "electron-vite dev",
