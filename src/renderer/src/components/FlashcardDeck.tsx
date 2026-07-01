@@ -95,10 +95,17 @@ export default function FlashcardDeck({ result, editable }: { result: FlashcardR
         {flipped && card.hint && <div className="flashcard-hint">Hint: {card.hint}</div>}
       </div>
       <div className="btn-row deck-controls">
-        <button className="btn btn-secondary" disabled={idx === 0} onClick={() => go(-1)}>‹ Prev</button>
+        <button className="btn btn-secondary" disabled={idx === 0} onClick={() => go(-1)}>&lsaquo; Prev</button>
         <button className="btn btn-primary" onClick={flip}>Flip</button>
-        <button className="btn btn-secondary" disabled={idx === cards.length - 1} onClick={() => go(1)}>Next ›</button>
+        <button className="btn btn-secondary" disabled={idx === cards.length - 1} onClick={() => go(1)}>Next &rsaquo;</button>
         <button className="btn btn-secondary" onClick={shuffle}>Shuffle</button>
+        {result.cards.length > 5 && (
+          <button className="btn btn-secondary" onClick={() => {
+            const shuffled = [...result.cards]
+            for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]] }
+            setCards(shuffled.slice(0, 5)); setIdx(0); setFlipped(false)
+          }}>Random 5</button>
+        )}
         <button className="btn btn-secondary" onClick={restart}>Restart</button>
       </div>
       <p className="study-hint">Click the card or press Space to flip · ← → to navigate</p>

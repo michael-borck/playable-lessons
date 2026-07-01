@@ -58,11 +58,11 @@ describe('toStandaloneHTML', () => {
     expect(opens).toBe(closes)
   })
 
-  it('renders the quiz UI (form, submit, score, footer)', () => {
+  it('renders the quiz UI (content div, footer)', () => {
     const html = toStandaloneHTML(sample, 'Quiz')
-    expect(html).toContain('id="quiz"')
-    expect(html).toContain('id="submit"')
-    expect(html).toContain('id="score"')
+    expect(html).toContain('id="content"')
+    expect(html).toContain('QUIZ_SIZE')
+    expect(html).toContain('newDeck')
     expect(html).toContain('Created with Playable Lessons')
   })
 })
