@@ -1,6 +1,28 @@
 import { describe, it, expect } from 'vitest'
 import { extractInk, generateInk, extractJson, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan, quizLetter, type PlanResult } from './generate'
+import { storyPrompts } from './prompts'
 import type { ProviderConfig, AIMessage } from './aiClient'
+
+describe('storyPrompts', () => {
+  it('defaults to the stateful prompts, which ask for variables', () => {
+    const sp = storyPrompts()
+    expect(sp.system).toContain('VAR')
+    expect(sp.outline).toContain('"variables"')
+    expect(sp.inkGeneration).toContain('conditional')
+  })
+
+  it('branching prompts forbid variables and conditionals everywhere', () => {
+    const sp = storyPrompts('branching')
+    expect(sp.system).toContain('PURE BRANCHING')
+    expect(sp.system).toContain('Do NOT declare or use variables')
+    expect(sp.outline).not.toContain('"variables"')
+    expect(sp.inkGeneration).toContain('Do NOT use variables')
+    expect(sp.inkSyntaxRef).toContain('no variables')
+    // The syntax reference must not teach declaration/assignment/conditional syntax
+    // (outside the explicit FORBIDDEN list).
+    expect(sp.inkSyntaxRef.split('FORBIDDEN')[0]).not.toMatch(/^VAR |~ |\{ ?\w+ ?[><]/m)
+  })
+})
 
 describe('extractInk', () => {
   it('prefers a ```ink fenced block', () => {
@@ -31,6 +53,37 @@ describe('generateInk', () => {
     expect(result.inkSource).toContain('=== start ===')
     expect(() => JSON.parse(result.compiledJson)).not.toThrow()
     void calls
+  })
+
+  it('sends pure-branching prompts to the model when branchingStyle is "branching"', async () => {
+    const systems: string[] = []
+    await generateInk(
+      { inputMode: 'topic', inputText: 'x', branchingStyle: 'branching' },
+      config,
+      {
+        call: async (messages) => {
+          systems.push(messages.find((m) => m.role === 'system')?.content ?? '')
+          return VALID
+        }
+      }
+    )
+    expect(systems.length).toBeGreaterThan(0)
+    for (const s of systems) {
+      expect(s).toContain('PURE BRANCHING')
+    }
+  })
+
+  it('sends stateful prompts by default', async () => {
+    const systems: string[] = []
+    await generateInk({ inputMode: 'topic', inputText: 'x' }, config, {
+      call: async (messages) => {
+        systems.push(messages.find((m) => m.role === 'system')?.content ?? '')
+        return VALID
+      }
+    })
+    for (const s of systems) {
+      expect(s).toContain('Track relevant variables')
+    }
   })
 
   it('retries compilation with AI fixes and gives up after maxCompileRetries', async () => {

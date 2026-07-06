@@ -251,6 +251,16 @@
           </select>
         </div>
       </div>
+      <div class="form-row" id="style-group">
+        <div class="form-group">
+          <label>Output compatibility</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:400;color:var(--text);cursor:pointer;text-transform:none">
+            <input id="style-h5p" type="checkbox" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer" />
+            H5P / LMS compatible
+          </label>
+          <p id="style-hint" style="font-size:12px;color:var(--text-muted);margin-top:6px">Default: the richest story &mdash; scenes react to earlier choices. Tick the box if you need an .h5p file for LMS import.</p>
+        </div>
+      </div>
       <div class="form-row" id="depth-group" style="display:none">
         <div class="form-group">
           <label>Case-study depth</label>
@@ -413,8 +423,14 @@
   var dz = document.getElementById('drop-zone')
   if (dz) { dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('dragover')}); dz.addEventListener('dragleave',function(){dz.classList.remove('dragover')}); dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('dragover');if(e.dataTransfer.files.length){document.getElementById('file-upload').files=e.dataTransfer.files;handleFileUpload({target:{files:e.dataTransfer.files}})}}) }
 
+  document.getElementById('style-h5p').addEventListener('change', function(e) {
+    document.getElementById('style-hint').textContent = e.target.checked
+      ? 'The story stays a pure choice-tree so it can be downloaded as an .h5p file for LMS import.'
+      : 'Default: the richest story — scenes react to earlier choices. Tick the box if you need an .h5p file for LMS import.'
+  })
   document.getElementById('target').addEventListener('change', function(e) {
     document.getElementById('depth-group').style.display = e.target.value === 'case-study' ? 'flex' : 'none'
+    document.getElementById('style-group').style.display = e.target.value === 'story' ? 'flex' : 'none'
     var cg = document.getElementById('count-group'), cl = cg.querySelector('label')
     if (e.target.value === 'story') { cg.style.display='flex'; cl.textContent='Length'; cg.querySelector('select').innerHTML='<option value="5">Short (~5 scenes)</option><option value="12" selected>Medium (~12 scenes)</option><option value="25">Long (~25+ scenes)</option>' }
     else if (e.target.value === 'case-study') { cg.style.display='none' }
@@ -426,13 +442,14 @@
     var target = document.getElementById('target').value
     var countEl = document.getElementById('count'); var count = countEl ? (parseInt(countEl.value,10)||8) : 8
     var depth = document.getElementById('depth').value
+    var style = document.getElementById('style-h5p').checked ? 'branching' : 'stateful'
     if (!source) { showError('Please enter or upload some source material first.'); return }
     var btn = document.getElementById('generate-btn'), ra = document.getElementById('result-area'), ea = document.getElementById('error')
     var isStory = target === 'story'
     btn.disabled = true; btn.textContent = isStory ? 'Crafting...' : 'Generating...'; ea.style.display = 'none'
     ra.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div class="gen-text">' + (isStory?'Crafting your branching narrative':'Generating') + '</div><div class="gen-hint">' + (isStory?'6 AI passes \u2014 this takes a bit longer':'') + '</div></div>'
     try {
-      var res = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json',...(accessCode?{'x-access-code':accessCode}:{})}, body:JSON.stringify({source:source,target:target,count:count,depth:depth}) })
+      var res = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json',...(accessCode?{'x-access-code':accessCode}:{})}, body:JSON.stringify({source:source,target:target,count:count,depth:depth,style:style}) })
       var data = await res.json(); if(!res.ok) throw new Error(data.error||'Generation failed.')
       renderResult(data.result, target)
     } catch(err) { ea.textContent=err.message; ea.style.display='block'; ra.innerHTML='' }
@@ -443,7 +460,14 @@
     var area = document.getElementById('result-area')
     if (target === 'story' || result.type === 'story') {
       var blob = new Blob([result.html], {type:'text/html'}); var url = URL.createObjectURL(blob)
-      area.innerHTML = '<div class="gen-result"><h3>Your story is ready!</h3><p>A self-contained playable HTML file. Works offline \u2014 share via email or LMS.</p><a class="btn btn-primary play-btn" href="'+url+'" target="_blank">\u25B6 Play Story</a><br><a class="download-link" href="'+url+'" download="playable-story.html">Download .html</a></div>'
+      var h5pLink = ''
+      if (result.h5p) {
+        var bin = atob(result.h5p); var bytes = new Uint8Array(bin.length)
+        for (var bi = 0; bi < bin.length; bi++) bytes[bi] = bin.charCodeAt(bi)
+        var h5pUrl = URL.createObjectURL(new Blob([bytes], {type:'application/zip'}))
+        h5pLink = ' \u00B7 <a class="download-link" href="'+h5pUrl+'" download="playable-story.h5p">Download .h5p (LMS import)</a>'
+      }
+      area.innerHTML = '<div class="gen-result"><h3>Your story is ready!</h3><p>A self-contained playable HTML file. Works offline \u2014 share via email or LMS.</p><a class="btn btn-primary play-btn" href="'+url+'" target="_blank">\u25B6 Play Story</a><br><a class="download-link" href="'+url+'" download="playable-story.html">Download .html</a>'+h5pLink+'</div>'
       return
     }
     var labels = { summary:'Summary', flashcards:'Flashcards', quiz:'Quiz', 'ai-task':'AI Tasks', 'case-study':'Case Study' }

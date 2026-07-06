@@ -7,8 +7,10 @@
  */
 
 import { callAI, type AIMessage, type ProviderConfig } from './aiClient.js'
-import { PROMPTS } from './prompts.js'
+import { PROMPTS, storyPrompts, type BranchingStyle } from './prompts.js'
 import { compileInk } from './storyExport.js'
+
+export type { BranchingStyle }
 
 export interface GenerateParams {
   /** topic | lesson | methodology | case-study | lecture-notes | scenario */
@@ -17,6 +19,11 @@ export interface GenerateParams {
   storyLength?: string // short | medium | long
   protagonistType?: string
   tone?: string
+  /**
+   * stateful (default): Ink-native variables + conditional text.
+   * branching: pure branching tree, no state — convertible to H5P/LMS formats.
+   */
+  branchingStyle?: BranchingStyle
   /** Optional pre-supplied answers to clarification questions. */
   answers?: string
 }
@@ -99,15 +106,16 @@ export async function generateInk(
   const protagonist = params.protagonistType || 'the reader'
   const tone = params.tone || 'professional'
   const answers = params.answers || '(no specific preferences provided — use sensible defaults)'
-  const inkSystem = PROMPTS.system + '\n\n' + PROMPTS.inkSyntaxRef
+  const sp = storyPrompts(params.branchingStyle)
+  const inkSystem = sp.system + '\n\n' + sp.inkSyntaxRef
 
   // ─── Stage 1: Outline ───
   log('[1/4] Generating story outline…')
   const outlineRaw = await call([
-    { role: 'system', content: PROMPTS.system },
+    { role: 'system', content: sp.system },
     {
       role: 'user',
-      content: PROMPTS.outline
+      content: sp.outline
         .replace('{{inputMode}}', mode)
         .replace('{{inputText}}', params.inputText)
         .replace('{{storyLength}}', length)
@@ -123,7 +131,7 @@ export async function generateInk(
     { role: 'system', content: inkSystem },
     {
       role: 'user',
-      content: PROMPTS.inkGeneration
+      content: sp.inkGeneration
         .replace('{{outline}}', outlineRaw)
         .replace('{{inputMode}}', mode)
         .replace('{{inputText}}', params.inputText)
@@ -676,6 +684,8 @@ export interface PlanParams {
   inputMode: string
   inputText: string
   tone?: string
+  /** Story style used when a plan's recommended set includes a story. */
+  branchingStyle?: BranchingStyle
 }
 
 const PLAN_TARGETS: PlanTarget[] = ['story', 'flashcards', 'quiz', 'summary', 'ai-task', 'case-study']
@@ -758,7 +768,7 @@ export async function applyPlan(
   opts: GenerateOptions = {}
 ): Promise<PlanArtifacts> {
   const log = opts.log ?? (() => {})
-  const { inputMode, inputText, tone } = params
+  const { inputMode, inputText, tone, branchingStyle } = params
   const artifacts: PlanArtifacts = {}
   const recs = plan.recommendations
   recs.forEach((rec, i) => {
@@ -768,7 +778,7 @@ export async function applyPlan(
     switch (rec.target) {
       case 'story':
         artifacts.story = await generateInk(
-          { inputMode, inputText, storyLength: 'medium', tone }, config, opts
+          { inputMode, inputText, storyLength: 'medium', tone, branchingStyle }, config, opts
         )
         break
       case 'flashcards':

@@ -12,6 +12,7 @@ import { toStandaloneHTML as toSummaryHTML, toPlainText as toSummaryText } from 
 import { toStandaloneHTML as toAiTaskHTML, toPlainText as toAiTaskText } from '../shared/aiTaskExport.js'
 import { toStandaloneHTML as toCaseStudyHTML, toPlainText as toCaseStudyText } from '../shared/caseStudyExport.js'
 import { toStandaloneHTML as toPlanHTML, toPlainText as toPlanText } from '../shared/planExport.js'
+import { exportH5P } from '../shared/h5pExporter.js'
 import { APP_VERSION } from '../shared/version.generated.js'
 import type { ProviderConfig, ResolvedProvider } from '../shared/aiClient.js'
 
@@ -98,7 +99,7 @@ yargs(hideBin(process.argv))
     return yargs
       .option('input', { alias: 'i', type: 'string', demandOption: true, describe: 'Path to .ink file' })
       .option('output', { alias: 'o', type: 'string', demandOption: true, describe: 'Output directory' })
-      .option('format', { alias: 'f', type: 'string', default: 'html', describe: 'Export format: html, ink, json' })
+      .option('format', { alias: 'f', type: 'string', default: 'html', describe: 'Export format: html, ink, json, h5p (h5p requires a story with no variables/conditionals)' })
       .option('title', { alias: 't', type: 'string', default: 'Story', describe: 'Story title' })
   }, async (argv) => {
     try {
@@ -132,6 +133,13 @@ yargs(hideBin(process.argv))
             console.log(`Exported Ink: ${outPath}`)
             break
           }
+          case 'h5p': {
+            const bytes = exportH5P(source, title)
+            const outPath = join(outputDir, `${baseName}.h5p`)
+            await writeFile(outPath, Buffer.from(bytes))
+            console.log(`Exported H5P: ${outPath}`)
+            break
+          }
           default:
             console.warn(`Unknown format: ${format}`)
         }
@@ -156,11 +164,12 @@ yargs(hideBin(process.argv))
       .option('cards', { type: 'number', default: 12, describe: 'Number of items to generate — flashcards, quiz questions, summary key points, or AI-collaboration tasks (target=flashcards|quiz|summary|ai-task)' })
       .option('depth', { type: 'string', default: 'complete', describe: 'Case-study depth: idea | outline | complete (target=case-study)' })
       .option('length', { alias: 'l', type: 'string', default: 'medium', describe: 'Story length: short | medium | long' })
+      .option('style', { type: 'string', default: 'stateful', describe: 'Story branching style: stateful (Ink variables + conditional text) | branching (pure tree, H5P/LMS-convertible)' })
       .option('tone', { type: 'string', default: 'professional', describe: 'Narrative tone' })
       .option('protagonist', { type: 'string', default: 'the reader', describe: 'Protagonist type' })
       .option('answers', { type: 'string', describe: 'Optional answers to clarifying questions' })
       .option('retries', { type: 'number', default: 3, describe: 'Max compile attempts, with AI-assisted fixes between them (raise for weaker local models)' })
-      .option('format', { alias: 'f', type: 'string', describe: 'Output formats. story: ink|html|json (default ink,html). flashcards: csv|html|anki|json (default csv,html). quiz: html|txt|json (default html,json). summary: html|txt|json (default html,txt). ai-task: html|txt|json (default html,txt). case-study: html|txt|json (default html,txt).' })
+      .option('format', { alias: 'f', type: 'string', describe: 'Output formats. story: ink|html|json|h5p (default ink,html; h5p requires --style branching). flashcards: csv|html|anki|json (default csv,html). quiz: html|txt|json (default html,json). summary: html|txt|json (default html,txt). ai-task: html|txt|json (default html,txt). case-study: html|txt|json (default html,txt).' })
       .option('title', { alias: 't', type: 'string', describe: 'Title for the story, flashcard deck, quiz, summary, AI-task set, or case study (defaults to the input/topic name)' })
   }, async (argv) => {
     try {
@@ -407,6 +416,7 @@ yargs(hideBin(process.argv))
             inputMode: argv.mode as string,
             inputText,
             storyLength: argv.length as string,
+            branchingStyle: argv.style === 'branching' ? 'branching' : 'stateful',
             protagonistType: argv.protagonist as string,
             tone: argv.tone as string,
             answers: argv.answers as string | undefined
@@ -437,6 +447,17 @@ yargs(hideBin(process.argv))
               console.log(`Wrote ${outPath}`)
               break
             }
+            case 'h5p': {
+              try {
+                const bytes = exportH5P(result.inkSource, title)
+                const outPath = join(outputDir, `${base}.h5p`)
+                await writeFile(outPath, Buffer.from(bytes))
+                console.log(`Wrote ${outPath}`)
+              } catch (err) {
+                console.warn(`Skipped h5p: ${err instanceof Error ? err.message : err}`)
+              }
+              break
+            }
             default:
               console.warn(`Unknown format: ${format}`)
           }
@@ -460,6 +481,7 @@ yargs(hideBin(process.argv))
       .option('ollama-url', { type: 'string', default: 'http://localhost:11434', describe: 'Ollama base URL' })
       .option('mode', { type: 'string', default: 'topic', describe: 'Input mode: topic | lesson | methodology | case-study | lecture-notes | scenario' })
       .option('tone', { type: 'string', default: 'professional', describe: 'Narrative tone' })
+      .option('style', { type: 'string', default: 'stateful', describe: 'Story branching style when applying: stateful | branching' })
       .option('apply', { type: 'boolean', default: false, describe: 'Also generate every recommended output' })
       .option('format', { alias: 'f', type: 'string', default: 'html,json', describe: 'When applying: artifact formats html|json' })
   }, async (argv) => {
@@ -500,7 +522,12 @@ yargs(hideBin(process.argv))
 
       if (argv.apply) {
         const formats = (argv.format as string).split(',').map((f) => f.trim()).filter(Boolean)
-        const artifacts = await applyPlan(plan, { inputMode: argv.mode as string, inputText, tone }, config, { log })
+        const artifacts = await applyPlan(
+          plan,
+          { inputMode: argv.mode as string, inputText, tone, branchingStyle: argv.style === 'branching' ? 'branching' : 'stateful' },
+          config,
+          { log }
+        )
         const write = async (kind: string, html: string | null, json: object) => {
           if (formats.includes('html') && html) {
             await writeFile(join(outputDir, `${base}.${kind}.html`), html)

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useAppStore } from '../stores/appStore'
 import { exportStandaloneHTML } from '../lib/exporter'
 import { exportToTwee3 } from '../lib/tweeExporter'
+import { exportH5P, findStateConstructs, bytesToBase64 } from '../../../shared/h5pExporter'
 import { generateWalkthroughHTML } from '../lib/pdfExporter'
 import { publishToGitHubPages } from '../lib/githubPublisher'
 import { toCSV, toAnkiTSV, toStandaloneHTML as toFlashcardHTML } from '../../../shared/flashcardExport'
@@ -28,6 +29,27 @@ export default function ExportPanel() {
   const [exportDone, setExportDone] = useState<string | null>(null)
 
   const name = projectName || 'story'
+
+  // H5P can only represent stateless branching — check the current story once.
+  const h5pBlockers = useMemo(
+    () => (inkSource.trim() ? findStateConstructs(inkSource) : []),
+    [inkSource]
+  )
+
+  const handleExportH5P = async () => {
+    if (!inkSource.trim() || h5pBlockers.length > 0) return
+    setExporting('h5p')
+    setExportDone(null)
+    try {
+      const bytes = exportH5P(inkSource, name)
+      const saved = await window.api.saveBinaryFile(`${name}.h5p`, bytesToBase64(bytes), [
+        { name: 'H5P Packages', extensions: ['h5p'] }
+      ])
+      if (saved) setExportDone(saved)
+    } finally {
+      setExporting(null)
+    }
+  }
 
   const handleExportHTML = async () => {
     if (!inkSource.trim()) return
@@ -239,6 +261,38 @@ export default function ExportPanel() {
               onClick={handleExportPDF}
               disabled={exporting === 'pdf'}
             />
+
+            {/* H5P export — only stateless branching stories convert faithfully */}
+            <div className="settings-section">
+              <div className="settings-section-title">H5P Branching Scenario</div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 12 }}>
+                A .h5p package for import into an LMS with H5P (Moodle, Blackboard) or Lumi.
+                Requires the Branching Scenario content type on the host.
+              </p>
+              {h5pBlockers.length > 0 && (
+                <div style={{
+                  background: 'rgba(232, 168, 56, 0.15)',
+                  border: '1px solid var(--warning)',
+                  borderRadius: 'var(--radius)',
+                  padding: '10px 14px',
+                  marginBottom: 12,
+                  color: 'var(--warning)',
+                  fontSize: 13
+                }}>
+                  This story uses adaptive state (variables / conditional text), which H5P
+                  can&apos;t represent — {h5pBlockers.length} construct{h5pBlockers.length === 1 ? '' : 's'} found,
+                  first at line {h5pBlockers[0].line}: <code>{h5pBlockers[0].snippet}</code>.
+                  Regenerate with &ldquo;H5P / LMS compatible&rdquo; ticked on the input screen.
+                </div>
+              )}
+              <button
+                className="btn btn-primary"
+                onClick={handleExportH5P}
+                disabled={h5pBlockers.length > 0 || exporting === 'h5p'}
+              >
+                {exporting === 'h5p' ? 'Exporting...' : 'Export .h5p'}
+              </button>
+            </div>
 
             {/* GitHub Pages publish */}
             <div className="settings-section">

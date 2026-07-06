@@ -134,6 +134,17 @@ app.whenReady().then(() => {
     return result.filePath
   })
 
+  // IPC: Save binary file dialog (content arrives base64-encoded, e.g. .h5p zips)
+  ipcMain.handle('dialog:saveBinaryFile', async (_event, defaultName: string, base64: string, filters?: Electron.FileFilter[]) => {
+    const result = await dialog.showSaveDialog({
+      defaultPath: defaultName,
+      filters: filters || [{ name: 'All Files', extensions: ['*'] }]
+    })
+    if (result.canceled || !result.filePath) return null
+    await writeFile(result.filePath, Buffer.from(base64, 'base64'))
+    return result.filePath
+  })
+
   // IPC: Open image file and return as base64 data URL
   ipcMain.handle('image:import', async () => {
     const result = await dialog.showOpenDialog({

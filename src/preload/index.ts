@@ -9,6 +9,9 @@ const api = {
   saveFile: (defaultName: string, content: string, filters?: FileFilter[]): Promise<string | null> =>
     ipcRenderer.invoke('dialog:saveFile', defaultName, content, filters),
 
+  saveBinaryFile: (defaultName: string, base64: string, filters?: FileFilter[]): Promise<string | null> =>
+    ipcRenderer.invoke('dialog:saveBinaryFile', defaultName, base64, filters),
+
   importImage: (): Promise<{ dataUrl: string; fileName: string; filePath: string } | null> =>
     ipcRenderer.invoke('image:import'),
 

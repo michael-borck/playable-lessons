@@ -19,6 +19,8 @@ export default function InputPanel() {
   const setView = useAppStore((s) => s.setCurrentView)
   const storyLength = useAppStore((s) => s.storyLength)
   const setStoryLength = useAppStore((s) => s.setStoryLength)
+  const branchingStyle = useAppStore((s) => s.branchingStyle)
+  const setBranchingStyle = useAppStore((s) => s.setBranchingStyle)
 
   const canProceed = inputText.trim().length > 0
 
@@ -78,6 +80,23 @@ export default function InputPanel() {
           <option value="medium">Medium (~15 nodes)</option>
           <option value="long">Long (~30+ nodes)</option>
         </select>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Output Compatibility</label>
+        <label className="form-checkbox">
+          <input
+            type="checkbox"
+            checked={branchingStyle === 'branching'}
+            onChange={(e) => setBranchingStyle(e.target.checked ? 'branching' : 'stateful')}
+          />
+          <span>H5P / LMS compatible</span>
+        </label>
+        <p className="form-hint">
+          {branchingStyle === 'branching'
+            ? 'The story stays a pure choice-tree so it can be exported as an .h5p file for LMS import.'
+            : 'Default: the richest story — scenes react to earlier choices. Tick the box if you need H5P export.'}
+        </p>
       </div>
 
       <div className="form-group">

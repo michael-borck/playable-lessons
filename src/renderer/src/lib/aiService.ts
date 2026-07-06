@@ -1,5 +1,5 @@
 import { useAppStore } from '../stores/appStore'
-import { PROMPTS } from './prompts'
+import { PROMPTS, storyPrompts } from './prompts'
 import { compileInk } from './inkCompiler'
 import {
   callAI,
@@ -60,6 +60,9 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
   const store = useAppStore.getState()
   const { inputMode, inputText } = store
   const log = (msg: string) => useAppStore.getState().addGenerationLog(msg)
+  // Style-dependent prompts — same selector the headless pipeline uses, so the
+  // GUI, CLI, and web server all generate a given style identically.
+  const sp = storyPrompts(store.branchingStyle)
 
   if (!resumeAfterClarification) {
     store.clearGenerationLog()
@@ -69,7 +72,7 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
     log('[Stage 1] Analyzing source material...')
 
     const analysis = await ai([
-      { role: 'system', content: PROMPTS.system },
+      { role: 'system', content: sp.system },
       {
         role: 'user',
         content: PROMPTS.analysis.replace('{{inputMode}}', inputMode).replace('{{inputText}}', inputText)
@@ -82,7 +85,7 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
     log('[Stage 2] Generating clarification questions...')
 
     const clarificationRaw = await ai([
-      { role: 'system', content: PROMPTS.system },
+      { role: 'system', content: sp.system },
       {
         role: 'user',
         content: PROMPTS.clarification.replace('{{analysis}}', analysis).replace('{{inputMode}}', inputMode)
@@ -110,10 +113,10 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
     .join('\n\n')
 
   const outlineRaw = await ai([
-    { role: 'system', content: PROMPTS.system },
+    { role: 'system', content: sp.system },
     {
       role: 'user',
-      content: PROMPTS.outline
+      content: sp.outline
         .replace('{{inputMode}}', storeNow.inputMode)
         .replace('{{inputText}}', storeNow.inputText)
         .replace('{{storyLength}}', storeNow.storyLength)
@@ -140,10 +143,10 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
   log2('[Stage 4] Generating Ink source...')
 
   const inkRaw = await ai([
-    { role: 'system', content: PROMPTS.system + '\n\n' + PROMPTS.inkSyntaxRef },
+    { role: 'system', content: sp.system + '\n\n' + sp.inkSyntaxRef },
     {
       role: 'user',
-      content: PROMPTS.inkGeneration
+      content: sp.inkGeneration
         .replace('{{outline}}', outlineRaw)
         .replace('{{inputMode}}', storeNow.inputMode)
         .replace('{{inputText}}', storeNow.inputText)
@@ -160,7 +163,7 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
   log2('[Stage 5] Reviewing for errors and inconsistencies...')
 
   const reviewResult = await ai([
-    { role: 'system', content: PROMPTS.system + '\n\n' + PROMPTS.inkSyntaxRef },
+    { role: 'system', content: sp.system + '\n\n' + sp.inkSyntaxRef },
     { role: 'user', content: PROMPTS.review.replace('{{inkSource}}', inkSource) }
   ])
 
@@ -200,7 +203,7 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
       if (retries < 3) {
         log2('Asking AI to fix compilation errors...')
         const fixResult = await ai([
-          { role: 'system', content: PROMPTS.system + '\n\n' + PROMPTS.inkSyntaxRef },
+          { role: 'system', content: sp.system + '\n\n' + sp.inkSyntaxRef },
           {
             role: 'user',
             content:
@@ -414,14 +417,14 @@ export async function generateAllToProject(): Promise<void> {
   const store = useAppStore.getState()
   const plan = store.plan
   if (!plan) throw new Error('No plan to apply')
-  const { inputMode, inputText, tone } = store
+  const { inputMode, inputText, tone, branchingStyle } = store
   store.clearGenerationLog()
   store.setGenerationStage('analysis')
   const log = (msg: string) => useAppStore.getState().addGenerationLog(msg)
   try {
     const artifacts = await applyPlan(
       plan,
-      { inputMode, inputText, tone },
+      { inputMode, inputText, tone, branchingStyle },
       buildProviderConfig(),
       { log, call: ai }
     )

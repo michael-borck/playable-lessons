@@ -20,6 +20,7 @@ const {
   generateCaseStudy
 } = require('../out/shared/generate.js')
 const { exportStandaloneHTML } = require('../out/shared/storyExport.js')
+const { exportH5P, findStateConstructs } = require('../out/shared/h5pExporter.js')
 
 const app = express()
 app.use(express.json({ limit: '1mb' }))
@@ -82,7 +83,7 @@ app.get('/api/health', (req, res) => {
 
 // ─── Generate ───
 app.post('/api/generate', async (req, res) => {
-  const { source, target, count, depth, inputMode, tone } = req.body
+  const { source, target, count, depth, inputMode, tone, style } = req.body
   if (!source || !source.trim()) {
     return res.status(400).json({ error: 'No source material provided.' })
   }
@@ -95,11 +96,20 @@ app.post('/api/generate', async (req, res) => {
     switch (target) {
       case 'story': {
         const story = await generateInk(
-          { ...params, storyLength: count > 15 ? 'long' : count > 8 ? 'medium' : 'short' },
+          {
+            ...params,
+            storyLength: count > 15 ? 'long' : count > 8 ? 'medium' : 'short',
+            branchingStyle: style === 'branching' ? 'branching' : 'stateful'
+          },
           config
         )
         const html = await exportStandaloneHTML(story.inkSource, 'Interactive Story')
         result = { type: 'story', title: 'Interactive Story', html }
+        // A .h5p download is only offered when the story is actually
+        // convertible (no variables/conditionals) — i.e. H5P-compatible mode.
+        if (findStateConstructs(story.inkSource).length === 0) {
+          result.h5p = Buffer.from(exportH5P(story.inkSource, 'Interactive Story')).toString('base64')
+        }
         break
       }
       case 'summary':

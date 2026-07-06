@@ -43,7 +43,7 @@ src/
       lib/
         aiService.ts        # AI provider abstraction (Claude/OpenAI/Ollama)
         inkCompiler.ts      # Ink source → JSON compilation
-        inkParser.ts        # Structured parsing of Ink source
+        inkParser.ts        # Re-export of shared/inkParser (kept for import stability)
         prompts.ts          # AI prompt templates
         exporter.ts         # Standalone HTML export
         tweeExporter.ts     # Ink → Twee3 conversion
@@ -53,6 +53,8 @@ src/
       styles/      # Global CSS
   shared/          # Code shared by the renderer AND the CLI (no store, no DOM)
     storyExport.ts  # escapeHtml, compileInk, standalone-HTML export (story)
+    inkParser.ts    # Structured parsing of Ink source (knots, choices, variables)
+    h5pExporter.ts  # Ink → H5P Branching Scenario .h5p (content-only zip; refuses stateful stories)
     flashcardExport.ts # flashcard exports: CSV, Anki TSV, standalone-HTML deck
     quizExport.ts   # quiz exports: standalone-HTML quiz, printable text
     summaryExport.ts # summary exports: standalone-HTML sheet, printable text
@@ -81,6 +83,8 @@ resources/         # App icons and static assets
 - The AI layer is shared: provider calls + model listing live in `src/shared/aiClient.ts` (config-driven, no store), the headless pipeline in `src/shared/generate.ts`. The renderer's `src/renderer/src/lib/aiService.ts` builds a ProviderConfig from the Zustand store and wraps the pipeline with the GUI's interactive clarification flow; the CLI calls `generateInk` directly.
 - Shared modules are standalone-ish: the CLI imports them with explicit `.js` extensions (NodeNext); the renderer imports them extensionless (Vite/bundler resolves `.js` → `.ts`).
 - GUI generation: 6 stages (analysis → clarification → outline → ink-gen → review → compile). CLI generation skips the interactive clarification and runs 4 stages.
+- Stories have a branching style: `stateful` (default — Ink variables, assignments, conditional text) or `branching` (pure tree, no state — convertible to H5P Branching Scenario / LMS formats). Style-dependent prompts are selected via `storyPrompts(style)` in `src/shared/prompts.ts`; GUI (InputPanel → store), CLI (`--style`), and the web server (`style` in POST body) all route through it so every entry point generates identically. In user-facing UI the style is presented as an "H5P / LMS compatible" checkbox (checked = `branching`), never as stateful/branching jargon.
+- H5P export (`src/shared/h5pExporter.ts`) converts a *stateless* story into a content-only `.h5p` (Branching Scenario 1.x): choice knots → Branching Questions, linear knots → text screens, END/DONE → end screen. `findStateConstructs` gates every surface (ExportPanel card, CLI `--format h5p`, web server) — stateful stories are refused with line-level explanations, never silently flattened. The package declares but does not bundle H5P libraries, so the host needs Branching Scenario installed. Binary saves in the GUI go through the `dialog:saveBinaryFile` IPC (base64).
 - Ink compilation uses inkjs's built-in Compiler class
 - Stories MUST have `-> start` divert at top level (ensureStartDivert handles this)
 - Ink parser (`inkParser.ts`) extracts structured data for the node editor

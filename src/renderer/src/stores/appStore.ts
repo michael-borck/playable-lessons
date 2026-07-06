@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { FlashcardResult, QuizResult, SummaryResult, AiTaskResult, CaseStudyResult, PlanResult } from '../../../shared/generate'
+import type { FlashcardResult, QuizResult, SummaryResult, AiTaskResult, CaseStudyResult, PlanResult, BranchingStyle } from '../../../shared/generate'
 import type { ProjectMeta } from '../../../shared/project'
+
+export type { BranchingStyle }
 
 export type InputMode = 'topic' | 'lesson' | 'methodology' | 'case-study' | 'lecture-notes' | 'scenario'
 export type View = 'input' | 'generation' | 'graph' | 'preview' | 'study' | 'export' | 'settings' | 'projects'
@@ -118,6 +120,8 @@ export interface AppState {
   // Story preferences
   storyLength: StoryLength
   setStoryLength: (length: StoryLength) => void
+  branchingStyle: BranchingStyle
+  setBranchingStyle: (style: BranchingStyle) => void
   protagonistType: string
   setProtagonistType: (type: string) => void
   tone: string
@@ -226,6 +230,8 @@ export const useAppStore = create<AppState>()(persist((set) => ({
   // Story preferences
   storyLength: 'medium',
   setStoryLength: (storyLength) => set({ storyLength }),
+  branchingStyle: 'stateful',
+  setBranchingStyle: (branchingStyle) => set({ branchingStyle }),
   protagonistType: 'the reader',
   setProtagonistType: (protagonistType) => set({ protagonistType }),
   tone: 'professional',
@@ -261,6 +267,7 @@ export const useAppStore = create<AppState>()(persist((set) => ({
     customModel: state.customModel,
     theme: state.theme,
     storyLength: state.storyLength,
+    branchingStyle: state.branchingStyle,
     protagonistType: state.protagonistType,
     tone: state.tone,
     generationTarget: state.generationTarget

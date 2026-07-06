@@ -1,3 +1,13 @@
+/**
+ * How the generated story handles state.
+ * - 'stateful': Ink-native — variables, assignments, conditional text. Richest
+ *   play experience; only faithful in Ink-based exports.
+ * - 'branching': a pure branching tree — no variables, no conditionals.
+ *   Consequences live entirely in the branch structure, so the story converts
+ *   cleanly to tree-based formats (H5P Branching Scenario, LMS embeds).
+ */
+export type BranchingStyle = 'stateful' | 'branching'
+
 export const PROMPTS = {
   system: `You are the Playable Lessons assistant, an AI that transforms educational source material into playable interactive fiction using the Ink scripting language.
 
@@ -192,6 +202,148 @@ You feel {has_key: confident|nervous}.
 // Glue (prevents line break)
 Text<>
 <>more text on same line
+
+=== END ===`,
+
+  // ─── Pure-branching story variants (no variables — H5P/LMS-convertible) ───
+
+  systemBranching: `You are the Playable Lessons assistant, an AI that transforms educational source material into playable interactive fiction using the Ink scripting language.
+
+Your goals:
+- Create engaging, educational interactive stories from the provided source material
+- Ensure all generated Ink code is syntactically valid and compiles without errors
+- Preserve factual accuracy from the source material
+- Never invent facts about named real people or institutions
+- Create meaningful branching choices that explore different perspectives and outcomes
+- Express every consequence through the branch structure itself — the passage a choice leads to shows its outcome
+
+THIS STORY MUST BE PURE BRANCHING — NO STATE:
+- Do NOT declare or use variables (no VAR lines, no ~ assignments)
+- Do NOT use conditional text or logic (no { ... } blocks of any kind)
+- A choice's consequence is carried by the knot it diverts to, not by tracked state
+- This keeps the story convertible to tree-based formats (H5P Branching Scenario, LMS embeds)
+
+When generating Ink, follow these rules:
+- Always start the file with a -> start divert (no VAR declarations before it)
+- The first knot MUST be named === start ===
+- Use === knot_name === for passages (knots)
+- Use = stitch_name for sub-sections within knots
+- Use * for once-only choices, + for sticky choices
+- Use -> knot_name for diverts
+- Always include a -> END or -> DONE to terminate paths
+- Use # IMAGE: and # TIMER: tags for Playable Lessons custom features`,
+
+  outlineBranching: `Create a detailed story outline for an interactive fiction based on this:
+
+Input mode: {{inputMode}}
+Source material: """{{inputText}}"""
+Story length: {{storyLength}} (short=~5 nodes, medium=~15, long=~30+)
+Protagonist type: {{protagonistType}}
+Tone: {{tone}}
+
+User's answers to clarification questions:
+{{answers}}
+
+Generate a JSON outline with this structure:
+\`\`\`json
+{
+  "nodes": [
+    { "id": "start", "title": "Opening Scene", "summary": "Brief description" }
+  ],
+  "edges": [
+    { "from": "start", "to": "next_node", "choiceText": "What the player clicks" }
+  ],
+  "canonPath": ["start", "node2", "node3", "best_ending"]
+}
+\`\`\`
+
+Ensure:
+- Every node is reachable from "start"
+- Every path reaches an ending node
+- Do NOT include variables — this story is a pure branching tree, and every
+  consequence must be expressed by which node a choice leads to
+- Choices lead to genuinely different passages, not cosmetic variations
+- The story has at least 2 distinct endings
+- The canon path represents the "ideal" learning path`,
+
+  inkGenerationBranching: `Convert this story outline into valid Ink source code.
+
+Outline:
+{{outline}}
+
+Original source material (for factual accuracy):
+Input mode: {{inputMode}}
+"""{{inputText}}"""
+
+Target length: {{storyLength}}
+
+Requirements:
+- Begin the file with a -> start divert (do NOT declare any VAR)
+- Each node from the outline becomes an === knot ===
+- Each edge becomes a choice (* [choice text])
+- Do NOT use variables, ~ assignments, or conditional text { ... } anywhere —
+  this story must remain a pure branching tree
+- Let each passage's prose reflect the choice that led to it, so consequences
+  live in the branches rather than in tracked state
+- Every path must reach -> END
+- Write engaging, educational prose — not just placeholder text
+- Write ALL prose yourself. Do NOT copy any example or placeholder text from the
+  syntax reference verbatim (e.g. "[Write the opening scene here]"); those
+  bracketed placeholders show structure only — replace them with real content
+- Mark endings with a # ENDING: tag followed by a label (good/neutral/bad)
+
+Return ONLY the complete Ink source inside a \`\`\`ink code block.`,
+
+  inkSyntaxRefBranching: `=== INK SYNTAX REFERENCE (PURE BRANCHING — no variables, no conditionals) ===
+
+// Start the file with a divert to the first knot (no VAR declarations)
+-> start
+
+// First knot MUST be named "start"
+// (bracketed text below = placeholders — replace with your own prose, do not copy)
+=== start ===
+[Write the opening scene here]
+* [First choice] -> next_scene
+
+// Other knots
+=== knot_name ===
+[Write the passage prose here]
+* [Choice text visible to player]
+    [Result prose shown after choosing]
+    -> next_knot
+* [Another choice]
+    -> another_knot
+
+// Stitches (sub-sections within a knot)
+=== knot ===
+= stitch_one
+[Stitch prose here]
+-> stitch_two
+= stitch_two
+[More stitch prose here]
+
+// Sticky choices (can be chosen repeatedly)
++ [Repeatable choice]
+
+// Diverts
+-> knot_name
+-> END
+-> DONE
+
+// Tags (for Playable Lessons)
+# IMAGE: assets/images/scene.jpg
+# TIMER: 15
+# ENDING: good
+
+// Glue (prevents line break)
+Text<>
+<>more text on same line
+
+// FORBIDDEN in this style — do not emit any of these:
+// VAR score = 0
+// ~ score = score + 1
+// { score > 5: ... }
+// You feel {has_key: confident|nervous}.
 
 === END ===`,
 
@@ -454,4 +606,32 @@ Rules:
 - Order them by usefulness for this material
 - Include "depth" only when target is "case-study"; include "count" only when relevant — omit them otherwise
 - Do not output any text outside the JSON object`
+}
+
+/**
+ * The style-dependent story prompts. Both the interactive GUI flow and the
+ * headless pipeline (CLI, web server) must select prompts through this so a
+ * given style generates identically everywhere. Analysis/clarification/review
+ * prompts are shared across styles.
+ */
+export function storyPrompts(style: BranchingStyle = 'stateful'): {
+  system: string
+  outline: string
+  inkGeneration: string
+  inkSyntaxRef: string
+} {
+  if (style === 'branching') {
+    return {
+      system: PROMPTS.systemBranching,
+      outline: PROMPTS.outlineBranching,
+      inkGeneration: PROMPTS.inkGenerationBranching,
+      inkSyntaxRef: PROMPTS.inkSyntaxRefBranching
+    }
+  }
+  return {
+    system: PROMPTS.system,
+    outline: PROMPTS.outline,
+    inkGeneration: PROMPTS.inkGeneration,
+    inkSyntaxRef: PROMPTS.inkSyntaxRef
+  }
 }
