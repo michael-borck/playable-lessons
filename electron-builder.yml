@@ -9,11 +9,18 @@ files:
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{tsconfig*.json}'
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+# macOS notarization is handled by the custom afterSign hook (scripts/notarize.js),
+# which reads NOTARIZE_APPLE_* env vars. mac.notarize stays false so
+# electron-builder's buggy built-in notarize wrapper doesn't also fire.
+afterSign: scripts/notarize.js
 mac:
   target:
     - dmg
     - zip
   artifactName: ${name}-${version}-${os}-${arch}.${ext}
+  hardenedRuntime: true
+  notarize: false
+  entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
 win:
   target:
