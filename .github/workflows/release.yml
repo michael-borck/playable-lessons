@@ -79,6 +79,7 @@ jobs:
             release/*.exe
             release/*.AppImage
           if-no-files-found: ignore
+          retention-days: 5
 
   publish-release:
     needs: build
