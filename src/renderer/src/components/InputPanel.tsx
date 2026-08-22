@@ -21,6 +21,10 @@ export default function InputPanel() {
   const setStoryLength = useAppStore((s) => s.setStoryLength)
   const branchingStyle = useAppStore((s) => s.branchingStyle)
   const setBranchingStyle = useAppStore((s) => s.setBranchingStyle)
+  const sceneImagesEnabled = useAppStore((s) => s.sceneImagesEnabled)
+  const setSceneImagesEnabled = useAppStore((s) => s.setSceneImagesEnabled)
+  const imageStyle = useAppStore((s) => s.imageStyle)
+  const setImageStyle = useAppStore((s) => s.setImageStyle)
 
   const canProceed = inputText.trim().length > 0
 
@@ -96,6 +100,35 @@ export default function InputPanel() {
           {branchingStyle === 'branching'
             ? 'The story stays a pure choice-tree so it can be exported as an .h5p file for LMS import.'
             : 'Default: the richest story — scenes react to earlier choices. Tick the box if you need H5P export.'}
+        </p>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Scene Images</label>
+        <label className="form-checkbox">
+          <input
+            type="checkbox"
+            checked={sceneImagesEnabled}
+            onChange={(e) => setSceneImagesEnabled(e.target.checked)}
+          />
+          <span>Generate an illustration for every scene</span>
+        </label>
+        {sceneImagesEnabled && (
+          <div style={{ marginTop: 8 }}>
+            <select
+              className="form-select"
+              value={imageStyle}
+              onChange={(e) => setImageStyle(e.target.value as 'cartoon' | 'photorealistic')}
+            >
+              <option value="cartoon">Cartoon — flat storybook illustration</option>
+              <option value="photorealistic">Photorealistic — cinematic photo</option>
+            </select>
+          </div>
+        )}
+        <p className="form-hint">
+          {sceneImagesEnabled
+            ? 'Each passage gets a generated image, shown in the preview and embedded in HTML exports. Configure the image provider in Settings.'
+            : 'Off by default: the story is text-only. Tick to add a generated illustration to every scene.'}
         </p>
       </div>
 

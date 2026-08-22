@@ -9,7 +9,8 @@ import {
   type ProviderConfig,
   type ResolvedProvider
 } from '../../../shared/aiClient'
-import { extractInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan, refineText } from '../../../shared/generate'
+import { extractInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan, refineText, generateSceneImages } from '../../../shared/generate'
+import { buildSceneImagePrompt, generateImage, isImageProviderConfigured, type ImageProviderConfig } from '../../../shared/imageClient'
 import { projectIdFromName, type ProjectFull } from '../../../shared/project'
 import { projectService } from './projectService'
 
@@ -39,6 +40,43 @@ function buildProviderConfig(): ProviderConfig {
 
 /** Re-read config per call so settings changes take effect immediately. */
 const ai = (messages: AIMessage[]) => callAI(messages, buildProviderConfig())
+
+/**
+ * Build an image-provider config from the store. The OpenAI key falls back to
+ * the main API key (an OpenAI chat user needs no duplicate entry); Gemini and
+ * custom endpoints use their own credentials.
+ */
+export function buildImageConfig(): ImageProviderConfig {
+  const s = useAppStore.getState()
+  switch (s.imageProvider) {
+    case 'openai':
+      return { provider: 'openai', model: s.imageModel || undefined, apiKey: s.imageApiKey || s.apiKey }
+    case 'gemini':
+      return { provider: 'gemini', model: s.imageModel || undefined, apiKey: s.geminiApiKey }
+    case 'custom':
+      return {
+        provider: 'custom',
+        model: s.imageModel || undefined,
+        apiKey: s.imageApiKey,
+        baseUrl: s.imageBaseUrl
+      }
+  }
+}
+
+/**
+ * Generate a single scene image for a `# IMAGE_PROMPT:` text and store it.
+ * Used by the per-node regenerate button in the passage editor.
+ */
+export async function generateSceneImage(prompt: string): Promise<string> {
+  const s = useAppStore.getState()
+  const config = buildImageConfig()
+  if (!isImageProviderConfigured(config)) {
+    throw new Error('No image provider configured — set one up in Settings first.')
+  }
+  const dataUrl = await generateImage(buildSceneImagePrompt(prompt, s.imageStyle), config)
+  useAppStore.getState().setSceneImage(prompt, dataUrl)
+  return dataUrl
+}
 
 /** List models for the current provider (used by Settings → Refresh models). */
 export function listModels(): Promise<string[]> {
@@ -146,11 +184,13 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
     { role: 'system', content: sp.system + '\n\n' + sp.inkSyntaxRef },
     {
       role: 'user',
-      content: sp.inkGeneration
-        .replace('{{outline}}', outlineRaw)
-        .replace('{{inputMode}}', storeNow.inputMode)
-        .replace('{{inputText}}', storeNow.inputText)
-        .replace('{{storyLength}}', storeNow.storyLength)
+      content:
+        sp.inkGeneration
+          .replace('{{outline}}', outlineRaw)
+          .replace('{{inputMode}}', storeNow.inputMode)
+          .replace('{{inputText}}', storeNow.inputText)
+          .replace('{{storyLength}}', storeNow.storyLength) +
+        (storeNow.sceneImagesEnabled ? '\n' + PROMPTS.sceneImageInstruction : '')
     }
   ])
 
@@ -227,6 +267,30 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
     useAppStore.getState().setGenerationStage('error')
     useAppStore.getState().setError('Failed to compile story after 3 attempts. You can manually edit the Ink source above.')
     return
+  }
+
+  // ─── Stage 7: Scene images (optional) ───
+  // Runs after compile so we only illustrate a story that actually plays. A
+  // failure here never fails the run — the story is already usable.
+  const afterCompile = useAppStore.getState()
+  if (afterCompile.sceneImagesEnabled) {
+    const imageConfig = buildImageConfig()
+    if (isImageProviderConfigured(imageConfig)) {
+      log2('[Stage 7] Generating scene images…')
+      afterCompile.setSceneImages({})
+      try {
+        const images = await generateSceneImages(afterCompile.inkSource, imageConfig, {
+          style: afterCompile.imageStyle,
+          log: log2
+        })
+        useAppStore.getState().setSceneImages(images)
+        log2(`[Done] ${Object.keys(images).length} scene image(s) generated.`)
+      } catch (err) {
+        log2(`[Error] Scene image generation failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    } else {
+      log2('[Stage 7] Scene images skipped — configure an image provider in Settings.')
+    }
   }
 
   useAppStore.getState().setGenerationStage('done')
@@ -424,10 +488,27 @@ export async function generateAllToProject(): Promise<void> {
   try {
     const artifacts = await applyPlan(
       plan,
-      { inputMode, inputText, tone, branchingStyle },
+      { inputMode, inputText, tone, branchingStyle, sceneImages: store.sceneImagesEnabled },
       buildProviderConfig(),
       { log, call: ai }
     )
+    // Scene images for the recommended story (optional, never fatal).
+    let sceneImages: Record<string, string> | undefined
+    if (artifacts.story && store.sceneImagesEnabled) {
+      const imageConfig = buildImageConfig()
+      if (isImageProviderConfigured(imageConfig)) {
+        try {
+          sceneImages = await generateSceneImages(artifacts.story.inkSource, imageConfig, {
+            style: store.imageStyle,
+            log
+          })
+        } catch (err) {
+          log(`[Error] Scene image generation failed: ${err instanceof Error ? err.message : String(err)}`)
+        }
+      } else {
+        log('Scene images skipped — configure an image provider in Settings.')
+      }
+    }
     const name = store.projectName || plan.title || 'Generated set'
     const project: ProjectFull = {
       id: projectIdFromName(name),
@@ -438,6 +519,7 @@ export async function generateAllToProject(): Promise<void> {
       updatedAt: Date.now(),
       inkSource: artifacts.story?.inkSource,
       compiledStoryJson: artifacts.story?.compiledJson,
+      sceneImages,
       flashcards: artifacts.flashcards,
       quiz: artifacts.quiz,
       summary: artifacts.summary,

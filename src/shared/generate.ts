@@ -9,6 +9,13 @@
 import { callAI, type AIMessage, type ProviderConfig } from './aiClient.js'
 import { PROMPTS, storyPrompts, type BranchingStyle } from './prompts.js'
 import { compileInk } from './storyExport.js'
+import { parseInkSource } from './inkParser.js'
+import {
+  buildSceneImagePrompt,
+  generateImage,
+  type ImageProviderConfig,
+  type ImageStyle
+} from './imageClient.js'
 
 export type { BranchingStyle }
 
@@ -24,6 +31,11 @@ export interface GenerateParams {
    * branching: pure branching tree, no state — convertible to H5P/LMS formats.
    */
   branchingStyle?: BranchingStyle
+  /**
+   * When true, the Ink-generation prompt asks for a `# IMAGE_PROMPT:` tag on
+   * every knot. Resolve the prompts to real images with generateSceneImages.
+   */
+  sceneImages?: boolean
   /** Optional pre-supplied answers to clarification questions. */
   answers?: string
 }
@@ -127,16 +139,15 @@ export async function generateInk(
 
   // ─── Stage 2: Ink generation ───
   log('[2/4] Generating Ink source…')
+  const inkPrompt =
+    sp.inkGeneration
+      .replace('{{outline}}', outlineRaw)
+      .replace('{{inputMode}}', mode)
+      .replace('{{inputText}}', params.inputText)
+      .replace('{{storyLength}}', length) + (params.sceneImages ? '\n' + PROMPTS.sceneImageInstruction : '')
   const inkRaw = await call([
     { role: 'system', content: inkSystem },
-    {
-      role: 'user',
-      content: sp.inkGeneration
-        .replace('{{outline}}', outlineRaw)
-        .replace('{{inputMode}}', mode)
-        .replace('{{inputText}}', params.inputText)
-        .replace('{{storyLength}}', length)
-    }
+    { role: 'user', content: inkPrompt }
   ])
   let inkSource = extractInk(inkRaw)
 
@@ -183,6 +194,74 @@ export async function generateInk(
       if (fixed) current = fixed
     }
   }
+}
+
+// ─── Scene images ────────────────────────────────────────────────────────────
+
+/** One `# IMAGE_PROMPT:` tag occurrence, tied to its knot. */
+export interface SceneImageRequest {
+  knotId: string
+  prompt: string
+}
+
+/** Extract every knot's scene-image prompt from Ink source. */
+export function collectSceneImagePrompts(inkSource: string): SceneImageRequest[] {
+  const parsed = parseInkSource(inkSource)
+  const requests: SceneImageRequest[] = []
+  for (const knot of parsed.knots) {
+    if (knot.imagePrompt) requests.push({ knotId: knot.id, prompt: knot.imagePrompt })
+  }
+  return requests
+}
+
+export interface SceneImageOptions {
+  /** Visual style applied to every prompt (default 'cartoon'). */
+  style?: ImageStyle
+  /**
+   * Cap on the number of images generated (first N unique prompts win). Bounds
+   * cost/time on hosted deployments; knots beyond the cap show a placeholder.
+   */
+  maxImages?: number
+  log?: (msg: string) => void
+  /** Override the image transport (used by tests). Defaults to generateImage(prompt, config). */
+  generate?: (styledPrompt: string) => Promise<string>
+}
+
+/**
+ * Resolve a story's `# IMAGE_PROMPT:` tags to generated images. Returns a map
+ * of the raw prompt (as written in the tag) → data URL, which the preview,
+ * project store, and HTML export use to render scenes. Identical prompts are
+ * generated once; a failed image is logged and skipped rather than failing the
+ * whole run (the story still plays, that scene just shows a placeholder).
+ */
+export async function generateSceneImages(
+  inkSource: string,
+  config: ImageProviderConfig,
+  opts: SceneImageOptions = {}
+): Promise<Record<string, string>> {
+  const log = opts.log ?? (() => {})
+  const style = opts.style ?? 'cartoon'
+  const gen = opts.generate ?? ((styledPrompt: string) => generateImage(styledPrompt, config))
+
+  const requests = collectSceneImagePrompts(inkSource)
+  let unique = [...new Map(requests.map((r) => [r.prompt, r])).values()]
+  if (opts.maxImages && opts.maxImages > 0 && unique.length > opts.maxImages) {
+    log(`Capping scene images at ${opts.maxImages} of ${unique.length} unique prompts.`)
+    unique = unique.slice(0, opts.maxImages)
+  }
+  const images: Record<string, string> = {}
+
+  let done = 0
+  for (const req of unique) {
+    done++
+    log(`Generating scene image ${done}/${unique.length} (${req.knotId})…`)
+    try {
+      images[req.prompt] = await gen(buildSceneImagePrompt(req.prompt, style))
+    } catch (err) {
+      log(`Scene image failed for ${req.knotId}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  return images
 }
 
 // ─── Flashcards ──────────────────────────────────────────────────────────────
@@ -686,6 +765,8 @@ export interface PlanParams {
   tone?: string
   /** Story style used when a plan's recommended set includes a story. */
   branchingStyle?: BranchingStyle
+  /** When true, a recommended story gets `# IMAGE_PROMPT:` tags on every knot. */
+  sceneImages?: boolean
 }
 
 const PLAN_TARGETS: PlanTarget[] = ['story', 'flashcards', 'quiz', 'summary', 'ai-task', 'case-study']
@@ -768,7 +849,7 @@ export async function applyPlan(
   opts: GenerateOptions = {}
 ): Promise<PlanArtifacts> {
   const log = opts.log ?? (() => {})
-  const { inputMode, inputText, tone, branchingStyle } = params
+  const { inputMode, inputText, tone, branchingStyle, sceneImages } = params
   const artifacts: PlanArtifacts = {}
   const recs = plan.recommendations
   recs.forEach((rec, i) => {
@@ -778,7 +859,7 @@ export async function applyPlan(
     switch (rec.target) {
       case 'story':
         artifacts.story = await generateInk(
-          { inputMode, inputText, storyLength: 'medium', tone, branchingStyle }, config, opts
+          { inputMode, inputText, storyLength: 'medium', tone, branchingStyle, sceneImages }, config, opts
         )
         break
       case 'flashcards':

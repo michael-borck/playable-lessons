@@ -196,6 +196,7 @@ You feel {has_key: confident|nervous}.
 
 // Tags (for Playable Lessons)
 # IMAGE: assets/images/scene.jpg
+# IMAGE_PROMPT: a short visual description of the scene, used to generate an illustration
 # TIMER: 15
 # ENDING: good
 
@@ -204,6 +205,20 @@ Text<>
 <>more text on same line
 
 === END ===`,
+
+  /**
+   * Appended to the Ink-generation prompt when scene images are enabled
+   * (GenerateParams.sceneImages). Style-agnostic — works for both stateful and
+   * branching stories. The tags are resolved to real images by
+   * generateSceneImages (generate.ts) after the story compiles.
+   */
+  sceneImageInstruction: `
+- Give EVERY knot a scene illustration: on its own line immediately after the
+  knot's === header === line, write exactly one tag:
+  # IMAGE_PROMPT: <one sentence describing the scene visually — setting, who is
+  present, their action, the mood; concrete and specific to this knot's prose>
+- Describe only what is visible; never mention text, captions, or the story itself
+- Keep each prompt self-contained (an image model sees only the prompt, not the story)`,
 
   // ─── Pure-branching story variants (no variables — H5P/LMS-convertible) ───
 
@@ -332,6 +347,7 @@ Return ONLY the complete Ink source inside a \`\`\`ink code block.`,
 
 // Tags (for Playable Lessons)
 # IMAGE: assets/images/scene.jpg
+# IMAGE_PROMPT: a short visual description of the scene, used to generate an illustration
 # TIMER: 15
 # ENDING: good
 

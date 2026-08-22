@@ -5,7 +5,8 @@ import { hideBin } from 'yargs/helpers'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join, basename } from 'path'
 import { compileInk, exportStandaloneHTML } from '../shared/storyExport.js'
-import { generateInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan } from '../shared/generate.js'
+import { generateInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan, generateSceneImages } from '../shared/generate.js'
+import { isImageProviderConfigured, type ImageProvider, type ImageProviderConfig, type ImageStyle } from '../shared/imageClient.js'
 import { toCSV, toAnkiTSV, toStandaloneHTML as toFlashcardHTML } from '../shared/flashcardExport.js'
 import { toStandaloneHTML as toQuizHTML, toPlainText as toQuizText } from '../shared/quizExport.js'
 import { toStandaloneHTML as toSummaryHTML, toPlainText as toSummaryText } from '../shared/summaryExport.js'
@@ -69,6 +70,53 @@ function buildCliConfig(o: {
 
 function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'story'
+}
+
+/**
+ * Build an ImageProviderConfig from CLI flags + environment. Provider default:
+ * openai when OPENAI_API_KEY is set, gemini when GEMINI_API_KEY/GOOGLE_API_KEY
+ * is set, custom when --image-base-url is given.
+ */
+function buildCliImageConfig(o: {
+  imageProvider?: string
+  imageModel?: string
+  imageBaseUrl?: string
+}): ImageProviderConfig {
+  const provider =
+    (o.imageProvider as ImageProvider | undefined) ||
+    (process.env.OPENAI_API_KEY ? 'openai' : process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY ? 'gemini' : o.imageBaseUrl ? 'custom' : undefined)
+  if (!provider) {
+    throw new Error(
+      '--images needs an image provider: set OPENAI_API_KEY or GEMINI_API_KEY, or pass --image-provider custom --image-base-url <url> --image-model <id>'
+    )
+  }
+  const config: ImageProviderConfig = { provider, model: o.imageModel || undefined }
+  switch (provider) {
+    case 'openai':
+      config.apiKey = process.env.OPENAI_API_KEY
+      break
+    case 'gemini':
+      config.apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+      break
+    case 'custom':
+      config.baseUrl = o.imageBaseUrl
+      config.apiKey = process.env.PLAYABLE_LESSONS_IMAGE_API_KEY || process.env.OPENAI_API_KEY || ''
+      break
+  }
+  if (!isImageProviderConfigured(config)) {
+    throw new Error(
+      `Image provider "${provider}" is not fully configured (missing ${provider === 'custom' ? '--image-base-url/--image-model' : 'API key'})`
+    )
+  }
+  return config
+}
+
+/** Decode a data URL into its binary payload. */
+function dataUrlToBuffer(dataUrl: string): { buffer: Buffer; ext: string } {
+  const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/s)
+  if (!m) throw new Error('Not a base64 data URL')
+  const ext = m[1] === 'image/jpeg' ? 'jpg' : m[1] === 'image/webp' ? 'webp' : 'png'
+  return { buffer: Buffer.from(m[2], 'base64'), ext }
 }
 
 async function readStdin(): Promise<string> {
@@ -165,6 +213,11 @@ yargs(hideBin(process.argv))
       .option('depth', { type: 'string', default: 'complete', describe: 'Case-study depth: idea | outline | complete (target=case-study)' })
       .option('length', { alias: 'l', type: 'string', default: 'medium', describe: 'Story length: short | medium | long' })
       .option('style', { type: 'string', default: 'stateful', describe: 'Story branching style: stateful (Ink variables + conditional text) | branching (pure tree, H5P/LMS-convertible)' })
+      .option('images', { type: 'boolean', default: false, describe: 'Generate an illustration for every scene (story target only). Images are embedded in the HTML export and written to an images/ folder.' })
+      .option('image-style', { type: 'string', default: 'cartoon', describe: 'Scene image style: cartoon | photorealistic' })
+      .option('image-provider', { type: 'string', describe: 'openai | gemini | custom (default: inferred from OPENAI_API_KEY / GEMINI_API_KEY / --image-base-url)' })
+      .option('image-model', { type: 'string', describe: 'Image model id (defaults: gpt-image-1 | imagen-4.0-fast-generate-001)' })
+      .option('image-base-url', { type: 'string', describe: 'Base URL for a custom OpenAI-compatible /images/generations endpoint' })
       .option('tone', { type: 'string', default: 'professional', describe: 'Narrative tone' })
       .option('protagonist', { type: 'string', default: 'the reader', describe: 'Protagonist type' })
       .option('answers', { type: 'string', describe: 'Optional answers to clarifying questions' })
@@ -411,6 +464,15 @@ yargs(hideBin(process.argv))
         }
       } else {
         console.error(`Generating with ${config.provider} (${config.model})…`)
+        const wantImages = argv.images as boolean
+        // Fail fast on a misconfigured image provider, before story generation.
+        const imageConfig = wantImages
+          ? buildCliImageConfig({
+              imageProvider: argv['image-provider'] as string | undefined,
+              imageModel: argv['image-model'] as string | undefined,
+              imageBaseUrl: argv['image-base-url'] as string | undefined
+            })
+          : undefined
         const result = await generateInk(
           {
             inputMode: argv.mode as string,
@@ -419,11 +481,33 @@ yargs(hideBin(process.argv))
             branchingStyle: argv.style === 'branching' ? 'branching' : 'stateful',
             protagonistType: argv.protagonist as string,
             tone: argv.tone as string,
-            answers: argv.answers as string | undefined
+            answers: argv.answers as string | undefined,
+            sceneImages: wantImages
           },
           config,
           { log: (m) => console.error(m), maxCompileRetries: argv.retries as number }
         )
+
+        // Resolve # IMAGE_PROMPT: tags to real images (embedded in the HTML
+        // export and written to an images/ folder, slide-stream style).
+        let sceneImages: Record<string, string> | undefined
+        if (wantImages && imageConfig) {
+          const imageStyle: ImageStyle = (argv['image-style'] as string) === 'photorealistic' ? 'photorealistic' : 'cartoon'
+          console.error(`Generating scene images with ${imageConfig.provider} (${imageConfig.model || 'default model'})…`)
+          sceneImages = await generateSceneImages(result.inkSource, imageConfig, {
+            style: imageStyle,
+            log: (m) => console.error(m)
+          })
+          const imagesDir = join(outputDir, 'images')
+          await mkdir(imagesDir, { recursive: true })
+          let n = 0
+          for (const dataUrl of Object.values(sceneImages)) {
+            n++
+            const { buffer, ext } = dataUrlToBuffer(dataUrl)
+            await writeFile(join(imagesDir, `scene_${n}.${ext}`), buffer)
+          }
+          console.log(`Wrote ${n} scene image(s) to ${imagesDir}`)
+        }
 
         const storyFormats = formats.includes('ink') ? formats : ['ink', ...formats]
         for (const format of storyFormats) {
@@ -441,7 +525,7 @@ yargs(hideBin(process.argv))
               break
             }
             case 'html': {
-              const html = await exportStandaloneHTML(result.inkSource, title)
+              const html = await exportStandaloneHTML(result.inkSource, title, sceneImages)
               const outPath = join(outputDir, `${base}.html`)
               await writeFile(outPath, html)
               console.log(`Wrote ${outPath}`)

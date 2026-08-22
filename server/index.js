@@ -17,10 +17,12 @@ const {
   generateFlashcards,
   generateQuiz,
   generateAiTask,
-  generateCaseStudy
+  generateCaseStudy,
+  generateSceneImages
 } = require('../out/shared/generate.js')
 const { exportStandaloneHTML } = require('../out/shared/storyExport.js')
 const { exportH5P, findStateConstructs } = require('../out/shared/h5pExporter.js')
+const { isImageProviderConfigured } = require('../out/shared/imageClient.js')
 
 const app = express()
 app.use(express.json({ limit: '1mb' }))
@@ -46,6 +48,41 @@ function buildConfig() {
   }
 }
 const config = buildConfig()
+
+// ─── Scene images (optional, opt-in via SCENE_IMAGES=true) ───
+// A public story request can trigger many image generations, so this is off
+// unless the operator enables it AND a provider is configured. Costs/rate are
+// bounded by IMAGE_MAX_SCENES and the per-IP rate limit above.
+const SCENE_IMAGES = /^(1|true|yes)$/i.test(process.env.SCENE_IMAGES || '')
+const IMAGE_STYLE = process.env.IMAGE_STYLE === 'photorealistic' ? 'photorealistic' : 'cartoon'
+const IMAGE_MAX_SCENES = parseInt(process.env.IMAGE_MAX_SCENES || '8', 10)
+
+function buildImageConfig() {
+  if (!SCENE_IMAGES) return null
+  const provider =
+    process.env.IMAGE_PROVIDER ||
+    (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+      ? 'gemini'
+      : process.env.IMAGE_BASE_URL
+        ? 'custom'
+        : process.env.OPENAI_API_KEY
+          ? 'openai'
+          : '')
+  if (!provider) return null
+  const config = { provider, model: process.env.IMAGE_MODEL || undefined }
+  // Size: '1024x1024' etc. for OpenAI/custom, an aspect ratio for Gemini.
+  if (process.env.IMAGE_SIZE) config.size = process.env.IMAGE_SIZE
+  if (provider === 'openai') {
+    config.apiKey = process.env.IMAGE_API_KEY || process.env.OPENAI_API_KEY
+  } else if (provider === 'gemini') {
+    config.apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+  } else if (provider === 'custom') {
+    config.baseUrl = process.env.IMAGE_BASE_URL
+    config.apiKey = process.env.IMAGE_API_KEY || ''
+  }
+  return isImageProviderConfigured(config) ? config : null
+}
+const imageConfig = buildImageConfig()
 
 // ─── Access-code gate (optional) ───
 if (ACCESS_CODES.length > 0) {
@@ -77,13 +114,16 @@ app.get('/api/health', (req, res) => {
     ok: true,
     provider: config.provider,
     model: config.model,
-    requiresAccessCode: ACCESS_CODES.length > 0
+    requiresAccessCode: ACCESS_CODES.length > 0,
+    // The web UI shows the scene-images option only when the operator has it
+    // configured — visitors never see a checkbox that can't work.
+    sceneImages: imageConfig ? { available: true, style: IMAGE_STYLE } : { available: false }
   })
 })
 
 // ─── Generate ───
 app.post('/api/generate', async (req, res) => {
-  const { source, target, count, depth, inputMode, tone, style } = req.body
+  const { source, target, count, depth, inputMode, tone, style, images, imageStyle } = req.body
   if (!source || !source.trim()) {
     return res.status(400).json({ error: 'No source material provided.' })
   }
@@ -95,16 +135,32 @@ app.post('/api/generate', async (req, res) => {
     let result
     switch (target) {
       case 'story': {
+        const wantImages = images === true && !!imageConfig
         const story = await generateInk(
           {
             ...params,
             storyLength: count > 15 ? 'long' : count > 8 ? 'medium' : 'short',
-            branchingStyle: style === 'branching' ? 'branching' : 'stateful'
+            branchingStyle: style === 'branching' ? 'branching' : 'stateful',
+            sceneImages: wantImages
           },
           config
         )
-        const html = await exportStandaloneHTML(story.inkSource, 'Interactive Story')
+        // Resolve # IMAGE_PROMPT: tags to real images. Never fatal — a failed
+        // batch still returns the (text-only) story.
+        let sceneImages
+        if (wantImages) {
+          try {
+            sceneImages = await generateSceneImages(story.inkSource, imageConfig, {
+              style: imageStyle === 'photorealistic' ? 'photorealistic' : IMAGE_STYLE,
+              maxImages: IMAGE_MAX_SCENES
+            })
+          } catch (err) {
+            console.error('Scene image generation failed:', err.message || err)
+          }
+        }
+        const html = await exportStandaloneHTML(story.inkSource, 'Interactive Story', sceneImages)
         result = { type: 'story', title: 'Interactive Story', html }
+        if (sceneImages) result.imageCount = Object.keys(sceneImages).length
         // A .h5p download is only offered when the story is actually
         // convertible (no variables/conditionals) — i.e. H5P-compatible mode.
         if (findStateConstructs(story.inkSource).length === 0) {
@@ -140,9 +196,13 @@ app.post('/api/generate', async (req, res) => {
 app.use(express.static(path.join(__dirname, 'public')))
 app.use((req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')))
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Playable Lessons server running on :${PORT}`)
   console.log(`Provider: ${config.provider} (${config.model})`)
   console.log(`Rate limit: ${RATE_LIMIT}/hour per IP`)
   console.log(`Access codes: ${ACCESS_CODES.length ? ACCESS_CODES.length + ' configured' : 'not required'}`)
+  console.log(`Scene images: ${imageConfig ? `on (${imageConfig.provider}, ${IMAGE_STYLE}, max ${IMAGE_MAX_SCENES}/story)` : 'off'}`)
 })
+// A story request can run for minutes (LLM passes + image generation,
+// especially against a CPU image backend) — allow long in-flight requests.
+server.requestTimeout = 15 * 60 * 1000

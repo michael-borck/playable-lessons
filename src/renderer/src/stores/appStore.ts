@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { FlashcardResult, QuizResult, SummaryResult, AiTaskResult, CaseStudyResult, PlanResult, BranchingStyle } from '../../../shared/generate'
+import type { ImageProvider, ImageStyle } from '../../../shared/imageClient'
 import type { ProjectMeta } from '../../../shared/project'
 
 export type { BranchingStyle }
@@ -74,6 +75,31 @@ export interface AppState {
   setCustomApiKey: (key: string) => void
   customModel: string
   setCustomModel: (model: string) => void
+
+  // Scene image settings (image provider is configured independently of the
+  // chat provider — Claude/Ollama can't generate images)
+  sceneImagesEnabled: boolean
+  setSceneImagesEnabled: (enabled: boolean) => void
+  imageStyle: ImageStyle
+  setImageStyle: (style: ImageStyle) => void
+  imageProvider: ImageProvider
+  setImageProvider: (provider: ImageProvider) => void
+  imageModel: string
+  setImageModel: (model: string) => void
+  imageBaseUrl: string
+  setImageBaseUrl: (url: string) => void
+  /** Bearer token for a custom image endpoint (keychain: imageApiKey). */
+  imageApiKey: string
+  setImageApiKey: (key: string) => void
+  /** Google API key for Imagen (keychain: geminiApiKey). */
+  geminiApiKey: string
+  setGeminiApiKey: (key: string) => void
+
+  // Generated scene images for the current story: raw `# IMAGE_PROMPT:` text →
+  // data URL. Project data — persisted in project.json, NOT localStorage.
+  sceneImages: Record<string, string>
+  setSceneImages: (images: Record<string, string>) => void
+  setSceneImage: (prompt: string, dataUrl: string) => void
 
   // Generation state
   generationStage: GenerationStage
@@ -180,6 +206,26 @@ export const useAppStore = create<AppState>()(persist((set) => ({
   customModel: '',
   setCustomModel: (customModel) => set({ customModel }),
 
+  // Scene image settings
+  sceneImagesEnabled: false,
+  setSceneImagesEnabled: (sceneImagesEnabled) => set({ sceneImagesEnabled }),
+  imageStyle: 'cartoon',
+  setImageStyle: (imageStyle) => set({ imageStyle }),
+  imageProvider: 'openai',
+  setImageProvider: (imageProvider) => set({ imageProvider }),
+  imageModel: '',
+  setImageModel: (imageModel) => set({ imageModel }),
+  imageBaseUrl: '',
+  setImageBaseUrl: (imageBaseUrl) => set({ imageBaseUrl }),
+  imageApiKey: '',
+  setImageApiKey: (imageApiKey) => set({ imageApiKey }),
+  geminiApiKey: '',
+  setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey }),
+  sceneImages: {},
+  setSceneImages: (sceneImages) => set({ sceneImages }),
+  setSceneImage: (prompt, dataUrl) =>
+    set((s) => ({ sceneImages: { ...s.sceneImages, [prompt]: dataUrl } })),
+
   // Generation state
   generationStage: 'idle',
   setGenerationStage: (generationStage) => set({ generationStage }),
@@ -254,9 +300,11 @@ export const useAppStore = create<AppState>()(persist((set) => ({
   setError: (error) => set({ error })
 }), {
   name: 'playable-lessons-settings',
-  // NOTE: secrets (apiKey, ollamaToken, customApiKey) are deliberately NOT
-  // persisted here. They live in the OS keychain via safeStorage (see App
-  // bootstrap + SettingsPanel) and are held in memory only for the session.
+  // NOTE: secrets (apiKey, ollamaToken, customApiKey, imageApiKey,
+  // geminiApiKey) are deliberately NOT persisted here. They live in the OS
+  // keychain via safeStorage (see App bootstrap + SettingsPanel) and are held
+  // in memory only for the session. sceneImages are project data — they live
+  // in project.json (ProjectsView save/open), not localStorage.
   partialize: (state) => ({
     aiProvider: state.aiProvider,
     claudeModel: state.claudeModel,
@@ -270,6 +318,11 @@ export const useAppStore = create<AppState>()(persist((set) => ({
     branchingStyle: state.branchingStyle,
     protagonistType: state.protagonistType,
     tone: state.tone,
-    generationTarget: state.generationTarget
+    generationTarget: state.generationTarget,
+    sceneImagesEnabled: state.sceneImagesEnabled,
+    imageStyle: state.imageStyle,
+    imageProvider: state.imageProvider,
+    imageModel: state.imageModel,
+    imageBaseUrl: state.imageBaseUrl
   })
 }))

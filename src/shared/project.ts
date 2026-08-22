@@ -36,6 +36,8 @@ export interface ProjectFull {
   updatedAt: number
   inkSource?: string
   compiledStoryJson?: string
+  /** Generated scene illustrations: raw `# IMAGE_PROMPT:` text → data URL. */
+  sceneImages?: Record<string, string>
   flashcards?: FlashcardResult
   quiz?: QuizResult
   summary?: SummaryResult

@@ -9,6 +9,19 @@
 #   ANTHROPIC_API_KEY=sk-ant-...
 #   MODEL=claude-sonnet-4-20250514
 #   ACCESS_CODE=staff-2024
+#
+# Scene images: set SCENE_IMAGES=true plus an image provider in .env (see
+# server/.env.example). To self-host the generator too, start the optional
+# LocalAI service alongside the app:
+#   docker compose --profile images up -d
+#   ...and point .env at it:
+#   SCENE_IMAGES=true
+#   IMAGE_PROVIDER=custom
+#   IMAGE_BASE_URL=http://localai:8080/v1
+#   IMAGE_MODEL=stablediffusion
+# Note: CPU-only image generation is slow (a minute or more per scene). For a
+# production server, a cloud provider (IMAGE_PROVIDER=gemini + GEMINI_API_KEY)
+# or a GPU host is a much better experience.
 
 services:
   playable-lessons:
@@ -18,3 +31,20 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+
+  # Optional self-hosted image generator (OpenAI-compatible /v1/images API).
+  # Not exposed to the host/network on purpose: LocalAI has no auth, so only
+  # the app talks to it over the internal compose network. The AIO image
+  # bundles a small Stable Diffusion model ('stablediffusion'); the first
+  # start downloads several GB. GPU images exist (localai/localai:*-gpu-*).
+  localai:
+    image: localai/localai:latest-aio-cpu
+    profiles: ["images"]
+    volumes:
+      - localai-models:/models
+    environment:
+      - MODELS_PATH=/models
+    restart: unless-stopped
+
+volumes:
+  localai-models:

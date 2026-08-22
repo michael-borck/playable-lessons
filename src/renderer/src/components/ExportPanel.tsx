@@ -20,6 +20,7 @@ export default function ExportPanel() {
   const aiTask = useAppStore((s) => s.aiTask)
   const caseStudy = useAppStore((s) => s.caseStudy)
   const plan = useAppStore((s) => s.plan)
+  const sceneImages = useAppStore((s) => s.sceneImages)
   const projectName = useAppStore((s) => s.projectName)
   const [exporting, setExporting] = useState<string | null>(null)
   const [ghToken, setGhToken] = useState('')
@@ -56,7 +57,7 @@ export default function ExportPanel() {
     setExporting('html')
     setExportDone(null)
     try {
-      const html = await exportStandaloneHTML(inkSource, name)
+      const html = await exportStandaloneHTML(inkSource, name, sceneImages)
       const saved = await window.api.saveFile(`${name}.html`, html, [{ name: 'HTML Files', extensions: ['html'] }])
       if (saved) setExportDone(saved)
     } finally {
@@ -351,7 +352,7 @@ export default function ExportPanel() {
                   setPublishError(null)
                   setPublishUrl(null)
                   try {
-                    const html = await exportStandaloneHTML(inkSource, name)
+                    const html = await exportStandaloneHTML(inkSource, name, sceneImages)
                     const repoName = ghRepoName || name.replace(/\s+/g, '-').toLowerCase()
                     const result = await publishToGitHubPages(ghToken, repoName, html)
                     setPublishUrl(result.url)

@@ -43,6 +43,43 @@ describe('compileInk', () => {
   })
 })
 
+describe('scene-image tags at runtime', () => {
+  // The whole feature rests on inkjs delivering `# IMAGE_PROMPT:` tags through
+  // currentTags as the player continues — pin that behavior.
+  it('compiled stories deliver IMAGE_PROMPT tags via currentTags', async () => {
+    const ink = [
+      '=== start ===',
+      '# IMAGE_PROMPT: a lighthouse at dawn',
+      'Hello.',
+      '* [Go] -> ending',
+      '=== ending ===',
+      '# IMAGE_PROMPT: storm clouds over the sea',
+      '# ENDING: good',
+      'Done.',
+      '-> END'
+    ].join('\n')
+    const json = await compileInk(ink)
+    const { Story } = await import('inkjs/engine/Story')
+    const story = new Story(json)
+
+    const first: string[] = []
+    while (story.canContinue) {
+      story.Continue()
+      if (story.currentTags) first.push(...story.currentTags)
+    }
+    expect(first).toContain('IMAGE_PROMPT: a lighthouse at dawn')
+
+    story.ChooseChoiceIndex(0)
+    const second: string[] = []
+    while (story.canContinue) {
+      story.Continue()
+      if (story.currentTags) second.push(...story.currentTags)
+    }
+    expect(second).toContain('IMAGE_PROMPT: storm clouds over the sea')
+    expect(second).toContain('ENDING: good')
+  })
+})
+
 describe('exportStandaloneHTML', () => {
   it('escapes the title to prevent HTML injection', async () => {
     const html = await exportStandaloneHTML('=== start ===\nHi.\n-> END\n', '</title><script>alert(1)</script>')
@@ -57,5 +94,26 @@ describe('exportStandaloneHTML', () => {
     expect(html).toContain('new inkjs.Story')
     // The runtime is ~128 KB — confirm it's actually inlined, not linked.
     expect(html.length).toBeGreaterThan(100_000)
+  })
+
+  it('embeds the scene-image map and resolves IMAGE_PROMPT tags', async () => {
+    const ink = '=== start ===\n# IMAGE_PROMPT: a lighthouse at dawn\nHi.\n-> END\n'
+    const images = { 'a lighthouse at dawn': 'data:image/png;base64,ABC123' }
+    const html = await exportStandaloneHTML(ink, 'Story', images)
+    expect(html).toContain('data:image/png;base64,ABC123')
+    expect(html).toContain('IMAGE_PROMPT:')
+    expect(html).toContain('scene-img')
+  })
+
+  it('defaults to an empty scene-image map (no breakage for text-only stories)', async () => {
+    const html = await exportStandaloneHTML('=== start ===\nHi.\n-> END\n', 'Story')
+    expect(html).toContain('var sceneImages = {}')
+  })
+
+  it('escapes </script> in scene-image payloads', async () => {
+    const ink = '=== start ===\n# IMAGE_PROMPT: evil\nHi.\n-> END\n'
+    const images = { evil: 'data:image/png;base64,</script><script>alert(1)</script>' }
+    const html = await exportStandaloneHTML(ink, 'Story', images)
+    expect(html).not.toContain('</script><script>alert(1)</script>')
   })
 })

@@ -86,10 +86,19 @@ export async function compileInk(inkSource: string): Promise<string> {
  * The inkjs runtime is embedded inline (no CDN), so the file is fully offline.
  * `title` is escaped; the compiled JSON and the runtime are guarded against
  * breaking out of their <script> elements.
+ *
+ * `sceneImages` maps `# IMAGE_PROMPT:` tag text → data URL (see
+ * generateSceneImages); matched scenes render their illustration above the
+ * text. `# IMAGE:` tags render only when they carry a data: or http(s) URL.
  */
-export async function exportStandaloneHTML(inkSource: string, title: string): Promise<string> {
+export async function exportStandaloneHTML(
+  inkSource: string,
+  title: string,
+  sceneImages?: Record<string, string>
+): Promise<string> {
   const compiledJson = await compileInk(inkSource)
   const escapedJson = escapeScriptClose(JSON.stringify(compiledJson))
+  const escapedImages = escapeScriptClose(JSON.stringify(sceneImages ?? {}))
   const safeTitle = escapeHtml(title)
 
   return `<!DOCTYPE html>
@@ -111,6 +120,7 @@ export async function exportStandaloneHTML(inkSource: string, title: string): Pr
   }
   #story { max-width: 650px; width: 100%; }
   h1 { font-size: 28px; margin-bottom: 32px; color: #a78bfa; text-align: center; }
+  .scene-img { max-width: 100%; border-radius: 8px; margin-bottom: 16px; display: block; }
   .text p { font-size: 18px; line-height: 1.8; margin-bottom: 16px; }
   .choices { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
   .choice {
@@ -154,20 +164,44 @@ export async function exportStandaloneHTML(inkSource: string, title: string): Pr
 <script>
 (function() {
   var storyJson = ${escapedJson};
+  var sceneImages = ${escapedImages};
   var story = new inkjs.Story(storyJson);
   var content = document.getElementById('content');
 
   function continueStory() {
     var textDiv = document.createElement('div');
     textDiv.className = 'text';
+    var tags = [];
     while (story.canContinue) {
       var line = story.Continue().trim();
+      if (story.currentTags) tags = tags.concat(story.currentTags);
       if (line) {
         var p = document.createElement('p');
         p.textContent = line;
         textDiv.appendChild(p);
       }
     }
+
+    // Scene illustrations: resolve IMAGE_PROMPT tags via the embedded map;
+    // IMAGE tags render only when they carry a usable URL/data URL.
+    var imgSrcs = [];
+    tags.forEach(function(tag) {
+      if (tag.indexOf('IMAGE_PROMPT:') === 0) {
+        var src = sceneImages[tag.substring('IMAGE_PROMPT:'.length).trim()];
+        if (src) imgSrcs.push(src);
+      } else if (tag.indexOf('IMAGE:') === 0) {
+        var val = tag.substring('IMAGE:'.length).trim();
+        if (/^(data:|https?:\/\/)/.test(val)) imgSrcs.push(val);
+      }
+    });
+    imgSrcs.forEach(function(src) {
+      var img = document.createElement('img');
+      img.className = 'scene-img';
+      img.src = src;
+      img.alt = '';
+      textDiv.insertBefore(img, textDiv.firstChild);
+    });
+
     content.appendChild(textDiv);
 
     if (story.currentChoices.length > 0) {

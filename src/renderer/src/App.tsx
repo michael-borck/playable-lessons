@@ -22,6 +22,8 @@ function App(): React.ReactElement {
     window.api.getSecret('apiKey').then((v) => { if (v) store.setApiKey(v) })
     window.api.getSecret('ollamaToken').then((v) => { if (v) store.setOllamaToken(v) })
     window.api.getSecret('customApiKey').then((v) => { if (v) store.setCustomApiKey(v) })
+    window.api.getSecret('imageApiKey').then((v) => { if (v) store.setImageApiKey(v) })
+    window.api.getSecret('geminiApiKey').then((v) => { if (v) store.setGeminiApiKey(v) })
   }, [])
 
   return (

@@ -36,7 +36,12 @@ playable-lessons generate --topic "Phishing awareness for staff" -p openai -o le
 
 # Pipe source material via stdin:
 cat lecture.txt | playable-lessons generate -o lesson/ -p ollama -m llama3.1:8b
+
+# With a generated illustration per scene (cartoon or photorealistic):
+OPENAI_API_KEY=sk-... playable-lessons generate -i notes.md -p ollama -o lesson/ --images --image-style cartoon
 ```
+
+`--images` adds a `# IMAGE_PROMPT:` tag to every scene, then generates each image with an image provider (`--image-provider openai|gemini|custom`, inferred from `OPENAI_API_KEY`/`GEMINI_API_KEY`/`--image-base-url`; `--image-model` to override the default model). Images are embedded in the HTML export and written to an `images/` folder.
 
 Provider selection and API keys:
 
@@ -238,6 +243,34 @@ docker compose pull && docker compose up -d
 Staff access the server at `http://your-server:3000`, enter the access code, and generate. Work is stored per-browser (localStorage); the AI key stays server-side. Rate limiting is configurable (`RATE_LIMIT_PER_HOUR`, default 30).
 
 To revoke a group: remove their code from `.env` → `docker compose restart`. To update: change the image tag → `docker compose pull && docker compose up -d`.
+
+### Scene images (optional)
+
+The hosted app can offer "illustrate every scene" (cartoon or photorealistic) on stories. It's off by default; enable it in `.env` with `SCENE_IMAGES=true` plus one image provider:
+
+```bash
+# Option A — Google Imagen (cheap, fast, ~$0.02/image; good default for a public server):
+SCENE_IMAGES=true
+GEMINI_API_KEY=AIza...
+
+# Option B — OpenAI (gpt-image-1; reuses OPENAI_API_KEY if IMAGE_API_KEY is blank):
+# SCENE_IMAGES=true
+# IMAGE_PROVIDER=openai
+
+# Option C — self-hosted generator on the same VPS (LocalAI, included in the compose file):
+# docker compose --profile images up -d
+# SCENE_IMAGES=true
+# IMAGE_PROVIDER=custom
+# IMAGE_BASE_URL=http://localai:8080/v1
+# IMAGE_MODEL=stablediffusion
+```
+
+Notes for operators:
+
+- Each illustrated story triggers up to `IMAGE_MAX_SCENES` image generations (default 8) — combined with the per-IP `RATE_LIMIT_PER_HOUR`, that bounds your image spend.
+- The LocalAI service runs **CPU-only by default and is slow** (a minute or more per scene on a small VPS). It's internal-only (no published port — LocalAI has no auth). For usable self-hosting, use a GPU host and the `localai/localai:*-gpu-*` images; for a CPU-only VPS, prefer Gemini/OpenAI.
+- First LocalAI start downloads a multi-GB model into the `localai-models` volume.
+- If the app sits behind nginx, raise `proxy_read_timeout` (e.g. `300s`) — illustrated stories take minutes.
 
 ---
 

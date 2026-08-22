@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAppStore } from '../stores/appStore'
 import { parseInkSource, updateKnotContent, type InkKnot } from '../lib/inkParser'
+import { generateSceneImage } from '../lib/aiService'
 
 export default function PassageEditor() {
   const selectedNodeId = useAppStore((s) => s.selectedNodeId)
@@ -14,6 +15,9 @@ export default function PassageEditor() {
   const [editContent, setEditContent] = useState('')
   const [timerValue, setTimerValue] = useState(0)
   const [endingType, setEndingType] = useState('')
+  const sceneImages = useAppStore((s) => s.sceneImages)
+  const [imageBusy, setImageBusy] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
 
   useEffect(() => {
     if (knot) {
@@ -86,6 +90,62 @@ export default function PassageEditor() {
           </select>
         </div>
       </div>
+
+      {/* Generated scene image (from a # IMAGE_PROMPT: tag) */}
+      {knot.imagePrompt && (
+        <div style={{ marginBottom: 8 }}>
+          <label className="form-label" style={{ fontSize: 11 }}>Scene Image</label>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            {sceneImages[knot.imagePrompt] ? (
+              <img
+                src={sceneImages[knot.imagePrompt]}
+                alt={knot.imagePrompt}
+                style={{ width: 160, borderRadius: 6, display: 'block' }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 160,
+                  padding: '12px 8px',
+                  border: '1px dashed var(--border, #3a3a5c)',
+                  borderRadius: 6,
+                  color: 'var(--text-muted)',
+                  fontSize: 11,
+                  fontStyle: 'italic'
+                }}
+              >
+                Not generated
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <button
+                className="btn btn-secondary"
+                disabled={imageBusy}
+                onClick={async () => {
+                  setImageBusy(true)
+                  setImageError(null)
+                  try {
+                    await generateSceneImage(knot.imagePrompt!)
+                  } catch (err) {
+                    setImageError(err instanceof Error ? err.message : 'Image generation failed')
+                  } finally {
+                    setImageBusy(false)
+                  }
+                }}
+                style={{ padding: '4px 10px', fontSize: 11 }}
+              >
+                {imageBusy ? 'Generating…' : sceneImages[knot.imagePrompt] ? 'Regenerate' : 'Generate Image'}
+              </button>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', maxWidth: 320 }}>
+                {knot.imagePrompt}
+              </div>
+              {imageError && (
+                <div style={{ fontSize: 11, color: 'var(--error)' }}>{imageError}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Image attachment */}
       <div style={{ marginBottom: 8 }}>

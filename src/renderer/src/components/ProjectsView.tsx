@@ -56,6 +56,7 @@ export default function ProjectsView() {
         updatedAt: Date.now(),
         inkSource: s.inkSource || undefined,
         compiledStoryJson: s.compiledStoryJson || undefined,
+        sceneImages: Object.keys(s.sceneImages).length > 0 ? s.sceneImages : undefined,
         flashcards: s.flashcards || undefined,
         quiz: s.quiz || undefined,
         summary: s.summary || undefined,
@@ -88,6 +89,7 @@ export default function ProjectsView() {
       s.setProjectName(full.name)
       s.setInkSource(full.inkSource || '')
       s.setCompiledStoryJson(full.compiledStoryJson || '')
+      s.setSceneImages(full.sceneImages || {})
       s.setFlashcards(full.flashcards || null)
       s.setQuiz(full.quiz || null)
       s.setSummary(full.summary || null)

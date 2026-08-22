@@ -10,6 +10,7 @@ VAR passed = true
 === intro ===
 Welcome to the lesson.
 # IMAGE: intro.png
+# IMAGE_PROMPT: a sunlit classroom with empty desks
 # TIMER: 30
 * [Continue] -> chapter_one
 
@@ -47,6 +48,14 @@ describe('parseInkSource', () => {
     expect(intro.timerSeconds).toBe(30)
     const ending = parsed.knots.find((k) => k.id === 'ending')!
     expect(ending.endingType).toBe('good')
+  })
+
+  it('parses IMAGE_PROMPT tags into knot.imagePrompt', () => {
+    const intro = parsed.knots.find((k) => k.id === 'intro')!
+    expect(intro.imagePrompt).toBe('a sunlit classroom with empty desks')
+    // Knots without the tag get null, not an empty string
+    const ch1 = parsed.knots.find((k) => k.id === 'chapter_one')!
+    expect(ch1.imagePrompt).toBeNull()
   })
 
   it('parses choices with targets, conditions, and stickiness', () => {

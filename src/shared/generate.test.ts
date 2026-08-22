@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { extractInk, generateInk, extractJson, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan, quizLetter, type PlanResult } from './generate'
+import { extractInk, generateInk, extractJson, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan, quizLetter, collectSceneImagePrompts, generateSceneImages, type PlanResult } from './generate'
 import { storyPrompts } from './prompts'
 import type { ProviderConfig, AIMessage } from './aiClient'
+import type { ImageProviderConfig } from './imageClient'
 
 describe('storyPrompts', () => {
   it('defaults to the stateful prompts, which ask for variables', () => {
@@ -97,6 +98,114 @@ describe('generateInk', () => {
       generateInk({ inputMode: 'topic', inputText: 'x' }, config, { call, maxCompileRetries: 2 })
     ).rejects.toThrow(/Failed to compile/)
     expect(n).toBeGreaterThanOrEqual(2) // outline + ink + review + at least one fix attempt
+  })
+
+  it('appends the scene-image instruction only when sceneImages is enabled', async () => {
+    const userPrompts: string[] = []
+    const call = async (messages: AIMessage[]) => {
+      userPrompts.push(messages.find((m) => m.role === 'user')?.content ?? '')
+      return VALID
+    }
+    await generateInk({ inputMode: 'topic', inputText: 'x', sceneImages: true }, config, { call })
+    expect(userPrompts.some((p) => p.includes('# IMAGE_PROMPT:'))).toBe(true)
+
+    userPrompts.length = 0
+    await generateInk({ inputMode: 'topic', inputText: 'x' }, config, { call })
+    expect(userPrompts.some((p) => p.includes('# IMAGE_PROMPT:'))).toBe(false)
+  })
+})
+
+describe('collectSceneImagePrompts', () => {
+  it('collects every knot\'s image prompt, skipping knots without one', () => {
+    const ink = [
+      '=== start ===',
+      '# IMAGE_PROMPT: a lighthouse at dawn',
+      'Hello.',
+      '* [Go] -> beach',
+      '=== beach ===',
+      '# IMAGE_PROMPT: waves on a pebble beach',
+      'Sand.',
+      '-> END',
+      '=== empty ===',
+      'No image here.',
+      '-> END'
+    ].join('\n')
+    expect(collectSceneImagePrompts(ink)).toEqual([
+      { knotId: 'start', prompt: 'a lighthouse at dawn' },
+      { knotId: 'beach', prompt: 'waves on a pebble beach' }
+    ])
+  })
+})
+
+describe('generateSceneImages', () => {
+  const imageConfig: ImageProviderConfig = { provider: 'custom', baseUrl: 'http://x/v1', model: 'm' }
+  const ink = [
+    '=== start ===',
+    '# IMAGE_PROMPT: a lighthouse at dawn',
+    'Hi.',
+    '-> END',
+    '=== other ===',
+    '# IMAGE_PROMPT: a lighthouse at dawn', // duplicate prompt — generated once
+    '# IMAGE_PROMPT: a storm rolling in',
+    'Bye.',
+    '-> END'
+  ].join('\n')
+
+  it('generates one image per unique prompt, keyed by the raw prompt text', async () => {
+    const seen: string[] = []
+    const images = await generateSceneImages(ink, imageConfig, {
+      generate: async (styledPrompt) => {
+        seen.push(styledPrompt)
+        return `data:image/png;base64,img${seen.length}`
+      }
+    })
+    expect(seen.length).toBe(2)
+    // The styled prompt (style directive + scene) is what reaches the provider
+    expect(seen[0]).toContain('cartoon')
+    expect(seen[0]).toContain('Scene: a lighthouse at dawn')
+    // ...but the map is keyed by the raw tag text the player/export looks up
+    expect(Object.keys(images).sort()).toEqual(['a lighthouse at dawn', 'a storm rolling in'])
+  })
+
+  it('applies the requested style', async () => {
+    const seen: string[] = []
+    await generateSceneImages(ink, imageConfig, {
+      style: 'photorealistic',
+      generate: async (p) => {
+        seen.push(p)
+        return 'data:'
+      }
+    })
+    expect(seen[0]).toContain('Photorealistic')
+  })
+
+  it('logs and skips a failed image rather than failing the run', async () => {
+    const logs: string[] = []
+    const images = await generateSceneImages(ink, imageConfig, {
+      log: (m) => logs.push(m),
+      generate: async (p) => {
+        if (p.includes('storm')) throw new Error('provider exploded')
+        return 'data:image/png;base64,ok'
+      }
+    })
+    expect(images).toEqual({ 'a lighthouse at dawn': 'data:image/png;base64,ok' })
+    expect(logs.some((l) => l.includes('provider exploded'))).toBe(true)
+  })
+
+  it('caps the number of images when maxImages is set', async () => {
+    const logs: string[] = []
+    let generated = 0
+    const images = await generateSceneImages(ink, imageConfig, {
+      maxImages: 1,
+      log: (m) => logs.push(m),
+      generate: async () => {
+        generated++
+        return 'data:'
+      }
+    })
+    expect(generated).toBe(1)
+    expect(Object.keys(images)).toEqual(['a lighthouse at dawn'])
+    expect(logs.some((l) => l.includes('Capping scene images at 1 of 2'))).toBe(true)
   })
 })
 

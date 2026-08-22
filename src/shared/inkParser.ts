@@ -13,6 +13,8 @@ export interface InkKnot {
   tags: string[]
   timerSeconds: number
   imagePath: string | null
+  /** Visual description from a `# IMAGE_PROMPT:` tag — resolved to an image via the scene-image pipeline. */
+  imagePrompt: string | null
   endingType: string | null
   variableAssignments: { variable: string; expression: string }[]
 }
@@ -91,6 +93,7 @@ export function parseInkSource(source: string): ParsedInk {
         tags: [],
         timerSeconds: 0,
         imagePath: null,
+        imagePrompt: null,
         endingType: null,
         variableAssignments: []
       })
@@ -125,6 +128,11 @@ export function parseInkSource(source: string): ParsedInk {
         const imageMatch = tagContent.match(/^IMAGE:\s*(.+)/)
         if (imageMatch) {
           knot.imagePath = imageMatch[1].trim()
+        }
+
+        const imagePromptMatch = tagContent.match(/^IMAGE_PROMPT:\s*(.+)/)
+        if (imagePromptMatch) {
+          knot.imagePrompt = imagePromptMatch[1].trim()
         }
 
         const endingMatch = tagContent.match(/^ENDING:\s*(.+)/)

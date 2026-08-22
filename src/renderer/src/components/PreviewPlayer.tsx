@@ -12,6 +12,7 @@ interface StoryState {
 
 export default function PreviewPlayer() {
   const inkSource = useAppStore((s) => s.inkSource)
+  const sceneImages = useAppStore((s) => s.sceneImages)
   const [story, setStory] = useState<any>(null)
   const [storyState, setStoryState] = useState<StoryState>({
     text: [],
@@ -248,17 +249,51 @@ export default function PreviewPlayer() {
           </div>
         )}
 
-        {/* Images */}
+        {/* Images — attached files (IMAGE:) and generated scenes (IMAGE_PROMPT:) */}
         {storyState.tags
           .filter((t) => t.startsWith('IMAGE:'))
           .map((t, i) => (
             <img
-              key={i}
+              key={`img-${i}`}
               src={t.replace('IMAGE:', '').trim()}
               alt=""
               style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 16 }}
             />
           ))}
+        {storyState.tags
+          .filter((t) => t.startsWith('IMAGE_PROMPT:'))
+          .map((t, i) => {
+            const prompt = t.replace('IMAGE_PROMPT:', '').trim()
+            const src = sceneImages[prompt]
+            if (src) {
+              return (
+                <img
+                  key={`scene-${i}`}
+                  src={src}
+                  alt={prompt}
+                  title={prompt}
+                  style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 16 }}
+                />
+              )
+            }
+            return (
+              <div
+                key={`scene-${i}`}
+                title={prompt}
+                style={{
+                  border: '1px dashed var(--border, #3a3a5c)',
+                  borderRadius: 8,
+                  padding: '16px',
+                  marginBottom: 16,
+                  color: 'var(--text-muted)',
+                  fontSize: 12,
+                  fontStyle: 'italic'
+                }}
+              >
+                Scene image not generated yet — {prompt}
+              </div>
+            )
+          })}
 
         {/* Story text */}
         <div className="player-text">

@@ -25,6 +25,16 @@ export default function SettingsPanel() {
   const setCustomModel = useAppStore((s) => s.setCustomModel)
   const theme = useAppStore((s) => s.theme)
   const setTheme = useAppStore((s) => s.setTheme)
+  const imageProvider = useAppStore((s) => s.imageProvider)
+  const setImageProvider = useAppStore((s) => s.setImageProvider)
+  const imageModel = useAppStore((s) => s.imageModel)
+  const setImageModel = useAppStore((s) => s.setImageModel)
+  const imageBaseUrl = useAppStore((s) => s.imageBaseUrl)
+  const setImageBaseUrl = useAppStore((s) => s.setImageBaseUrl)
+  const imageApiKey = useAppStore((s) => s.imageApiKey)
+  const setImageApiKey = useAppStore((s) => s.setImageApiKey)
+  const geminiApiKey = useAppStore((s) => s.geminiApiKey)
+  const setGeminiApiKey = useAppStore((s) => s.setGeminiApiKey)
 
   const [models, setModels] = useState<string[]>([])
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null)
@@ -35,6 +45,8 @@ export default function SettingsPanel() {
   const updateApiKey = (v: string) => { setApiKey(v); persistSecret('apiKey', v) }
   const updateOllamaToken = (v: string) => { setOllamaToken(v); persistSecret('ollamaToken', v) }
   const updateCustomApiKey = (v: string) => { setCustomApiKey(v); persistSecret('customApiKey', v) }
+  const updateImageApiKey = (v: string) => { setImageApiKey(v); persistSecret('imageApiKey', v) }
+  const updateGeminiApiKey = (v: string) => { setGeminiApiKey(v); persistSecret('geminiApiKey', v) }
 
   const handleTest = async () => {
     setBusy('test')
@@ -185,6 +197,118 @@ export default function SettingsPanel() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="settings-section">
+          <div className="settings-section-title">Scene Images</div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12 }}>
+            Used when &ldquo;Generate an illustration for every scene&rdquo; is ticked on the input
+            screen. The story itself is still written by your AI provider above.
+          </p>
+
+          <div className="form-group">
+            <label className="form-label">Image Provider</label>
+            <select
+              className="form-select"
+              value={imageProvider}
+              onChange={(e) => setImageProvider(e.target.value as typeof imageProvider)}
+            >
+              <option value="openai">OpenAI (gpt-image-1 / DALL-E 3)</option>
+              <option value="gemini">Google Imagen</option>
+              <option value="custom">Custom (OpenAI-compatible endpoint)</option>
+            </select>
+          </div>
+
+          {imageProvider === 'openai' && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Image Model</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="gpt-image-1"
+                  value={imageModel}
+                  onChange={(e) => setImageModel(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">OpenAI Image API Key</label>
+                <input
+                  className="form-input"
+                  type="password"
+                  placeholder="sk-... (leave blank to reuse the main API key)"
+                  value={imageApiKey}
+                  onChange={(e) => updateImageApiKey(e.target.value)}
+                />
+                <div style={hintStyle}>Stored in your OS keychain. Falls back to the main OpenAI API key above.</div>
+              </div>
+            </>
+          )}
+
+          {imageProvider === 'gemini' && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Imagen Model</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="imagen-4.0-fast-generate-001"
+                  value={imageModel}
+                  onChange={(e) => setImageModel(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Google API Key</label>
+                <input
+                  className="form-input"
+                  type="password"
+                  placeholder="AIza..."
+                  value={geminiApiKey}
+                  onChange={(e) => updateGeminiApiKey(e.target.value)}
+                />
+                <div style={hintStyle}>Stored in your OS keychain. Needs access to the Imagen API.</div>
+              </div>
+            </>
+          )}
+
+          {imageProvider === 'custom' && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Base URL</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="http://localhost:8080/v1"
+                  value={imageBaseUrl}
+                  onChange={(e) => setImageBaseUrl(e.target.value)}
+                />
+                <div style={hintStyle}>
+                  Any OpenAI-compatible <code>/images/generations</code> endpoint (SwarmUI shim, LocalAI, …). Include the version path, e.g. <code>/v1</code>.
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Image Model</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="(required by the endpoint)"
+                  value={imageModel}
+                  onChange={(e) => setImageModel(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Bearer Token / API Key</label>
+                <input
+                  className="form-input"
+                  type="password"
+                  placeholder="(optional)"
+                  value={imageApiKey}
+                  onChange={(e) => updateImageApiKey(e.target.value)}
+                />
+                <div style={hintStyle}>Stored in your OS keychain. Leave blank for an unauthenticated local server.</div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="settings-section">
