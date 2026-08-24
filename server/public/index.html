@@ -185,6 +185,7 @@
       <div class="container">
         <a href="https://michael-borck.github.io/playable-lessons/">Landing page</a>
         <span style="color:var(--text-muted);font-size:14px">MIT</span>
+        <span class="version-stamp" style="color:var(--text-muted);font-size:12px"></span>
       </div>
     </div>
   </div>
@@ -193,7 +194,7 @@
   <div id="create-view">
     <div class="container">
       <div class="create-header">
-        <h2>Create</h2>
+        <h2>Create <span class="version-stamp" style="color:var(--text-muted);font-size:12px;font-weight:400"></span></h2>
         <span class="back-link" onclick="showLanding()">&larr; Back</span>
       </div>
 
@@ -245,8 +246,8 @@
         <div class="form-group" id="count-group">
           <label>Length</label>
           <select id="count">
-            <option value="5">Short (~5 scenes)</option>
-            <option value="12" selected>Medium (~12 scenes)</option>
+            <option value="5" selected>Short (~5 scenes)</option>
+            <option value="12">Medium (~12 scenes)</option>
             <option value="25">Long (~25+ scenes)</option>
           </select>
         </div>
@@ -417,6 +418,9 @@
       var res = await fetch('/api/health')
       var data = await res.json()
       sceneImagesAvailable = !!(data.sceneImages && data.sceneImages.available)
+      if (data.version) {
+        document.querySelectorAll('.version-stamp').forEach(function (el) { el.textContent = 'v' + data.version })
+      }
       if (sceneImagesAvailable && document.getElementById('target').value === 'story') {
         document.getElementById('images-group').style.display = 'flex'
         if (data.sceneImages.style) document.getElementById('image-style').value = data.sceneImages.style
@@ -453,7 +457,7 @@
     document.getElementById('style-group').style.display = e.target.value === 'story' ? 'flex' : 'none'
     document.getElementById('images-group').style.display = (e.target.value === 'story' && sceneImagesAvailable) ? 'flex' : 'none'
     var cg = document.getElementById('count-group'), cl = cg.querySelector('label')
-    if (e.target.value === 'story') { cg.style.display='flex'; cl.textContent='Length'; cg.querySelector('select').innerHTML='<option value="5">Short (~5 scenes)</option><option value="12" selected>Medium (~12 scenes)</option><option value="25">Long (~25+ scenes)</option>' }
+    if (e.target.value === 'story') { cg.style.display='flex'; cl.textContent='Length'; cg.querySelector('select').innerHTML='<option value="5" selected>Short (~5 scenes)</option><option value="12">Medium (~12 scenes)</option><option value="25">Long (~25+ scenes)</option>' }
     else if (e.target.value === 'case-study') { cg.style.display='none' }
     else { cg.style.display='flex'; cl.textContent='How many?'; cg.querySelector('select').outerHTML='<input id="count" type="number" value="8" min="1" max="20" />' }
   })

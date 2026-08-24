@@ -23,6 +23,7 @@ const {
 const { exportStandaloneHTML } = require('../out/shared/storyExport.js')
 const { exportH5P, findStateConstructs } = require('../out/shared/h5pExporter.js')
 const { isImageProviderConfigured } = require('../out/shared/imageClient.js')
+const { APP_VERSION } = require('../out/shared/version.generated.js')
 
 const app = express()
 app.use(express.json({ limit: '1mb' }))
@@ -112,6 +113,7 @@ app.use('/api', (req, res, next) => {
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
+    version: APP_VERSION,
     provider: config.provider,
     model: config.model,
     requiresAccessCode: ACCESS_CODES.length > 0,
