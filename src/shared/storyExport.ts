@@ -58,13 +58,33 @@ export function ensureStartDivert(source: string): string {
 /**
  * Compiles Ink source to JSON using inkjs's Compiler.
  * Returns the compiled JSON string.
+ *
+ * inkjs's Compile() throws a bare "Compilation failed." on errors — useless
+ * for users and for the AI fix-retry loop (it gets told THAT it failed, never
+ * WHAT failed). We collect the compiler's real error messages via an
+ * errorHandler and rethrow with them included.
  */
 export async function compileInk(inkSource: string): Promise<string> {
-  const { Compiler } = await import('inkjs/compiler/Compiler')
+  const { Compiler, CompilerOptions } = await import('inkjs/compiler/Compiler')
 
   const source = ensureStartDivert(inkSource)
-  const compiler = new Compiler(source)
-  const story = compiler.Compile()
+  const errors: string[] = []
+  const compiler = new Compiler(
+    source,
+    new CompilerOptions(null, [], false, (message: string) => {
+      errors.push(message)
+    })
+  )
+
+  let story
+  try {
+    story = compiler.Compile()
+  } catch (err) {
+    if (errors.length > 0) {
+      throw new Error(`Compilation failed: ${errors.slice(0, 5).join(' | ')}`)
+    }
+    throw err
+  }
 
   if (!story) {
     throw new Error('Ink compilation failed: no story produced')

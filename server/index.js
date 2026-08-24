@@ -159,7 +159,8 @@ app.post('/api/generate', async (req, res) => {
             branchingStyle: style === 'branching' ? 'branching' : 'stateful',
             sceneImages: wantImages
           },
-          config
+          config,
+          { log: (m) => console.log('[generate]', m) }
         )
         // Resolve # IMAGE_PROMPT: tags to real images. Never fatal — a failed
         // batch still returns the (text-only) story.
@@ -168,7 +169,8 @@ app.post('/api/generate', async (req, res) => {
           try {
             sceneImages = await generateSceneImages(story.inkSource, imageConfig, {
               style: imageStyle === 'photorealistic' ? 'photorealistic' : IMAGE_STYLE,
-              maxImages: IMAGE_MAX_SCENES
+              maxImages: IMAGE_MAX_SCENES,
+              log: (m) => console.log('[images]', m)
             })
           } catch (err) {
             console.error('Scene image generation failed:', err.message || err)
@@ -185,25 +187,27 @@ app.post('/api/generate', async (req, res) => {
         break
       }
       case 'summary':
-        result = await generateSummary({ ...params, keyPointCount: count || 8 }, config)
+        result = await generateSummary({ ...params, keyPointCount: count || 8 }, config, { log: (m) => console.log('[generate]', m) })
         break
       case 'flashcards':
-        result = await generateFlashcards({ ...params, cardCount: count || 12 }, config)
+        result = await generateFlashcards({ ...params, cardCount: count || 12 }, config, { log: (m) => console.log('[generate]', m) })
         break
       case 'quiz':
-        result = await generateQuiz({ ...params, questionCount: count || 10 }, config)
+        result = await generateQuiz({ ...params, questionCount: count || 10 }, config, { log: (m) => console.log('[generate]', m) })
         break
       case 'ai-task':
-        result = await generateAiTask({ ...params, taskCount: count || 3 }, config)
+        result = await generateAiTask({ ...params, taskCount: count || 3 }, config, { log: (m) => console.log('[generate]', m) })
         break
       case 'case-study':
-        result = await generateCaseStudy({ ...params, depth: depth || 'complete' }, config)
+        result = await generateCaseStudy({ ...params, depth: depth || 'complete' }, config, { log: (m) => console.log('[generate]', m) })
         break
       default:
         return res.status(400).json({ error: `Unknown target: ${target}` })
     }
     res.json({ result })
   } catch (err) {
+    // Log server-side too — the browser error banner is the only other trace.
+    console.error(`[generate] ${target} failed:`, err.message || err)
     res.status(500).json({ error: err.message || 'Generation failed.' })
   }
 })

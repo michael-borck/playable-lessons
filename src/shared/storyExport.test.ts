@@ -41,6 +41,17 @@ describe('compileInk', () => {
   it('rejects invalid Ink', async () => {
     await expect(compileInk('=== start ===\n-> nonexistent_knot\n')).rejects.toThrow()
   })
+
+  it('surfaces the compiler\'s real error messages, not a bare "Compilation failed."', async () => {
+    // The AI fix-retry loop and the error banner both depend on this detail.
+    try {
+      await compileInk('=== start ===\nHi.\n-> nonexistent_knot\n')
+      expect.unreachable('should have thrown')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      expect(msg).toMatch(/nonexistent_knot|line \d+/i)
+    }
+  })
 })
 
 describe('scene-image tags at runtime', () => {
