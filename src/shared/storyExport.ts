@@ -211,7 +211,9 @@ export async function exportStandaloneHTML(
         if (src) imgSrcs.push(src);
       } else if (tag.indexOf('IMAGE:') === 0) {
         var val = tag.substring('IMAGE:'.length).trim();
-        if (/^(data:|https?:\/\/)/.test(val)) imgSrcs.push(val);
+        // NB: no '//' inside this regex — in this template literal \/ collapses
+        // to / and would turn into a line comment in the generated page.
+        if (/^(data:|https?:)/.test(val)) imgSrcs.push(val);
       }
     });
     imgSrcs.forEach(function(src) {

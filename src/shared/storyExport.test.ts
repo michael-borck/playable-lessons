@@ -127,4 +127,23 @@ describe('exportStandaloneHTML', () => {
     const html = await exportStandaloneHTML(ink, 'Story', images)
     expect(html).not.toContain('</script><script>alert(1)</script>')
   })
+
+  it('generates a player script that is syntactically valid JavaScript', async () => {
+    // Regression: a `//` inside a regex in the HTML template became a line
+    // comment in the generated page, killing the whole player (blank story).
+    // String-containment tests can't catch that — parse the player for real.
+    const ink = '=== start ===\n# IMAGE_PROMPT: a lighthouse\nHi.\n* [Go] -> ending\n=== ending ===\n# IMAGE: https://example.com/x.png\nDone.\n-> END\n'
+    const images = { 'a lighthouse': 'data:image/png;base64,ABC123' }
+    const html = await exportStandaloneHTML(ink, 'Story', images)
+
+    const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
+    expect(scripts.length).toBeGreaterThanOrEqual(2)
+    const player = scripts[scripts.length - 1][1]
+    // new Function() parses the source without executing it (no DOM needed).
+    expect(() => new Function(player)).not.toThrow()
+    // The player must reference its data — a quick sanity check that
+    // interpolation happened.
+    expect(player).toContain('new inkjs.Story')
+    expect(player).toContain('sceneImages')
+  })
 })
