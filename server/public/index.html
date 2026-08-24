@@ -204,6 +204,7 @@
         <div class="features">
           <span class="feature">&#10003; Inline editing + AI refinement</span>
           <span class="feature">&#10003; Projects dashboard</span>
+          <span class="feature">&#10003; Longer stories</span>
           <span class="feature">&#10003; Offline (Ollama)</span>
           <span class="feature">&#10003; No rate limits</span>
         </div>
@@ -246,9 +247,7 @@
         <div class="form-group" id="count-group">
           <label>Length</label>
           <select id="count">
-            <option value="5" selected>Short (~5 scenes)</option>
-            <option value="12">Medium (~12 scenes)</option>
-            <option value="25">Long (~25+ scenes)</option>
+            <option value="5" selected>Short (~5 scenes) — longer stories in the desktop app</option>
           </select>
         </div>
       </div>
@@ -457,7 +456,7 @@
     document.getElementById('style-group').style.display = e.target.value === 'story' ? 'flex' : 'none'
     document.getElementById('images-group').style.display = (e.target.value === 'story' && sceneImagesAvailable) ? 'flex' : 'none'
     var cg = document.getElementById('count-group'), cl = cg.querySelector('label')
-    if (e.target.value === 'story') { cg.style.display='flex'; cl.textContent='Length'; cg.querySelector('select').innerHTML='<option value="5" selected>Short (~5 scenes)</option><option value="12">Medium (~12 scenes)</option><option value="25">Long (~25+ scenes)</option>' }
+    if (e.target.value === 'story') { cg.style.display='flex'; cl.textContent='Length'; cg.querySelector('select').innerHTML='<option value="5" selected>Short (~5 scenes) \u2014 longer stories in the desktop app</option>' }
     else if (e.target.value === 'case-study') { cg.style.display='none' }
     else { cg.style.display='flex'; cl.textContent='How many?'; cg.querySelector('select').outerHTML='<input id="count" type="number" value="8" min="1" max="20" />' }
   })

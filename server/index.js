@@ -63,6 +63,11 @@ const config = buildConfig()
 // Compile-fix retries: the AI gets real Ink error messages and repairs its own
 // source between attempts — a weaker model may need more than the default 3.
 const COMPILE_RETRIES = parseInt(process.env.COMPILE_RETRIES || '3', 10)
+// Force every story to one length (e.g. STORY_LENGTH=short for a public
+// teaser). Unset: length follows the requested scene count.
+const STORY_LENGTH = ['short', 'medium', 'long'].includes(process.env.STORY_LENGTH || '')
+  ? process.env.STORY_LENGTH
+  : null
 
 // ─── Scene images (optional, opt-in via SCENE_IMAGES=true) ───
 // A public story request can trigger many image generations, so this is off
@@ -158,7 +163,7 @@ app.post('/api/generate', async (req, res) => {
         const story = await generateInk(
           {
             ...params,
-            storyLength: count > 15 ? 'long' : count > 8 ? 'medium' : 'short',
+            storyLength: STORY_LENGTH || (count > 15 ? 'long' : count > 8 ? 'medium' : 'short'),
             branchingStyle: style === 'branching' ? 'branching' : 'stateful',
             sceneImages: wantImages
           },
