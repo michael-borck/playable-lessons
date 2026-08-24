@@ -27,6 +27,7 @@ When generating Ink, follow these rules:
 - Use * for once-only choices, + for sticky choices
 - Use -> knot_name for diverts
 - Use { variable > X: text } for conditional content
+- Compound conditions use the words and / or / not — Ink has NO && or || operators
 - Use ~ variable = value for variable assignments
 - Always include a -> END or -> DONE to terminate paths
 - Use # IMAGE: and # TIMER: tags for Playable Lessons custom features`,
@@ -180,6 +181,14 @@ VAR has_key = false
     You've done well.
 - else:
     You need more experience.
+}
+
+// Compound conditions use WORDS, not symbols (Ink has no && or ||)
+{ score > 5 and has_key:
+    You stride forward, prepared.
+}
+{ tier == "premium" or score > 10:
+    The exclusive option.
 }
 
 // Inline conditional

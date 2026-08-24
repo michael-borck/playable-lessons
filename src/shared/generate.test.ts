@@ -12,6 +12,15 @@ describe('storyPrompts', () => {
     expect(sp.inkGeneration).toContain('conditional')
   })
 
+  it('stateful prompts teach word-based compound conditions (no && or ||)', () => {
+    // LLMs default to C-style operators, which Ink doesn't have — the #1 cause
+    // of compile failures with weaker models.
+    const sp = storyPrompts()
+    expect(sp.system).toMatch(/and \/ or \/ not/)
+    expect(sp.inkSyntaxRef).toContain('no && or ||')
+    expect(sp.inkSyntaxRef).toContain('score > 5 and has_key')
+  })
+
   it('branching prompts forbid variables and conditionals everywhere', () => {
     const sp = storyPrompts('branching')
     expect(sp.system).toContain('PURE BRANCHING')

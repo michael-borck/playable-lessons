@@ -60,6 +60,9 @@ function buildConfig() {
   }
 }
 const config = buildConfig()
+// Compile-fix retries: the AI gets real Ink error messages and repairs its own
+// source between attempts — a weaker model may need more than the default 3.
+const COMPILE_RETRIES = parseInt(process.env.COMPILE_RETRIES || '3', 10)
 
 // ─── Scene images (optional, opt-in via SCENE_IMAGES=true) ───
 // A public story request can trigger many image generations, so this is off
@@ -160,7 +163,7 @@ app.post('/api/generate', async (req, res) => {
             sceneImages: wantImages
           },
           config,
-          { log: (m) => console.log('[generate]', m) }
+          { log: (m) => console.log('[generate]', m), maxCompileRetries: COMPILE_RETRIES }
         )
         // Resolve # IMAGE_PROMPT: tags to real images. Never fatal — a failed
         // batch still returns the (text-only) story.
