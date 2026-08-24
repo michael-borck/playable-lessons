@@ -24,6 +24,7 @@ const { exportStandaloneHTML } = require('../out/shared/storyExport.js')
 const { exportH5P, findStateConstructs } = require('../out/shared/h5pExporter.js')
 const { isImageProviderConfigured } = require('../out/shared/imageClient.js')
 const { APP_VERSION } = require('../out/shared/version.generated.js')
+const { createGenerationQueue } = require('./queue')
 
 const app = express()
 app.use(express.json({ limit: '1mb' }))
@@ -68,6 +69,9 @@ const COMPILE_RETRIES = parseInt(process.env.COMPILE_RETRIES || '3', 10)
 const STORY_LENGTH = ['short', 'medium', 'long'].includes(process.env.STORY_LENGTH || '')
   ? process.env.STORY_LENGTH
   : null
+// Generations run as queued jobs (see queue.js) — one at a time by default,
+// so a busy public server serializes LLM + image spend instead of stacking it.
+const queue = createGenerationQueue({ concurrency: parseInt(process.env.GENERATE_CONCURRENCY || '1', 10) })
 
 // ─── Scene images (optional, opt-in via SCENE_IMAGES=true) ───
 // A public story request can trigger many image generations, so this is off
@@ -118,10 +122,12 @@ if (ACCESS_CODES.length > 0) {
 }
 
 // ─── Rate limiting (per-IP, hourly window, in-memory) ───
+// Only job SUBMISSION counts — polling /api/job/:id every few seconds would
+// otherwise burn a visitor's whole budget before one story finishes.
 const ipHits = new Map()
 const WINDOW_MS = 60 * 60 * 1000
 setInterval(() => ipHits.clear(), WINDOW_MS)
-app.use('/api', (req, res, next) => {
+app.use('/api/generate', (req, res, next) => {
   const ip = req.ip
   const hits = (ipHits.get(ip) || 0) + 1
   ipHits.set(ip, hits)
@@ -141,12 +147,18 @@ app.get('/api/health', (req, res) => {
     requiresAccessCode: ACCESS_CODES.length > 0,
     // The web UI shows the scene-images option only when the operator has it
     // configured — visitors never see a checkbox that can't work.
-    sceneImages: imageConfig ? { available: true, style: IMAGE_STYLE } : { available: false }
+    sceneImages: imageConfig ? { available: true, style: IMAGE_STYLE } : { available: false },
+    queue: queue.stats()
   })
 })
 
-// ─── Generate ───
-app.post('/api/generate', async (req, res) => {
+// ─── Generate (async job) ───
+// POST validates + enqueues, then the client polls /api/job/:id — so a queued
+// visitor sees their position, can cancel while waiting, and can leave and
+// come back (job results are kept for an hour, in memory).
+const TARGETS = ['story', 'summary', 'flashcards', 'quiz', 'ai-task', 'case-study']
+
+app.post('/api/generate', (req, res) => {
   const { source, target, count, depth, inputMode, tone, style, images, imageStyle } = req.body
   if (!source || !source.trim()) {
     return res.status(400).json({ error: 'No source material provided.' })
@@ -154,70 +166,86 @@ app.post('/api/generate', async (req, res) => {
   if (source.length > MAX_INPUT_CHARS) {
     return res.status(400).json({ error: `Source too long (max ${MAX_INPUT_CHARS} chars).` })
   }
-  const params = { inputMode: inputMode || 'topic', inputText: source, tone: tone || 'professional' }
-  try {
-    let result
-    switch (target) {
-      case 'story': {
-        const wantImages = images === true && !!imageConfig
-        const story = await generateInk(
-          {
-            ...params,
-            storyLength: STORY_LENGTH || (count > 15 ? 'long' : count > 8 ? 'medium' : 'short'),
-            branchingStyle: style === 'branching' ? 'branching' : 'stateful',
-            sceneImages: wantImages
-          },
-          config,
-          { log: (m) => console.log('[generate]', m), maxCompileRetries: COMPILE_RETRIES }
-        )
-        // Resolve # IMAGE_PROMPT: tags to real images. Never fatal — a failed
-        // batch still returns the (text-only) story.
-        let sceneImages
-        if (wantImages) {
-          try {
-            sceneImages = await generateSceneImages(story.inkSource, imageConfig, {
-              style: imageStyle === 'photorealistic' ? 'photorealistic' : IMAGE_STYLE,
-              maxImages: IMAGE_MAX_SCENES,
-              log: (m) => console.log('[images]', m)
-            })
-          } catch (err) {
-            console.error('Scene image generation failed:', err.message || err)
-          }
-        }
-        const html = await exportStandaloneHTML(story.inkSource, 'Interactive Story', sceneImages)
-        result = { type: 'story', title: 'Interactive Story', html }
-        if (sceneImages) result.imageCount = Object.keys(sceneImages).length
-        // A .h5p download is only offered when the story is actually
-        // convertible (no variables/conditionals) — i.e. H5P-compatible mode.
-        if (findStateConstructs(story.inkSource).length === 0) {
-          result.h5p = Buffer.from(exportH5P(story.inkSource, 'Interactive Story')).toString('base64')
-        }
-        break
-      }
-      case 'summary':
-        result = await generateSummary({ ...params, keyPointCount: count || 8 }, config, { log: (m) => console.log('[generate]', m) })
-        break
-      case 'flashcards':
-        result = await generateFlashcards({ ...params, cardCount: count || 12 }, config, { log: (m) => console.log('[generate]', m) })
-        break
-      case 'quiz':
-        result = await generateQuiz({ ...params, questionCount: count || 10 }, config, { log: (m) => console.log('[generate]', m) })
-        break
-      case 'ai-task':
-        result = await generateAiTask({ ...params, taskCount: count || 3 }, config, { log: (m) => console.log('[generate]', m) })
-        break
-      case 'case-study':
-        result = await generateCaseStudy({ ...params, depth: depth || 'complete' }, config, { log: (m) => console.log('[generate]', m) })
-        break
-      default:
-        return res.status(400).json({ error: `Unknown target: ${target}` })
-    }
-    res.json({ result })
-  } catch (err) {
-    // Log server-side too — the browser error banner is the only other trace.
-    console.error(`[generate] ${target} failed:`, err.message || err)
-    res.status(500).json({ error: err.message || 'Generation failed.' })
+  if (!TARGETS.includes(target)) {
+    return res.status(400).json({ error: `Unknown target: ${target}` })
   }
+  const params = { inputMode: inputMode || 'topic', inputText: source, tone: tone || 'professional' }
+
+  const job = queue.submit(async (log) => {
+    const logBoth = (m) => { log(m); console.log('[generate]', m) }
+    try {
+      switch (target) {
+        case 'story': {
+          const wantImages = images === true && !!imageConfig
+          const story = await generateInk(
+            {
+              ...params,
+              storyLength: STORY_LENGTH || (count > 15 ? 'long' : count > 8 ? 'medium' : 'short'),
+              branchingStyle: style === 'branching' ? 'branching' : 'stateful',
+              sceneImages: wantImages
+            },
+            config,
+            { log: logBoth, maxCompileRetries: COMPILE_RETRIES }
+          )
+          // Resolve # IMAGE_PROMPT: tags to real images. Never fatal — a
+          // failed batch still returns the (text-only) story.
+          let sceneImages
+          if (wantImages) {
+            try {
+              sceneImages = await generateSceneImages(story.inkSource, imageConfig, {
+                style: imageStyle === 'photorealistic' ? 'photorealistic' : IMAGE_STYLE,
+                maxImages: IMAGE_MAX_SCENES,
+                log: logBoth
+              })
+            } catch (err) {
+              logBoth(`Scene image generation failed: ${err.message || err}`)
+            }
+          }
+          const html = await exportStandaloneHTML(story.inkSource, 'Interactive Story', sceneImages)
+          const result = { type: 'story', title: 'Interactive Story', html }
+          if (sceneImages) result.imageCount = Object.keys(sceneImages).length
+          // A .h5p download is only offered when the story is actually
+          // convertible (no variables/conditionals) — i.e. H5P-compatible mode.
+          if (findStateConstructs(story.inkSource).length === 0) {
+            result.h5p = Buffer.from(exportH5P(story.inkSource, 'Interactive Story')).toString('base64')
+          }
+          return result
+        }
+        case 'summary':
+          return await generateSummary({ ...params, keyPointCount: count || 8 }, config, { log: logBoth })
+        case 'flashcards':
+          return await generateFlashcards({ ...params, cardCount: count || 12 }, config, { log: logBoth })
+        case 'quiz':
+          return await generateQuiz({ ...params, questionCount: count || 10 }, config, { log: logBoth })
+        case 'ai-task':
+          return await generateAiTask({ ...params, taskCount: count || 3 }, config, { log: logBoth })
+        case 'case-study':
+        default:
+          return await generateCaseStudy({ ...params, depth: depth || 'complete' }, config, { log: logBoth })
+      }
+    } catch (err) {
+      // Log server-side too — the client's job status is the only other trace.
+      console.error(`[generate] ${target} failed:`, err.message || err)
+      throw err
+    }
+  })
+
+  res.status(202).json({ jobId: job.id, position: queue.position(job.id) })
+})
+
+// ─── Job status / cancel ───
+app.get('/api/job/:id', (req, res) => {
+  const view = queue.get(req.params.id)
+  if (!view) {
+    return res.status(404).json({ error: 'Job not found — it may have expired (results are kept for an hour) or the server restarted.' })
+  }
+  res.json(view)
+})
+
+app.delete('/api/job/:id', (req, res) => {
+  // 'cancelled' | 'running' | 'finished' | 'not_found' — the pipeline has no
+  // abort signal, so a job already running plays out to the end.
+  res.json({ status: queue.cancel(req.params.id) })
 })
 
 // ─── Serve web UI ───

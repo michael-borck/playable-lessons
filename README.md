@@ -240,7 +240,9 @@ curl -sL https://raw.githubusercontent.com/michael-borck/playable-lessons/main/s
 docker compose pull && docker compose up -d
 ```
 
-Staff access the server at `http://your-server:3000`, enter the access code, and generate. Work is stored per-browser (localStorage); the AI key stays server-side. Rate limiting is configurable (`RATE_LIMIT_PER_HOUR`, default 30).
+Staff access the server at `http://your-server:3000`, enter the access code, and generate. Work is stored per-browser (localStorage); the AI key stays server-side. Rate limiting is configurable (`RATE_LIMIT_PER_HOUR`, default 30) and counts only generation submissions, not status polling.
+
+Generations run as an **in-process job queue** (one at a time by default; `GENERATE_CONCURRENCY` to raise). Visitors see their queue position and live pipeline progress, can **cancel while waiting** (a job already running plays out — the pipeline has no abort switch), and can **close the page and come back** — results stay fetchable for an hour via a job id in localStorage. Jobs live in memory: a server restart clears the queue, and the UI says so honestly.
 
 To revoke a group: remove their code from `.env` → `docker compose restart`. To update: change the image tag → `docker compose pull && docker compose up -d`.
 

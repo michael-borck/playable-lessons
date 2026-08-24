@@ -427,8 +427,8 @@
       if (data.requiresAccessCode && !accessCode) showGate()
       else if (data.requiresAccessCode) {
         var check = await fetch('/api/health', { headers: { 'x-access-code': accessCode } })
-        if (check.ok) showLanding(); else { localStorage.removeItem('pl-access-code'); accessCode = ''; showGate() }
-      } else showLanding()
+        if (check.ok) { showLanding(); resumeSavedJob() } else { localStorage.removeItem('pl-access-code'); accessCode = ''; showGate() }
+      } else { showLanding(); resumeSavedJob() }
     } catch (e) { showLanding() }
   }
   function showGate() { document.getElementById('gate').style.display='block'; document.getElementById('landing-view').style.display='none'; document.getElementById('create-view').style.display='none' }
@@ -461,6 +461,24 @@
     else { cg.style.display='flex'; cl.textContent='How many?'; cg.querySelector('select').outerHTML='<input id="count" type="number" value="8" min="1" max="20" />' }
   })
 
+  // ─── Job flow: submit → poll → render. The job id lives in localStorage so
+  // a visitor can close the tab and come back (results are kept for an hour).
+  var pollTimer = null
+
+  function authHeaders(extra) {
+    return Object.assign({}, extra || {}, accessCode ? { 'x-access-code': accessCode } : {})
+  }
+
+  function trackJob(jobId, target) {
+    localStorage.setItem('pl-job-id', jobId)
+    localStorage.setItem('pl-job-target', target)
+  }
+  function stopTrackingJob() {
+    localStorage.removeItem('pl-job-id')
+    localStorage.removeItem('pl-job-target')
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null }
+  }
+
   async function generate() {
     var source = uploadedText || document.getElementById('source').value.trim()
     var target = document.getElementById('target').value
@@ -470,16 +488,114 @@
     var images = target === 'story' && sceneImagesAvailable && document.getElementById('scene-images').checked
     var imageStyle = document.getElementById('image-style').value
     if (!source) { showError('Please enter or upload some source material first.'); return }
-    var btn = document.getElementById('generate-btn'), ra = document.getElementById('result-area'), ea = document.getElementById('error')
-    var isStory = target === 'story'
-    btn.disabled = true; btn.textContent = isStory ? 'Crafting...' : 'Generating...'; ea.style.display = 'none'
-    ra.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div class="gen-text">' + (isStory?'Crafting your branching narrative':'Generating') + '</div><div class="gen-hint">' + (isStory?(images ? '6 AI passes plus image generation \u2014 grab a coffee':'6 AI passes \u2014 this takes a bit longer'):'') + '</div></div>'
+    var btn = document.getElementById('generate-btn'), ea = document.getElementById('error')
+    btn.disabled = true; btn.textContent = target === 'story' ? 'Crafting...' : 'Generating...'; ea.style.display = 'none'
+    renderJobState({ status: 'submitting' })
     try {
-      var res = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json',...(accessCode?{'x-access-code':accessCode}:{})}, body:JSON.stringify({source:source,target:target,count:count,depth:depth,style:style,images:images,imageStyle:imageStyle}) })
+      var res = await fetch('/api/generate', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify({source:source,target:target,count:count,depth:depth,style:style,images:images,imageStyle:imageStyle}) })
       var data = await res.json(); if(!res.ok) throw new Error(data.error||'Generation failed.')
-      renderResult(data.result, target)
-    } catch(err) { ea.textContent=err.message; ea.style.display='block'; ra.innerHTML='' }
-    finally { btn.disabled=false; btn.textContent='Generate' }
+      trackJob(data.jobId, target)
+      pollJob(data.jobId, target)
+    } catch(err) {
+      document.getElementById('result-area').innerHTML = ''
+      ea.textContent = err.message; ea.style.display = 'block'
+      btn.disabled = false; btn.textContent = 'Generate'
+    }
+  }
+
+  function pollJob(jobId, target) {
+    if (pollTimer) clearTimeout(pollTimer)
+    var btn = document.getElementById('generate-btn')
+    btn.disabled = true
+    var tick = async function () {
+      try {
+        var res = await fetch('/api/job/' + jobId, { headers: authHeaders() })
+        if (res.status === 404) {
+          stopTrackingJob()
+          renderJobGone()
+          btn.disabled = false; btn.textContent = 'Generate'
+          return
+        }
+        if (res.status === 403) { stopTrackingJob(); showGate(); return }
+        var data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Status check failed')
+        if (data.status === 'complete') {
+          stopTrackingJob()
+          renderResult(data.result, target)
+          btn.disabled = false; btn.textContent = 'Generate'
+          return
+        }
+        if (data.status === 'failed') {
+          stopTrackingJob()
+          renderJobFailed(data.error)
+          btn.disabled = false; btn.textContent = 'Generate'
+          return
+        }
+        renderJobState(data)
+        pollTimer = setTimeout(tick, 2500)
+      } catch (err) {
+        // Transient network/proxy hiccup — keep waiting, the job is still tracked.
+        pollTimer = setTimeout(tick, 5000)
+      }
+    }
+    tick()
+  }
+
+  async function cancelJob() {
+    var jobId = localStorage.getItem('pl-job-id')
+    if (!jobId) return
+    var res = await fetch('/api/job/' + jobId, { method: 'DELETE', headers: authHeaders() })
+    var data = await res.json().catch(function () { return {} })
+    if (data.status === 'running') {
+      // Too late to pull it — the pipeline has no abort switch. Keep watching.
+      var note = document.getElementById('job-note')
+      if (note) note.textContent = 'Already running — it will finish. You can still leave and come back.'
+      return
+    }
+    stopTrackingJob()
+    document.getElementById('result-area').innerHTML = '<div class="gen-loading"><div class="gen-text">Cancelled.</div></div>'
+    var btn = document.getElementById('generate-btn'); btn.disabled = false; btn.textContent = 'Generate'
+  }
+
+  function renderJobState(state) {
+    var ra = document.getElementById('result-area')
+    var head, tail = ''
+    if (state.status === 'queued') {
+      head = "You're #" + (state.position || 1) + ' in the queue'
+    } else if (state.status === 'processing') {
+      head = 'Generating\u2026'
+      if (state.log && state.log.length) {
+        tail = '<div style="margin-top:12px;text-align:left;font-size:12px;color:var(--text-muted)">' +
+          state.log.slice(-4).map(esc).join('<br>') + '</div>'
+      }
+    } else {
+      head = 'Submitting\u2026'
+    }
+    ra.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div class="gen-text">' + head + '</div>' + tail +
+      '<div class="gen-hint" id="job-note">Everything is generated fresh \u2014 this can take a few minutes, longer with images. ' +
+      'You can close this page and come back; your job keeps its place for an hour.</div>' +
+      '<button class="btn btn-secondary" style="margin-top:12px" onclick="cancelJob()">Cancel</button></div>'
+  }
+
+  function renderJobGone() {
+    document.getElementById('result-area').innerHTML =
+      '<div class="gen-loading"><div class="gen-text">That job is gone</div>' +
+      '<div class="gen-hint">Results are kept for an hour, and a server restart clears the queue. Generate it again.</div></div>'
+  }
+
+  function renderJobFailed(message) {
+    document.getElementById('result-area').innerHTML = ''
+    showError(message || 'Generation failed.')
+  }
+
+  function resumeSavedJob() {
+    var jobId = localStorage.getItem('pl-job-id')
+    if (!jobId) return
+    var target = localStorage.getItem('pl-job-target') || 'story'
+    document.getElementById('target').value = target
+    document.getElementById('target').dispatchEvent(new Event('change'))
+    showCreate()
+    pollJob(jobId, target)
   }
 
   function renderResult(result, target) {
