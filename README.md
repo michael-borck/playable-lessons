@@ -270,7 +270,7 @@ Notes for operators:
 - Each illustrated story triggers up to `IMAGE_MAX_SCENES` image generations (default 8) — combined with the per-IP `RATE_LIMIT_PER_HOUR`, that bounds your image spend.
 - The LocalAI service runs **CPU-only by default and is slow** (a minute or more per scene on a small VPS). It's internal-only (no published port — LocalAI has no auth). For usable self-hosting, use a GPU host and the `localai/localai:*-gpu-*` images; for a CPU-only VPS, prefer Gemini/OpenAI.
 - First LocalAI start downloads a multi-GB model into the `localai-models` volume.
-- If the app sits behind nginx, raise `proxy_read_timeout` (e.g. `300s`) — illustrated stories take minutes.
+- If the app sits behind nginx/Caddy, raise `proxy_read_timeout` (e.g. `300s`) — illustrated stories take minutes — and set `TRUST_PROXY=1` so the per-IP rate limiter sees real visitor IPs instead of one shared proxy bucket.
 
 ---
 

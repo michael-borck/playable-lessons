@@ -28,6 +28,17 @@ const { APP_VERSION } = require('../out/shared/version.generated.js')
 const app = express()
 app.use(express.json({ limit: '1mb' }))
 
+// Behind a reverse proxy (nginx/Caddy), req.ip is the proxy's address — the
+// per-IP rate limiter would share one bucket across ALL visitors. Set
+// TRUST_PROXY=1 (one proxy hop) so req.ip reflects the real client. Off by
+// default: when the app port is directly reachable, trusting X-Forwarded-For
+// would let clients spoof their IP and bypass the rate limit.
+const TRUST_PROXY = process.env.TRUST_PROXY
+if (TRUST_PROXY) {
+  const hops = parseInt(TRUST_PROXY, 10)
+  app.set('trust proxy', Number.isNaN(hops) ? TRUST_PROXY === 'true' : hops)
+}
+
 // ─── Config from environment ───
 const ACCESS_CODES = (process.env.ACCESS_CODE || '').split(',').map((s) => s.trim()).filter(Boolean)
 const RATE_LIMIT = parseInt(process.env.RATE_LIMIT_PER_HOUR || '30', 10)
