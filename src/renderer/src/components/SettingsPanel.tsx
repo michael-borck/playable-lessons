@@ -216,6 +216,7 @@ export default function SettingsPanel() {
               <option value="openai">OpenAI (gpt-image-1 / DALL-E 3)</option>
               <option value="gemini">Google Imagen</option>
               <option value="custom">Custom (OpenAI-compatible endpoint)</option>
+              <option value="swarmui">SwarmUI (self-hosted)</option>
             </select>
           </div>
 
@@ -271,19 +272,21 @@ export default function SettingsPanel() {
             </>
           )}
 
-          {imageProvider === 'custom' && (
+          {(imageProvider === 'custom' || imageProvider === 'swarmui') && (
             <>
               <div className="form-group">
                 <label className="form-label">Base URL</label>
                 <input
                   className="form-input"
                   type="text"
-                  placeholder="http://localhost:8080/v1"
+                  placeholder={imageProvider === 'swarmui' ? 'https://swarmui.example.org' : 'http://localhost:8080/v1'}
                   value={imageBaseUrl}
                   onChange={(e) => setImageBaseUrl(e.target.value)}
                 />
                 <div style={hintStyle}>
-                  Any OpenAI-compatible <code>/images/generations</code> endpoint (SwarmUI shim, LocalAI, …). Include the version path, e.g. <code>/v1</code>.
+                  {imageProvider === 'swarmui'
+                    ? 'Your SwarmUI server address (its native API is used, not /images/generations).'
+                    : <>Any OpenAI-compatible <code>/images/generations</code> endpoint (LocalAI, …). Include the version path, e.g. <code>/v1</code>.</>}
                 </div>
               </div>
               <div className="form-group">
@@ -291,7 +294,7 @@ export default function SettingsPanel() {
                 <input
                   className="form-input"
                   type="text"
-                  placeholder="(required by the endpoint)"
+                  placeholder={imageProvider === 'swarmui' ? '(optional — server default if blank)' : '(required by the endpoint)'}
                   value={imageModel}
                   onChange={(e) => setImageModel(e.target.value)}
                 />
@@ -305,7 +308,7 @@ export default function SettingsPanel() {
                   value={imageApiKey}
                   onChange={(e) => updateImageApiKey(e.target.value)}
                 />
-                <div style={hintStyle}>Stored in your OS keychain. Leave blank for an unauthenticated local server.</div>
+                <div style={hintStyle}>Stored in your OS keychain. Leave blank for an unauthenticated server.</div>
               </div>
             </>
           )}

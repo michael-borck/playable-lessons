@@ -263,6 +263,13 @@ GEMINI_API_KEY=AIza...
 # IMAGE_PROVIDER=custom
 # IMAGE_BASE_URL=http://localai:8080/v1
 # IMAGE_MODEL=stablediffusion
+
+# Option D — your own SwarmUI server (GPU, free per image, native API):
+# SCENE_IMAGES=true
+# IMAGE_PROVIDER=swarmui
+# IMAGE_BASE_URL=https://swarmui.example.org
+# IMAGE_MODEL=juggernautXL_v9
+# IMAGE_API_KEY=...        # only if your SwarmUI is behind auth
 ```
 
 Notes for operators:

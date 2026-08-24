@@ -102,10 +102,14 @@ function buildCliImageConfig(o: {
       config.baseUrl = o.imageBaseUrl
       config.apiKey = process.env.PLAYABLE_LESSONS_IMAGE_API_KEY || process.env.OPENAI_API_KEY || ''
       break
+    case 'swarmui':
+      config.baseUrl = o.imageBaseUrl
+      config.apiKey = process.env.PLAYABLE_LESSONS_IMAGE_API_KEY || process.env.SWARMUI_TOKEN || ''
+      break
   }
   if (!isImageProviderConfigured(config)) {
     throw new Error(
-      `Image provider "${provider}" is not fully configured (missing ${provider === 'custom' ? '--image-base-url/--image-model' : 'API key'})`
+      `Image provider "${provider}" is not fully configured (missing ${provider === 'custom' || provider === 'swarmui' ? '--image-base-url' : 'API key'})`
     )
   }
   return config
@@ -215,9 +219,9 @@ yargs(hideBin(process.argv))
       .option('style', { type: 'string', default: 'stateful', describe: 'Story branching style: stateful (Ink variables + conditional text) | branching (pure tree, H5P/LMS-convertible)' })
       .option('images', { type: 'boolean', default: false, describe: 'Generate an illustration for every scene (story target only). Images are embedded in the HTML export and written to an images/ folder.' })
       .option('image-style', { type: 'string', default: 'cartoon', describe: 'Scene image style: cartoon | photorealistic' })
-      .option('image-provider', { type: 'string', describe: 'openai | gemini | custom (default: inferred from OPENAI_API_KEY / GEMINI_API_KEY / --image-base-url)' })
-      .option('image-model', { type: 'string', describe: 'Image model id (defaults: gpt-image-1 | imagen-4.0-fast-generate-001)' })
-      .option('image-base-url', { type: 'string', describe: 'Base URL for a custom OpenAI-compatible /images/generations endpoint' })
+      .option('image-provider', { type: 'string', describe: 'openai | gemini | custom | swarmui (default: inferred from OPENAI_API_KEY / GEMINI_API_KEY / --image-base-url)' })
+      .option('image-model', { type: 'string', describe: 'Image model id (defaults: gpt-image-1 | imagen-4.0-fast-generate-001; required by custom)' })
+      .option('image-base-url', { type: 'string', describe: 'Base URL for a custom OpenAI-compatible /images/generations endpoint or a SwarmUI server' })
       .option('tone', { type: 'string', default: 'professional', describe: 'Narrative tone' })
       .option('protagonist', { type: 'string', default: 'the reader', describe: 'Protagonist type' })
       .option('answers', { type: 'string', describe: 'Optional answers to clarifying questions' })

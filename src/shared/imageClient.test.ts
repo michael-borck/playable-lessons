@@ -146,6 +146,61 @@ describe('generateImage', () => {
     expect(body.size).toBe('1024x1024')
   })
 
+  it('swarmui: session → GenerateText2Image → fetch path, with Bearer auth', async () => {
+    const pngBytes = new Uint8Array([137, 80, 78, 71])
+    const calls: { url: string; init?: RequestInit }[] = []
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      calls.push({ url, init })
+      if (url.endsWith('/API/GetNewSession')) {
+        return new Response(JSON.stringify({ session_id: 'sess-1' }), { status: 200 })
+      }
+      if (url.endsWith('/API/GenerateText2Image')) {
+        return new Response(JSON.stringify({ images: ['Output/img.png'] }), { status: 200 })
+      }
+      return new Response(pngBytes, { status: 200, headers: { 'content-type': 'image/png' } })
+    })
+
+    const dataUrl = await generateImage('a scene', {
+      provider: 'swarmui',
+      baseUrl: 'https://swarmui.example.org/',
+      apiKey: 'swarm-key',
+      model: 'juggernautXL_v9'
+    })
+
+    expect(dataUrl).toBe(`data:image/png;base64,${btoa(String.fromCharCode(...pngBytes))}`)
+    expect(calls.map((c) => c.url)).toEqual([
+      'https://swarmui.example.org/API/GetNewSession',
+      'https://swarmui.example.org/API/GenerateText2Image',
+      'https://swarmui.example.org/Output/img.png'
+    ])
+    const genBody = JSON.parse(String(calls[1].init?.body))
+    expect(genBody).toMatchObject({ session_id: 'sess-1', prompt: 'a scene', images: 1, model: 'juggernautXL_v9' })
+    // SDXL-friendly landscape default
+    expect(genBody.width).toBe(1024)
+    expect(genBody.height).toBe(576)
+    // Auth is sent on every call, including the image fetch
+    for (const c of calls) {
+      expect((c.init?.headers as Record<string, string>).Authorization).toBe('Bearer swarm-key')
+    }
+  })
+
+  it('swarmui: honors a size override and requires a base URL', async () => {
+    const calls: { url: string; init?: RequestInit }[] = []
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      calls.push({ url, init })
+      if (url.endsWith('/API/GetNewSession')) return new Response('{"session_id":"s"}', { status: 200 })
+      if (url.endsWith('/API/GenerateText2Image')) return new Response('{"images":["o.png"]}', { status: 200 })
+      return new Response(new Uint8Array([1]), { status: 200 })
+    })
+    await generateImage('a scene', { provider: 'swarmui', baseUrl: 'http://x', size: '768x768' })
+    const genBody = JSON.parse(String(calls[1].init?.body))
+    expect([genBody.width, genBody.height]).toEqual([768, 768])
+
+    await expect(generateImage('a scene', { provider: 'swarmui' })).rejects.toThrow(/base URL/)
+    expect(isImageProviderConfigured({ provider: 'swarmui' })).toBe(false)
+    expect(isImageProviderConfigured({ provider: 'swarmui', baseUrl: 'http://x' })).toBe(true)
+  })
+
   it('throws a descriptive error when the API fails', async () => {
     vi.stubGlobal('fetch', async () => new Response('nope', { status: 401 }))
     await expect(generateImage('a scene', { provider: 'openai', apiKey: 'bad' })).rejects.toThrow(

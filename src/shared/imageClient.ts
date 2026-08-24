@@ -9,7 +9,7 @@
  * Provider pattern borrowed from slide-stream's providers/images.py.
  */
 
-export type ImageProvider = 'openai' | 'gemini' | 'custom'
+export type ImageProvider = 'openai' | 'gemini' | 'custom' | 'swarmui'
 
 export type ImageStyle = 'cartoon' | 'photorealistic'
 
@@ -58,6 +58,8 @@ export function isImageProviderConfigured(config: ImageProviderConfig): boolean 
       return !!config.apiKey
     case 'custom':
       return !!config.baseUrl && !!config.model
+    case 'swarmui':
+      return !!config.baseUrl
     default:
       return false
   }
@@ -73,6 +75,8 @@ export async function generateImage(prompt: string, config: ImageProviderConfig)
     case 'custom':
       if (!config.baseUrl) throw new Error('No base URL configured for the custom image endpoint')
       return generateOpenAICompatibleImage(prompt, normalizeImageBaseUrl(config.baseUrl), config)
+    case 'swarmui':
+      return generateSwarmUIImage(prompt, config)
     default:
       throw new Error(`Unknown image provider: ${String(config.provider)}`)
   }
@@ -154,6 +158,66 @@ async function generateGeminiImage(prompt: string, config: ImageProviderConfig):
   return `data:${mime};base64,${b64}`
 }
 
+// ─── SwarmUI (native API — it does not speak OpenAI /images) ─────────────────
+//
+// Flow ported from slide-stream's SwarmUIImageProvider: open a session, call
+// GenerateText2Image, then download the returned server path. apiKey is sent as
+// a Bearer token (only needed when the server is fronted by auth).
+
+async function generateSwarmUIImage(prompt: string, config: ImageProviderConfig): Promise<string> {
+  if (!config.baseUrl) throw new Error('No base URL configured for SwarmUI')
+  const baseUrl = normalizeImageBaseUrl(config.baseUrl)
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`
+
+  // 1. Open a session.
+  const session = await fetchWithTimeout(`${baseUrl}/API/GetNewSession`, {
+    method: 'POST',
+    headers,
+    body: '{}'
+  }, 30_000)
+  if (!session.ok) {
+    throw new Error(`SwarmUI session error (${session.status}): ${await session.text()}`)
+  }
+  const sessionId = (await session.json())?.session_id
+  if (typeof sessionId !== 'string' || !sessionId) {
+    throw new Error('SwarmUI did not return a session_id')
+  }
+
+  // 2. Generate. SDXL-class models want ~1024px; a landscape frame suits a
+  // scene illustration above story text.
+  const [width, height] = parseSize(config.size) ?? [1024, 576]
+  const body: Record<string, unknown> = { session_id: sessionId, prompt, images: 1, width, height }
+  if (config.model) body.model = config.model
+
+  const gen = await fetchWithTimeout(`${baseUrl}/API/GenerateText2Image`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body)
+  })
+  if (!gen.ok) {
+    throw new Error(`SwarmUI generation error (${gen.status}): ${await gen.text()}`)
+  }
+  const data = await gen.json()
+  const images = data?.images
+  if (!Array.isArray(images) || typeof images[0] !== 'string') {
+    throw new Error('SwarmUI returned no image')
+  }
+
+  // 3. Fetch the generated image by its server path.
+  return fetchAsDataUrl(`${baseUrl}/${images[0].replace(/^\/+/, '')}`, headers)
+}
+
+/** Parse a '1024x576' size string into [width, height]; null if malformed. */
+function parseSize(size?: string): [number, number] | null {
+  if (!size) return null
+  const m = size.trim().match(/^(\d+)\s*x\s*(\d+)$/i)
+  if (!m) return null
+  const w = parseInt(m[1], 10)
+  const h = parseInt(m[2], 10)
+  return w > 0 && h > 0 ? [w, h] : null
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Strip trailing slashes so `${base}/images/generations` is well-formed. */
@@ -183,8 +247,8 @@ async function fetchWithTimeout(url: string, options: FetchOpts, timeoutMs = REQ
 }
 
 /** Download an image URL and return it as a data URL (avoids expiring URLs). */
-async function fetchAsDataUrl(url: string): Promise<string> {
-  const response = await fetchWithTimeout(url, { method: 'GET', headers: {} }, 60_000)
+async function fetchAsDataUrl(url: string, headers: Record<string, string> = {}): Promise<string> {
+  const response = await fetchWithTimeout(url, { method: 'GET', headers }, 60_000)
   if (!response.ok) throw new Error(`Could not download image (${response.status})`)
   const mime = response.headers.get('content-type')?.split(';')[0] || 'image/png'
   const buffer = await response.arrayBuffer()

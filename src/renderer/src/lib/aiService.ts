@@ -60,6 +60,13 @@ export function buildImageConfig(): ImageProviderConfig {
         apiKey: s.imageApiKey,
         baseUrl: s.imageBaseUrl
       }
+    case 'swarmui':
+      return {
+        provider: 'swarmui',
+        model: s.imageModel || undefined,
+        apiKey: s.imageApiKey,
+        baseUrl: s.imageBaseUrl
+      }
   }
 }
 

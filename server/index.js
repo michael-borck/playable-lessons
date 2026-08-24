@@ -91,6 +91,9 @@ function buildImageConfig() {
   } else if (provider === 'custom') {
     config.baseUrl = process.env.IMAGE_BASE_URL
     config.apiKey = process.env.IMAGE_API_KEY || ''
+  } else if (provider === 'swarmui') {
+    config.baseUrl = process.env.IMAGE_BASE_URL
+    config.apiKey = process.env.IMAGE_API_KEY || process.env.SWARMUI_TOKEN || ''
   }
   return isImageProviderConfigured(config) ? config : null
 }
