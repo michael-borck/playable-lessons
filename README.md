@@ -4,7 +4,7 @@ Turn educational source material into **playable interactive fiction**. Paste in
 
 It ships in two forms:
 
-- **Desktop app** (Electron + React) — the full authoring experience: AI generation with an interactive clarification step, a node-graph editor, live player, a **Projects dashboard** (save / reopen / delete lessons as ownable folders on disk), **inline editing** with AI refinement (✨), and exports. Aimed at non-technical authors (e.g. educators).
+- **Desktop app** (Electron + React) — the full authoring experience: AI generation with an interactive clarification step, a node-graph editor, live player, a **Projects dashboard** (save / reopen / delete lessons as ownable folders on disk), **inline editing** with AI refinement (✨), and exports. Stories can be illustrated with an **AI-generated image per scene** (cartoon or photorealistic) using your own image provider — OpenAI, Google Imagen, or any OpenAI-compatible endpoint. Aimed at non-technical authors (e.g. educators).
 - **CLI** (`playable-lessons`, on npm) — the same engine, headless: **generate** an Ink story, **flashcards**, a **quiz**, a **summary**, **AI-collaboration tasks**, or a **case study**; **plan** a recommended set; **validate**, and **export**. Handy for scripts, CI, batch runs, and local/offline generation against Ollama.
 - **Self-hosted web** (Docker) — a browser-based version for institutions (e.g. university staff). The server holds the API key; users just enter an access code. No per-user keys, no accounts — work is stored per-browser.
 
