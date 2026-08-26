@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 
@@ -27,6 +28,7 @@ export const INKJS_VERSION = ${JSON.stringify(version)}
 export const INKJS_RUNTIME = ${JSON.stringify(runtime)}
 `
 
-const target = join(dirname(new URL(import.meta.url).pathname), '..', 'src', 'shared', 'inkRuntime.generated.ts')
+const here = dirname(fileURLToPath(import.meta.url))
+const target = join(here, '..', 'src', 'shared', 'inkRuntime.generated.ts')
 writeFileSync(target, out, 'utf8')
 console.log(`Embedded inkjs ${version} runtime (${runtime.length} bytes) -> ${target}`)
