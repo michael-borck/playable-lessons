@@ -8,6 +8,7 @@
  */
 
 import { INKJS_RUNTIME, INKJS_VERSION } from './inkRuntime.generated.js'
+import { FAVICON_LINK } from './favicon.js'
 
 /**
  * Escape a string for safe interpolation into HTML text or double-quoted
@@ -126,6 +127,7 @@ export async function exportStandaloneHTML(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+${FAVICON_LINK}
 <title>${safeTitle} — Playable Lessons</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }

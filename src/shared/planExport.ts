@@ -5,6 +5,7 @@
  */
 
 import type { PlanResult } from './generate.js'
+import { FAVICON_LINK } from './favicon.js'
 
 const TARGET_LABEL: Record<string, string> = {
   story: 'Story (interactive fiction)',
@@ -51,6 +52,7 @@ export function toStandaloneHTML(result: PlanResult, title: string): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+${FAVICON_LINK}
 <title>${safeTitle} — Recommended Outputs</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }

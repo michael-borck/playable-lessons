@@ -1,0 +1,6 @@
+// App icon as an inline SVG, embedded as a data-URI favicon link for every
+// standalone HTML export — so downloaded story/quiz/deck files show the app
+// icon in the browser tab even when opened offline from disk.
+const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2b52"/><stop offset="1" stop-color="#17172b"/></linearGradient><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f0ff"/><stop offset="1" stop-color="#c9c2f2"/></linearGradient></defs><rect width="512" height="512" rx="116" fill="url(#bg)"/><path d="M256 148 C 214 116 150 108 104 122 L 104 372 C 150 358 214 366 256 398 Z" fill="url(#pg)"/><path d="M256 148 C 298 116 362 108 408 122 L 408 372 C 362 358 298 366 256 398 Z" fill="url(#pg)" opacity="0.92"/><rect x="249" y="140" width="14" height="264" rx="7" fill="#7c6ef0"/><path d="M219 210 L219 338 L331 274 Z" fill="#7c6ef0" stroke="#17172b" stroke-width="10" stroke-linejoin="round" paint-order="stroke"/></svg>`
+
+export const FAVICON_LINK = `<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,${encodeURIComponent(FAVICON_SVG)}">`

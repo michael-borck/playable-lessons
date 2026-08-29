@@ -7,6 +7,7 @@
  */
 
 import type { FlashcardResult } from './generate.js'
+import { FAVICON_LINK } from './favicon.js'
 
 /** Quote a CSV field per RFC 4180 when it contains a comma, quote, or newline. */
 function csvField(value: string): string {
@@ -60,6 +61,7 @@ export function toStandaloneHTML(result: FlashcardResult, title: string): string
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+${FAVICON_LINK}
 <title>${safeTitle} \u2014 Flashcards</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }

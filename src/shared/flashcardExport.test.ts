@@ -53,7 +53,7 @@ describe('toStandaloneHTML', () => {
   it('is fully self-contained (no external resources)', () => {
     const html = toStandaloneHTML(sample, 'Deck')
     expect(html).not.toMatch(/<script\s+src=/)
-    expect(html).not.toMatch(/<link\s/i)
+    expect(html).not.toMatch(/<link\s(?![^>]*href="data:)/i) // no external links; inline data-URI favicon is fine
     expect(html).not.toMatch(/https?:\/\//)
   })
 

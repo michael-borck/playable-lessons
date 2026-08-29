@@ -7,6 +7,7 @@
  */
 
 import type { SummaryResult } from './generate.js'
+import { FAVICON_LINK } from './favicon.js'
 
 /** A printable study summary: overview, numbered key points, glossary. */
 export function toPlainText(result: SummaryResult, title?: string): string {
@@ -53,6 +54,7 @@ export function toStandaloneHTML(result: SummaryResult, title: string): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+${FAVICON_LINK}
 <title>${safeTitle} — Summary</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }

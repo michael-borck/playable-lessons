@@ -1,5 +1,6 @@
 import { parseInkSource, type InkKnot } from './inkParser'
 import { escapeHtml } from '../../../shared/storyExport'
+import { FAVICON_LINK } from '../../../shared/favicon'
 
 /**
  * Generate a PDF walkthrough of all story paths.
@@ -57,6 +58,7 @@ export function generateWalkthroughHTML(inkSource: string, title: string): strin
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+${FAVICON_LINK}
 <title>${escapeHtml(title)} — Story Walkthrough</title>
 <style>
   body {

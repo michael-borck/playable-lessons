@@ -7,6 +7,7 @@
  */
 
 import type { AiTaskResult } from './generate.js'
+import { FAVICON_LINK } from './favicon.js'
 
 /**
  * A printable task sheet: for each task, the scenario, student brief,
@@ -57,6 +58,7 @@ export function toStandaloneHTML(result: AiTaskResult, title: string): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+${FAVICON_LINK}
 <title>${safeTitle} — AI-Collaboration Tasks</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
