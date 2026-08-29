@@ -288,7 +288,7 @@
             <input id="style-h5p" type="checkbox" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer" />
             H5P / LMS compatible
           </label>
-          <p id="style-hint" style="font-size:12px;color:var(--text-muted);margin-top:6px">Default: the richest story &mdash; scenes react to earlier choices. Tick the box if you need an .h5p file for LMS import.</p>
+          <p id="style-hint" style="font-size:12px;color:var(--text-muted);margin-top:6px">Default: a rich story with a memory &mdash; later scenes react to the choices made earlier. Tick only if you need an .h5p file (Moodle, Canvas, etc.): the story becomes a simpler choice tree that H5P can represent.</p>
         </div>
         <div class="form-group" id="images-block" style="display:none">
           <label>Scene images</label>
@@ -493,8 +493,8 @@
 
   document.getElementById('style-h5p').addEventListener('change', function(e) {
     document.getElementById('style-hint').textContent = e.target.checked
-      ? 'The story stays a pure choice-tree so it can be downloaded as an .h5p file for LMS import.'
-      : 'Default: the richest story — scenes react to earlier choices. Tick the box if you need an .h5p file for LMS import.'
+      ? 'The story becomes a simpler choice tree (no scene memory) so it can be exported as an .h5p file for LMS import.'
+      : 'Default: a rich story with a memory — later scenes react to the choices made earlier. Tick only if you need an .h5p file (Moodle, Canvas, etc.).'
   })
 
   // ─── Step 1: target cards — show only the chosen target's options ───

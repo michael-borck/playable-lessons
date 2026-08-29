@@ -98,8 +98,8 @@ export default function InputPanel() {
         </label>
         <p className="form-hint">
           {branchingStyle === 'branching'
-            ? 'The story stays a pure choice-tree so it can be exported as an .h5p file for LMS import.'
-            : 'Default: the richest story — scenes react to earlier choices. Tick the box if you need H5P export.'}
+            ? 'The story becomes a simpler choice tree (no scene memory) so it can be exported as an .h5p file for LMS import.'
+            : 'Default: a rich story with a memory — later scenes react to the choices made earlier. Tick only if you need an .h5p file (Moodle, Canvas, etc.).'}
         </p>
       </div>
 
