@@ -87,6 +87,23 @@
     .input-tab { padding: 10px 20px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 15px; cursor: pointer; transition: all 0.15s; }
     .input-tab:hover { color: var(--text); }
     .input-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .step-label { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 22px 0 10px; }
+    .step-label:first-of-type { margin-top: 0; }
+    .target-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px; }
+    @media (max-width: 640px) { .target-grid { grid-template-columns: repeat(2, 1fr); } }
+    .target-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; cursor: pointer; transition: all 0.15s; }
+    .target-card:hover { border-color: var(--accent); }
+    .target-card.selected { border-color: var(--accent); background: rgba(124, 110, 240, 0.12); }
+    .target-card-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+    .target-card.selected .target-card-title { color: var(--accent); }
+    .target-card-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .chip { padding: 7px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.15s; width: auto; }
+    .chip:hover { border-color: var(--accent); color: var(--text); }
+    .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .check-line { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 400; color: var(--text); cursor: pointer; text-transform: none; }
+    .web-note { text-align: center; font-size: 13px; color: var(--text-muted); margin: 12px 0 0; }
+    .web-note a { color: var(--accent); text-decoration: none; }
     label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
     textarea, input, select { width: 100%; padding: 12px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 16px; font-family: inherit; }
     textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); }
@@ -201,21 +218,37 @@
         <span class="back-link" onclick="showLanding()">&larr; Back</span>
       </div>
 
-      <!-- Desktop app pitch -->
-      <div class="app-pitch">
-        <h3>This is the web version — the desktop app does more</h3>
-        <div class="features">
-          <span class="feature">&#10003; Visual story map editor</span>
-          <span class="feature">&#10003; Inline editing + AI refinement</span>
-          <span class="feature">&#10003; Projects dashboard</span>
-          <span class="feature">&#10003; Longer stories</span>
-          <span class="feature">&#10003; Scene image generation</span>
-          <span class="feature">&#10003; More exports (Twine, PDF, GitHub Pages)</span>
-          <span class="feature">&#10003; Offline (Ollama)</span>
-          <span class="feature">&#10003; No rate limits</span>
+      <!-- Step 1 · What to make -->
+      <div class="step-label">1 &middot; What do you want to make?</div>
+      <div class="target-grid" id="target-grid">
+        <div class="target-card selected" data-target="story" onclick="switchTarget('story')">
+          <div class="target-card-title">Interactive Story</div>
+          <div class="target-card-desc">A branching scenario students play through</div>
         </div>
-        <div class="dl-row" id="pitch-dl-row"></div>
+        <div class="target-card" data-target="flashcards" onclick="switchTarget('flashcards')">
+          <div class="target-card-title">Flashcards</div>
+          <div class="target-card-desc">Flip-card deck for recall practice</div>
+        </div>
+        <div class="target-card" data-target="quiz" onclick="switchTarget('quiz')">
+          <div class="target-card-title">Quiz</div>
+          <div class="target-card-desc">Self-marking multiple-choice questions</div>
+        </div>
+        <div class="target-card" data-target="summary" onclick="switchTarget('summary')">
+          <div class="target-card-title">Summary</div>
+          <div class="target-card-desc">Overview, key points, glossary</div>
+        </div>
+        <div class="target-card" data-target="ai-task" onclick="switchTarget('ai-task')">
+          <div class="target-card-title">AI Tasks</div>
+          <div class="target-card-desc">Realistic tasks students tackle with AI</div>
+        </div>
+        <div class="target-card" data-target="case-study" onclick="switchTarget('case-study')">
+          <div class="target-card-title">Case Study</div>
+          <div class="target-card-desc">A teaching case with structured analysis</div>
+        </div>
       </div>
+
+      <!-- Step 2 · Source material -->
+      <div class="step-label">2 &middot; What do you have?</div>
 
       <!-- Input tabs -->
       <div class="input-tabs">
@@ -224,8 +257,16 @@
       </div>
 
       <div id="text-input-mode">
+        <div class="chip-row" id="mode-chips">
+          <button class="chip active" data-imode="topic" onclick="switchGenMode('topic')">Topic</button>
+          <button class="chip" data-imode="lesson" onclick="switchGenMode('lesson')">Lesson to Learn</button>
+          <button class="chip" data-imode="methodology" onclick="switchGenMode('methodology')">Methodology</button>
+          <button class="chip" data-imode="case-study" onclick="switchGenMode('case-study')">Case Study</button>
+          <button class="chip" data-imode="lecture-notes" onclick="switchGenMode('lecture-notes')">Lecture Notes</button>
+          <button class="chip" data-imode="scenario" onclick="switchGenMode('scenario')">Scenario</button>
+        </div>
         <div class="form-group">
-          <textarea id="source" placeholder="Paste a case study, lecture notes, a topic, or any text..." rows="6"></textarea>
+          <textarea id="source" placeholder="Enter a topic, e.g. &quot;supply chain resilience&quot; or &quot;ethical AI deployment&quot;..." rows="6"></textarea>
         </div>
       </div>
       <div id="file-input-mode" style="display:none">
@@ -239,51 +280,32 @@
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>What to generate</label>
-          <select id="target">
-            <option value="story">Interactive Story</option>
-            <option value="flashcards">Flashcards</option>
-            <option value="quiz">Quiz</option>
-            <option value="ai-task">AI-Collaboration Tasks</option>
-            <option value="case-study">Case Study</option>
-          </select>
-        </div>
-        <div class="form-group" id="count-group">
-          <label>Length</label>
-          <select id="count">
-            <option value="5" selected>Short (~5 scenes) — longer stories in the desktop app</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row" id="style-group">
+      <!-- Step 3 · Options (contextual — only the chosen target's options show) -->
+      <div id="story-options" class="form-row">
         <div class="form-group">
           <label>Output compatibility</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:400;color:var(--text);cursor:pointer;text-transform:none">
+          <label class="check-line">
             <input id="style-h5p" type="checkbox" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer" />
             H5P / LMS compatible
           </label>
           <p id="style-hint" style="font-size:12px;color:var(--text-muted);margin-top:6px">Default: the richest story &mdash; scenes react to earlier choices. Tick the box if you need an .h5p file for LMS import.</p>
         </div>
-      </div>
-      <div class="form-row" id="images-group" style="display:none">
-        <div class="form-group">
+        <div class="form-group" id="images-block" style="display:none">
           <label>Scene images</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:400;color:var(--text);cursor:pointer;text-transform:none">
-            <input id="scene-images" type="checkbox" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer" />
-            Generate an illustration for every scene
+          <label class="check-line">
+            <input id="scene-images" type="checkbox" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer" />
+            Illustrate every scene
           </label>
           <select id="image-style" style="margin-top:8px">
-            <option value="cartoon">Cartoon — flat storybook illustration</option>
-            <option value="photorealistic">Photorealistic — cinematic photo</option>
+            <option value="cartoon">Cartoon &mdash; flat storybook illustration</option>
+            <option value="photorealistic">Photorealistic &mdash; cinematic photo</option>
           </select>
           <p style="font-size:12px;color:var(--text-muted);margin-top:6px">Images are embedded in the playable HTML file. Adds a minute or two to generation.</p>
         </div>
       </div>
-      <div class="form-row" id="depth-group" style="display:none">
+      <div class="form-row" id="case-study-options" style="display:none">
         <div class="form-group">
-          <label>Case-study depth</label>
+          <label>Depth</label>
           <select id="depth">
             <option value="idea">Idea (a premise)</option>
             <option value="outline">Outline (a skeleton)</option>
@@ -293,8 +315,25 @@
       </div>
 
       <button id="generate-btn" class="btn btn-primary btn-lg" style="width:100%" onclick="generate()">Generate</button>
+      <p class="web-note">Web demo generates ~5 scenes or cards. Want longer stories, every format, editing and no limits? <a href="#" onclick="event.preventDefault();var el=document.getElementById('pitch-dl-row');el.scrollIntoView({behavior:'smooth'});">Get the desktop app</a></p>
       <div id="error" class="error"></div>
       <div id="result-area"></div>
+
+      <!-- Desktop app pitch (moved below the happy path) -->
+      <div class="app-pitch" style="margin-top:32px">
+        <h3>This is the web version &mdash; the desktop app does more</h3>
+        <div class="features">
+          <span class="feature">&#10003; Visual story map editor</span>
+          <span class="feature">&#10003; Inline editing + AI refinement</span>
+          <span class="feature">&#10003; Projects dashboard</span>
+          <span class="feature">&#10003; Longer stories</span>
+          <span class="feature">&#10003; Scene image generation</span>
+          <span class="feature">&#10003; More exports (Twine, PDF, GitHub Pages)</span>
+          <span class="feature">&#10003; Offline (Ollama)</span>
+          <span class="feature">&#10003; No rate limits</span>
+        </div>
+        <div class="dl-row" id="pitch-dl-row"></div>
+      </div>
     </div>
   </div>
 
@@ -417,6 +456,8 @@
   let accessCode = localStorage.getItem('pl-access-code') || ''
   let uploadedText = ''
   let sceneImagesAvailable = false
+  let currentTarget = 'story'
+  let currentInputMode = 'topic'
 
   async function init() {
     try {
@@ -426,10 +467,8 @@
       if (data.version) {
         document.querySelectorAll('.version-stamp').forEach(function (el) { el.textContent = 'v' + data.version })
       }
-      if (sceneImagesAvailable && document.getElementById('target').value === 'story') {
-        document.getElementById('images-group').style.display = 'flex'
-        if (data.sceneImages.style) document.getElementById('image-style').value = data.sceneImages.style
-      }
+      if (sceneImagesAvailable && data.sceneImages.style) document.getElementById('image-style').value = data.sceneImages.style
+      switchTarget(currentTarget)
       if (data.requiresAccessCode && !accessCode) showGate()
       else if (data.requiresAccessCode) {
         var check = await fetch('/api/health', { headers: { 'x-access-code': accessCode } })
@@ -457,15 +496,28 @@
       ? 'The story stays a pure choice-tree so it can be downloaded as an .h5p file for LMS import.'
       : 'Default: the richest story — scenes react to earlier choices. Tick the box if you need an .h5p file for LMS import.'
   })
-  document.getElementById('target').addEventListener('change', function(e) {
-    document.getElementById('depth-group').style.display = e.target.value === 'case-study' ? 'flex' : 'none'
-    document.getElementById('style-group').style.display = e.target.value === 'story' ? 'flex' : 'none'
-    document.getElementById('images-group').style.display = (e.target.value === 'story' && sceneImagesAvailable) ? 'flex' : 'none'
-    var cg = document.getElementById('count-group'), cl = cg.querySelector('label')
-    if (e.target.value === 'story') { cg.style.display='flex'; cl.textContent='Length'; cg.querySelector('select').innerHTML='<option value="5" selected>Short (~5 scenes) \u2014 longer stories in the desktop app</option>' }
-    else if (e.target.value === 'case-study') { cg.style.display='none' }
-    else { cg.style.display='flex'; cl.textContent='How many?'; cg.querySelector('select').outerHTML='<input id="count" type="number" value="8" min="1" max="20" />' }
-  })
+
+  // ─── Step 1: target cards — show only the chosen target's options ───
+  var PLACEHOLDERS = {
+    'topic': 'Enter a topic, e.g. "supply chain resilience" or "ethical AI deployment"...',
+    'lesson': 'Enter the lesson or insight, e.g. "moving fast without experience costs you later"...',
+    'methodology': 'Describe the methodology, e.g. "Design Thinking: Empathize, Define, Ideate, Prototype, Test"...',
+    'case-study': 'Paste or describe your case study...',
+    'lecture-notes': 'Paste your lecture notes, handout, or worksheet content...',
+    'scenario': 'Describe the scenario, e.g. "You are a new project manager at a tech startup..."...'
+  }
+  function switchTarget(t) {
+    currentTarget = t
+    document.querySelectorAll('.target-card').forEach(function (c) { c.classList.toggle('selected', c.dataset.target === t) })
+    document.getElementById('story-options').style.display = t === 'story' ? 'flex' : 'none'
+    document.getElementById('images-block').style.display = (t === 'story' && sceneImagesAvailable) ? 'block' : 'none'
+    document.getElementById('case-study-options').style.display = t === 'case-study' ? 'flex' : 'none'
+  }
+  function switchGenMode(m) {
+    currentInputMode = m
+    document.querySelectorAll('.chip').forEach(function (c) { c.classList.toggle('active', c.dataset.imode === m) })
+    document.getElementById('source').placeholder = PLACEHOLDERS[m] || PLACEHOLDERS['topic']
+  }
 
   // ─── Job flow: submit → poll → render. The job id lives in localStorage so
   // a visitor can close the tab and come back (results are kept for an hour).
@@ -487,8 +539,7 @@
 
   async function generate() {
     var source = uploadedText || document.getElementById('source').value.trim()
-    var target = document.getElementById('target').value
-    var countEl = document.getElementById('count'); var count = countEl ? (parseInt(countEl.value,10)||8) : 8
+    var target = currentTarget
     var depth = document.getElementById('depth').value
     var style = document.getElementById('style-h5p').checked ? 'branching' : 'stateful'
     var images = target === 'story' && sceneImagesAvailable && document.getElementById('scene-images').checked
@@ -498,7 +549,7 @@
     btn.disabled = true; btn.textContent = target === 'story' ? 'Crafting...' : 'Generating...'; ea.style.display = 'none'
     renderJobState({ status: 'submitting' })
     try {
-      var res = await fetch('/api/generate', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify({source:source,target:target,count:count,depth:depth,style:style,images:images,imageStyle:imageStyle}) })
+      var res = await fetch('/api/generate', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify({source:source,target:target,count:5,inputMode:currentInputMode,depth:depth,style:style,images:images,imageStyle:imageStyle}) })
       var data = await res.json(); if(!res.ok) throw new Error(data.error||'Generation failed.')
       trackJob(data.jobId, target)
       pollJob(data.jobId, target)
@@ -598,8 +649,7 @@
     var jobId = localStorage.getItem('pl-job-id')
     if (!jobId) return
     var target = localStorage.getItem('pl-job-target') || 'story'
-    document.getElementById('target').value = target
-    document.getElementById('target').dispatchEvent(new Event('change'))
+    switchTarget(target)
     showCreate()
     pollJob(jobId, target)
   }

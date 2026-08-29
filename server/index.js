@@ -157,6 +157,9 @@ app.get('/api/health', (req, res) => {
 // visitor sees their position, can cancel while waiting, and can leave and
 // come back (job results are kept for an hour, in memory).
 const TARGETS = ['story', 'summary', 'flashcards', 'quiz', 'ai-task', 'case-study']
+// Same framing cards as the desktop app's Input Mode — injected into every
+// generation prompt so the AI knows what KIND of material it was handed.
+const INPUT_MODES = ['topic', 'lesson', 'methodology', 'case-study', 'lecture-notes', 'scenario']
 
 app.post('/api/generate', (req, res) => {
   const { source, target, count, depth, inputMode, tone, style, images, imageStyle } = req.body
@@ -169,7 +172,11 @@ app.post('/api/generate', (req, res) => {
   if (!TARGETS.includes(target)) {
     return res.status(400).json({ error: `Unknown target: ${target}` })
   }
-  const params = { inputMode: inputMode || 'topic', inputText: source, tone: tone || 'professional' }
+  const params = {
+    inputMode: INPUT_MODES.includes(inputMode) ? inputMode : 'topic',
+    inputText: source,
+    tone: tone || 'professional'
+  }
 
   const job = queue.submit(async (log) => {
     const logBoth = (m) => { log(m); console.log('[generate]', m) }
