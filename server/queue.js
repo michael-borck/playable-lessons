@@ -22,8 +22,18 @@ const MAX_LOG_LINES = 100 // per job; the GUI tail only shows the last few
  *   backends and API rate limits prefer serial).
  * @param {number} [opts.retentionMs] How long finished jobs stay fetchable.
  * @param {number} [opts.sweepMs] How often finished jobs are reaped.
+ * @param {number} [opts.maxJobs] Hard cap on tracked jobs (queued + running +
+ *   retained). Finished jobs are evicted oldest-first to make room.
+ * @param {number} [opts.maxResultBytes] Reject a result larger than this —
+ *   a public teaser must not be fillable with a handful of huge payloads.
  */
-function createGenerationQueue({ concurrency = 1, retentionMs = 60 * 60 * 1000, sweepMs = 10 * 60 * 1000 } = {}) {
+function createGenerationQueue({
+  concurrency = 1,
+  retentionMs = 60 * 60 * 1000,
+  sweepMs = 10 * 60 * 1000,
+  maxJobs = 100,
+  maxResultBytes = 16 * 1024 * 1024
+} = {}) {
   /** @type {Map<string, object>} */
   const jobs = new Map()
   /** @type {string[]} FIFO of waiting job ids */
@@ -38,11 +48,24 @@ function createGenerationQueue({ concurrency = 1, retentionMs = 60 * 60 * 1000, 
   }, sweepMs)
   sweeper.unref?.() // never keep a process alive just to reap
 
+  /** Drop the oldest retained (finished) job. Returns false when none exist. */
+  function evictOneFinished() {
+    for (const [id, job] of jobs) {
+      if (job.finishedAt) {
+        jobs.delete(id)
+        return true
+      }
+    }
+    return false
+  }
+
   /**
    * Enqueue a job. `run` receives a log function and resolves to the result
-   * payload (or throws). Returns the job.
+   * payload (or throws). Returns the job, or null when the queue is full of
+   * still-running work.
    */
   function submit(run) {
+    if (jobs.size >= maxJobs && !evictOneFinished()) return null
     const job = {
       id: randomUUID(),
       status: 'queued', // queued | processing | complete | failed
@@ -79,6 +102,17 @@ function createGenerationQueue({ concurrency = 1, retentionMs = 60 * 60 * 1000, 
       Promise.resolve()
         .then(() => job.run(log))
         .then((result) => {
+          let size = 0
+          try {
+            size = Buffer.byteLength(JSON.stringify(result) ?? '', 'utf8')
+          } catch {
+            size = Infinity
+          }
+          if (size > maxResultBytes) {
+            job.error = `Result too large (${Math.ceil(size / 1024 / 1024)} MB; limit ${Math.ceil(maxResultBytes / 1024 / 1024)} MB).`
+            job.status = 'failed'
+            return
+          }
           job.result = result
           job.status = 'complete'
         })
@@ -134,7 +168,7 @@ function createGenerationQueue({ concurrency = 1, retentionMs = 60 * 60 * 1000, 
     get,
     cancel,
     position,
-    stats: () => ({ queued: waiting.length, active: activeCount })
+    stats: () => ({ queued: waiting.length, active: activeCount, tracked: jobs.size })
   }
 }
 

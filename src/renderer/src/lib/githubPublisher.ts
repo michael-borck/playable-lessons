@@ -12,6 +12,31 @@ interface PublishResult {
 
 const REQUEST_TIMEOUT_MS = 30_000
 
+/** GitHub's repo-name rules, tightened to prevent path injection. */
+const REPO_NAME_RE = /^[A-Za-z0-9._-]{1,100}$/
+
+/** Reject anything that could escape or change the API path. */
+function assertRepoName(name: string): string {
+  const trimmed = name.trim()
+  if (!REPO_NAME_RE.test(trimmed) || trimmed === '.' || trimmed === '..') {
+    throw new Error(
+      'Repository name may only contain letters, numbers, dots, hyphens, and underscores.'
+    )
+  }
+  return trimmed
+}
+
+/** Base64-encode UTF-8 text without the deprecated `unescape` trick. */
+function toBase64(text: string): string {
+  const bytes = new TextEncoder().encode(text)
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return btoa(binary)
+}
+
 async function githubFetch(path: string, token: string, options: RequestInit = {}): Promise<Response> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -54,18 +79,20 @@ async function getUsername(token: string): Promise<string> {
  */
 async function ensureRepo(token: string, repoName: string): Promise<string> {
   const username = await getUsername(token)
+  const repo = assertRepoName(repoName)
+  const user = encodeURIComponent(username)
 
   // Check if repo exists
-  const check = await githubFetch(`/repos/${username}/${repoName}`, token)
+  const check = await githubFetch(`/repos/${user}/${encodeURIComponent(repo)}`, token)
   if (check.ok) return username
 
   // Create it
   const create = await githubFetch('/user/repos', token, {
     method: 'POST',
     body: JSON.stringify({
-      name: repoName,
+      name: repo,
       description: 'Interactive fiction published with Playable Lessons',
-      homepage: `https://${username}.github.io/${repoName}`,
+      homepage: `https://${username}.github.io/${repo}`,
       auto_init: true
     })
   })
@@ -86,11 +113,12 @@ export async function publishToGitHubPages(
   repoName: string,
   htmlContent: string
 ): Promise<PublishResult> {
-  const username = await ensureRepo(token, repoName)
-  const repoPath = `/repos/${username}/${repoName}`
+  const repo = assertRepoName(repoName)
+  const username = await ensureRepo(token, repo)
+  const repoPath = `/repos/${encodeURIComponent(username)}/${encodeURIComponent(repo)}`
 
   // Encode content as base64
-  const base64Content = btoa(unescape(encodeURIComponent(htmlContent)))
+  const base64Content = toBase64(htmlContent)
 
   // Check if gh-pages branch exists
   const branchCheck = await githubFetch(`${repoPath}/branches/gh-pages`, token)
@@ -147,8 +175,8 @@ export async function publishToGitHubPages(
     body: JSON.stringify({ source: { branch: 'gh-pages', path: '/' } })
   }).catch(() => {}) // Ignore if already enabled
 
-  const url = `https://${username}.github.io/${repoName}`
-  const repoUrl = `https://github.com/${username}/${repoName}`
+  const url = `https://${username}.github.io/${repo}`
+  const repoUrl = `https://github.com/${username}/${repo}`
 
   return { url, repoUrl }
 }

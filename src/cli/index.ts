@@ -14,6 +14,8 @@ import { toStandaloneHTML as toAiTaskHTML, toPlainText as toAiTaskText } from '.
 import { toStandaloneHTML as toCaseStudyHTML, toPlainText as toCaseStudyText } from '../shared/caseStudyExport.js'
 import { toStandaloneHTML as toPlanHTML, toPlainText as toPlanText } from '../shared/planExport.js'
 import { exportH5P } from '../shared/h5pExporter.js'
+import { exportEpub } from '../shared/epubExporter.js'
+import { exportScorm } from '../shared/scormExporter.js'
 import { APP_VERSION } from '../shared/version.generated.js'
 import type { ProviderConfig, ResolvedProvider } from '../shared/aiClient.js'
 
@@ -151,7 +153,7 @@ yargs(hideBin(process.argv))
     return yargs
       .option('input', { alias: 'i', type: 'string', demandOption: true, describe: 'Path to .ink file' })
       .option('output', { alias: 'o', type: 'string', demandOption: true, describe: 'Output directory' })
-      .option('format', { alias: 'f', type: 'string', default: 'html', describe: 'Export format: html, ink, json, h5p (h5p requires a story with no variables/conditionals)' })
+      .option('format', { alias: 'f', type: 'string', default: 'html', describe: 'Export format(s): html, ink, json, h5p, epub, scorm (h5p/epub require a story with no variables/conditionals; scorm works with any story)' })
       .option('title', { alias: 't', type: 'string', default: 'Story', describe: 'Story title' })
   }, async (argv) => {
     try {
@@ -164,7 +166,8 @@ yargs(hideBin(process.argv))
       const baseName = basename(argv.input as string, '.ink')
 
       for (const format of formats) {
-        switch (format.trim()) {
+        try {
+          switch (format.trim()) {
           case 'html': {
             const html = await exportStandaloneHTML(source, title)
             const outPath = join(outputDir, `${baseName}.html`)
@@ -186,14 +189,33 @@ yargs(hideBin(process.argv))
             break
           }
           case 'h5p': {
-            const bytes = exportH5P(source, title)
+            const bytes = await exportH5P(source, title)
             const outPath = join(outputDir, `${baseName}.h5p`)
             await writeFile(outPath, Buffer.from(bytes))
             console.log(`Exported H5P: ${outPath}`)
             break
           }
+          case 'epub': {
+            const bytes = await exportEpub(source, title)
+            const outPath = join(outputDir, `${baseName}.epub`)
+            await writeFile(outPath, Buffer.from(bytes))
+            console.log(`Exported EPUB: ${outPath}`)
+            break
+          }
+          case 'scorm': {
+            const bytes = await exportScorm(source, title)
+            const outPath = join(outputDir, `${baseName}-scorm.zip`)
+            await writeFile(outPath, Buffer.from(bytes))
+            console.log(`Exported SCORM: ${outPath}`)
+            break
+          }
           default:
             console.warn(`Unknown format: ${format}`)
+          }
+        } catch (err) {
+          // One impossible format (e.g. epub for a stateful story) should not
+          // abort the formats that can be produced.
+          console.warn(`Skipped ${format}: ${err instanceof Error ? err.message : err}`)
         }
       }
     } catch (err) {
@@ -226,7 +248,7 @@ yargs(hideBin(process.argv))
       .option('protagonist', { type: 'string', default: 'the reader', describe: 'Protagonist type' })
       .option('answers', { type: 'string', describe: 'Optional answers to clarifying questions' })
       .option('retries', { type: 'number', default: 3, describe: 'Max compile attempts, with AI-assisted fixes between them (raise for weaker local models)' })
-      .option('format', { alias: 'f', type: 'string', describe: 'Output formats. story: ink|html|json|h5p (default ink,html; h5p requires --style branching). flashcards: csv|html|anki|json (default csv,html). quiz: html|txt|json (default html,json). summary: html|txt|json (default html,txt). ai-task: html|txt|json (default html,txt). case-study: html|txt|json (default html,txt).' })
+      .option('format', { alias: 'f', type: 'string', describe: 'Output formats. story: ink|html|json|h5p|epub|scorm (default ink,html; h5p/epub require --style branching; scorm works with any story). flashcards: csv|html|anki|json (default csv,html). quiz: html|txt|json (default html,json). summary: html|txt|json (default html,txt). ai-task: html|txt|json (default html,txt). case-study: html|txt|json (default html,txt).' })
       .option('title', { alias: 't', type: 'string', describe: 'Title for the story, flashcard deck, quiz, summary, AI-task set, or case study (defaults to the input/topic name)' })
   }, async (argv) => {
     try {
@@ -537,12 +559,34 @@ yargs(hideBin(process.argv))
             }
             case 'h5p': {
               try {
-                const bytes = exportH5P(result.inkSource, title)
+                const bytes = await exportH5P(result.inkSource, title, sceneImages)
                 const outPath = join(outputDir, `${base}.h5p`)
                 await writeFile(outPath, Buffer.from(bytes))
                 console.log(`Wrote ${outPath}`)
               } catch (err) {
                 console.warn(`Skipped h5p: ${err instanceof Error ? err.message : err}`)
+              }
+              break
+            }
+            case 'epub': {
+              try {
+                const bytes = await exportEpub(result.inkSource, title, sceneImages)
+                const outPath = join(outputDir, `${base}.epub`)
+                await writeFile(outPath, Buffer.from(bytes))
+                console.log(`Wrote ${outPath}`)
+              } catch (err) {
+                console.warn(`Skipped epub: ${err instanceof Error ? err.message : err}`)
+              }
+              break
+            }
+            case 'scorm': {
+              try {
+                const bytes = await exportScorm(result.inkSource, title, sceneImages)
+                const outPath = join(outputDir, `${base}-scorm.zip`)
+                await writeFile(outPath, Buffer.from(bytes))
+                console.log(`Wrote ${outPath}`)
+              } catch (err) {
+                console.warn(`Skipped scorm: ${err instanceof Error ? err.message : err}`)
               }
               break
             }

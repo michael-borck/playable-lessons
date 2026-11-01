@@ -1,13 +1,28 @@
-import { parseInkSource } from './inkParser'
+import { compileInk } from '../../../shared/storyExport'
+import { parseCompiledInk } from '../../../shared/inkGraph'
+import { findStateConstructs, describeStateConstructs } from '../../../shared/h5pExporter'
 
 /**
  * Convert Ink source to Twee3 format compatible with Twinery.org and Tweego.
+ *
+ * Only pure-branching stories are convertible: Ink's variables, assignments,
+ * and conditional text have no faithful Harlowe equivalent without writing a
+ * full expression translator, and a half-translated story silently breaks in
+ * Twine. `findStateConstructs` gates the export with a line-level explanation
+ * instead (the same policy as the H5P exporter).
+ *
+ * The graph comes from the compiled Ink JSON, so choice text and targets are
+ * exactly what the player executes.
  */
-export function exportToTwee3(inkSource: string, title?: string): string {
-  const parsed = parseInkSource(inkSource)
-  const ifid = generateUUID()
-  const storyTitle = title || 'Untitled Story'
+export async function exportToTwee3(inkSource: string, title?: string): Promise<string> {
+  const issues = findStateConstructs(inkSource)
+  if (issues.length > 0) throw new Error(describeStateConstructs(issues, 'Twine/Harlowe'))
 
+  const graph = parseCompiledInk(await compileInk(inkSource))
+  const ifid = generateUUID()
+  const storyTitle = singleLine(title || 'Untitled Story')
+
+  const nameOf = new Map(graph.knots.map((k) => [k.id, k.id]))
   const lines: string[] = []
 
   // StoryData passage (required by Twee3)
@@ -16,7 +31,7 @@ export function exportToTwee3(inkSource: string, title?: string): string {
     ifid,
     format: 'Harlowe',
     'format-version': '3.3.7',
-    start: parsed.topLevelDivert || (parsed.knots[0]?.id ?? 'start')
+    start: graph.start || graph.knots[0].id
   }))
   lines.push('')
 
@@ -25,42 +40,44 @@ export function exportToTwee3(inkSource: string, title?: string): string {
   lines.push(storyTitle)
   lines.push('')
 
-  // Convert each knot to a Twee passage
-  for (const knot of parsed.knots) {
-    const passageName = knot.title.replace(/_/g, ' ')
-    const tags: string[] = []
-    if (knot.endingType) tags.push(knot.endingType)
-
+  for (const knot of graph.knots) {
+    const passageName = nameOf.get(knot.id) ?? knot.id
+    const tags = knot.endingType ? [singleLine(knot.endingType).replace(/\s+/g, '_')] : []
     const tagStr = tags.length > 0 ? ` [${tags.join(' ')}]` : ''
+
     lines.push(`:: ${passageName}${tagStr}`)
+    if (knot.paragraphs.length > 0) lines.push(knot.paragraphs.join('\n\n'))
 
-    // Content lines
-    if (knot.content) {
-      lines.push(knot.content)
-    }
-
-    // Variable assignments as Harlowe macros
-    for (const va of knot.variableAssignments) {
-      lines.push(`(set: $${va.variable} to ${va.expression})`)
-    }
-
-    // Choices as Twee links
     if (knot.choices.length > 0) {
       lines.push('')
       for (const choice of knot.choices) {
-        const targetName = choice.target.replace(/_/g, ' ')
-        if (choice.condition) {
-          lines.push(`{(if: ${choice.condition})[[[${choice.text}->${targetName}]]]}`)
-        } else {
-          lines.push(`[[${choice.text}->${targetName}]]`)
-        }
+        const text = linkText(choice.text)
+        const target = nameOf.get(choice.target) ?? choice.target
+        lines.push(target ? `[[${text}->${target}]]` : text)
       }
+    } else if (knot.nextTarget) {
+      const target = nameOf.get(knot.nextTarget) ?? knot.nextTarget
+      lines.push('')
+      lines.push(`[[Continue->${target}]]`)
     }
 
     lines.push('')
   }
 
   return lines.join('\n')
+}
+
+/** A passage-heading value must stay on one line. */
+function singleLine(value: string): string {
+  return value.replace(/[\r\n]+/g, ' ').trim()
+}
+
+/** Keep choice text from terminating the `[[text->target]]` link early. */
+function linkText(text: string): string {
+  return singleLine(text)
+    .replace(/\[/g, '(')
+    .replace(/\]/g, ')')
+    .replace(/->/g, '\u2192')
 }
 
 function generateUUID(): string {

@@ -8,14 +8,20 @@
  * a useful message) rather than silently flatten; `exportH5P` throws on
  * stateful sources for the same reason.
  *
+ * The graph comes from the compiled Ink JSON (`parseCompiledInk`), so choice
+ * text and divert targets match what the player actually executes.
+ *
  * The package is "content-only": it declares its library dependencies in
  * h5p.json but does not bundle the libraries themselves. It imports into any
  * host that already has Branching Scenario installed (an LMS with H5P, Lumi
  * via the H5P Hub). Targets H5P.BranchingScenario 1.x semantics.
  */
 
-import { parseInkSource, type InkKnot, type ParsedInk } from './inkParser.js'
-import { escapeHtml } from './storyExport.js'
+import { compileInk, escapeHtml } from './storyExport.js'
+import { parseCompiledInk, type InkGraph, type InkGraphKnot } from './inkGraph.js'
+import { zipStore } from './zip.js'
+
+export { bytesToBase64 } from './zip.js'
 
 // ─── State detection ─────────────────────────────────────────────────────────
 
@@ -54,14 +60,17 @@ export function findStateConstructs(source: string): StateConstruct[] {
 }
 
 /** One-line human summary of why a story can't convert, for error messages. */
-export function describeStateConstructs(issues: StateConstruct[]): string {
+export function describeStateConstructs(
+  issues: StateConstruct[],
+  target = 'H5P Branching Scenario'
+): string {
   const shown = issues
     .slice(0, 5)
     .map((c) => `  line ${c.line} (${c.kind}): ${c.snippet}`)
     .join('\n')
   const more = issues.length > 5 ? `\n  …and ${issues.length - 5} more` : ''
   return (
-    `This story uses state that H5P Branching Scenario cannot represent:\n${shown}${more}\n` +
+    `This story uses state that ${target} cannot represent:\n${shown}${more}\n` +
     `Regenerate the story with "H5P / LMS compatible" enabled to get a convertible version.`
   )
 }
@@ -71,30 +80,34 @@ export function describeStateConstructs(issues: StateConstruct[]): string {
 /** Divert targets that mean "the story ends here". */
 const END_TARGETS = new Set(['END', 'DONE'])
 
-/**
- * The passage prose shown for a knot: lines up to the first choice, minus
- * structural lines (tags, diverts, stitch markers). Returned as escaped HTML
- * paragraphs.
- */
-function passageHtml(knot: InkKnot): string {
-  const paragraphs: string[] = []
-  for (const raw of knot.rawContent.split('\n')) {
-    const line = raw.trim()
-    if (!line) continue
-    if (line.startsWith('*') || line.startsWith('+')) break // choices begin
-    if (line.startsWith('#') || line.startsWith('->') || line.startsWith('=')) continue
-    paragraphs.push(`<p>${escapeHtml(line)}</p>`)
+/** The passage prose for a knot, as escaped HTML, plus any resolved image. */
+function passageHtml(knot: InkGraphKnot, sceneImages?: Record<string, string>): string {
+  const paragraphs = knot.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`)
+
+  const image = resolvedImage(knot, sceneImages)
+  if (image) {
+    paragraphs.unshift(
+      `<img src="${escapeHtml(image.src)}" alt="${escapeHtml(image.alt)}" style="max-width:100%">`
+    )
   }
+
   return paragraphs.join('\n') || '<p></p>'
 }
 
-/** The knot's plain divert target (first `-> target` outside a choice), if any. */
-function plainDivertTarget(knot: InkKnot): string | null {
-  for (const raw of knot.rawContent.split('\n')) {
-    const line = raw.trim()
-    if (line.startsWith('*') || line.startsWith('+')) break // choice diverts don't count
-    const m = line.match(/^->\s*(\w+)/)
-    if (m) return m[1]
+/**
+ * Pick the image for a knot. `# IMAGE:` must already be a data URL or an
+ * absolute http(s) URL (H5P has no access to the project's filesystem);
+ * `# IMAGE_PROMPT:` resolves through the generated scene-image map.
+ */
+function resolvedImage(
+  knot: InkGraphKnot,
+  sceneImages?: Record<string, string>
+): { src: string; alt: string } | null {
+  if (knot.imagePrompt && sceneImages?.[knot.imagePrompt]) {
+    return { src: sceneImages[knot.imagePrompt], alt: knot.imagePrompt }
+  }
+  if (knot.imagePath && /^(data:|https?:)/.test(knot.imagePath)) {
+    return { src: knot.imagePath, alt: knot.id.replace(/_/g, ' ') }
   }
   return null
 }
@@ -113,32 +126,51 @@ interface BranchingAlternative {
 }
 
 /**
- * Build the Branching Scenario content.json object from Ink source.
- * Throws if the story uses state (variables/conditionals).
- *
- * Mapping: each knot becomes one screen. A knot with choices becomes a
- * Branching Question (passage prose as the question, choices as alternatives);
- * a knot without choices becomes a text screen whose "proceed" follows the
- * knot's divert. Diverts to END/DONE (or nowhere) go to the end screen (-1).
+ * Build the Branching Scenario content.json object from a compiled story.
+ * Throws if the source uses state (variables/conditionals).
  */
-export function toBranchingScenarioContent(source: string, title: string): object {
-  const issues = findStateConstructs(source)
-  if (issues.length > 0) {
-    throw new Error(describeStateConstructs(issues))
-  }
+export function toBranchingScenarioContentFromCompiled(
+  compiledJson: string | object,
+  title: string,
+  sceneImages?: Record<string, string>
+): object {
+  const graph: InkGraph = parseCompiledInk(compiledJson)
+  return graphToContent(graph, title, sceneImages)
+}
 
-  const parsed: ParsedInk = parseInkSource(source)
-  if (parsed.knots.length === 0) {
+/**
+ * Compile, gate, and build the Branching Scenario content object.
+ * Throws with a construct-by-construct explanation if the story uses state.
+ */
+export async function toBranchingScenarioContent(
+  source: string,
+  title: string,
+  sceneImages?: Record<string, string>
+): Promise<object> {
+  const issues = findStateConstructs(source)
+  if (issues.length > 0) throw new Error(describeStateConstructs(issues))
+
+  const compiled = await compileInk(source)
+  return toBranchingScenarioContentFromCompiled(compiled, title, sceneImages)
+}
+
+function graphToContent(
+  graph: InkGraph,
+  title: string,
+  sceneImages?: Record<string, string>
+): object {
+  if (graph.knots.length === 0) {
     throw new Error('No knots found in the Ink source — nothing to export.')
   }
 
   // Order knots start-first: content[0] is where Branching Scenario begins.
-  const startId = parsed.topLevelDivert && parsed.knots.some((k) => k.id === parsed.topLevelDivert)
-    ? parsed.topLevelDivert
-    : parsed.knots[0].id
+  const startId =
+    graph.start && graph.knots.some((k) => k.id === graph.start)
+      ? graph.start
+      : graph.knots[0].id
   const knots = [
-    ...parsed.knots.filter((k) => k.id === startId),
-    ...parsed.knots.filter((k) => k.id !== startId)
+    ...graph.knots.filter((k) => k.id === startId),
+    ...graph.knots.filter((k) => k.id !== startId)
   ]
 
   const idOf = new Map<string, number>()
@@ -158,7 +190,7 @@ export function toBranchingScenarioContent(source: string, title: string): objec
     }
     if (knot.choices.length > 0) {
       const alternatives: BranchingAlternative[] = knot.choices.map((c) => ({
-        text: c.text,
+        text: escapeHtml(c.text),
         nextContentId: resolve(c.target),
         addFeedback: false,
         feedback: { title: '', subtitle: '' }
@@ -167,9 +199,13 @@ export function toBranchingScenarioContent(source: string, title: string): objec
         ...common,
         type: {
           library: 'H5P.BranchingQuestion 1.0',
-          params: { branchingQuestion: { question: passageHtml(knot), alternatives } },
+          params: { branchingQuestion: { question: passageHtml(knot, sceneImages), alternatives } },
           subContentId: subContentId(i),
-          metadata: { contentType: 'Branching Question', license: 'U', title: knot.title }
+          metadata: {
+            contentType: 'Branching Question',
+            license: 'U',
+            title: knot.id.replace(/_/g, ' ')
+          }
         },
         nextContentId: -1
       }
@@ -178,11 +214,11 @@ export function toBranchingScenarioContent(source: string, title: string): objec
       ...common,
       type: {
         library: 'H5P.AdvancedText 1.1',
-        params: { text: passageHtml(knot) },
+        params: { text: passageHtml(knot, sceneImages) },
         subContentId: subContentId(i),
-        metadata: { contentType: 'Text', license: 'U', title: knot.title }
+        metadata: { contentType: 'Text', license: 'U', title: knot.id.replace(/_/g, ' ') }
       },
-      nextContentId: resolve(plainDivertTarget(knot) ?? '')
+      nextContentId: resolve(knot.nextTarget ?? '')
     }
   })
 
@@ -229,108 +265,31 @@ function h5pManifest(title: string): object {
   }
 }
 
-// ─── Minimal ZIP writer (store method, no compression) ───────────────────────
-
-const CRC_TABLE = (() => {
-  const table = new Uint32Array(256)
-  for (let n = 0; n < 256; n++) {
-    let c = n
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
-    table[n] = c >>> 0
-  }
-  return table
-})()
-
-function crc32(data: Uint8Array): number {
-  let crc = 0xffffffff
-  for (let i = 0; i < data.length; i++) {
-    crc = CRC_TABLE[(crc ^ data[i]) & 0xff] ^ (crc >>> 8)
-  }
-  return (crc ^ 0xffffffff) >>> 0
+/** Assemble the .h5p zip from an already-built content object. */
+function h5pZip(content: object, title: string): Uint8Array {
+  return zipStore([
+    { name: 'h5p.json', data: JSON.stringify(h5pManifest(title)) },
+    { name: 'content/content.json', data: JSON.stringify(content) }
+  ])
 }
-
-// Fixed DOS timestamp (2026-01-01 00:00) keeps output byte-identical across runs.
-const DOS_DATE = ((2026 - 1980) << 9) | (1 << 5) | 1
-const DOS_TIME = 0
-
-/** Assemble a store-only (uncompressed) zip from named UTF-8 entries. */
-function zipStore(entries: { name: string; text: string }[]): Uint8Array {
-  const encoder = new TextEncoder()
-  const chunks: Uint8Array[] = []
-  const central: Uint8Array[] = []
-  let offset = 0
-
-  const u16 = (v: number) => new Uint8Array([v & 0xff, (v >> 8) & 0xff])
-  const u32 = (v: number) =>
-    new Uint8Array([v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff])
-  const cat = (...parts: Uint8Array[]) => {
-    const total = parts.reduce((n, p) => n + p.length, 0)
-    const out = new Uint8Array(total)
-    let pos = 0
-    for (const p of parts) {
-      out.set(p, pos)
-      pos += p.length
-    }
-    return out
-  }
-
-  for (const entry of entries) {
-    const name = encoder.encode(entry.name)
-    const data = encoder.encode(entry.text)
-    const crc = crc32(data)
-    // Local file header: flag bit 11 set = UTF-8 names; method 0 = store.
-    const local = cat(
-      u32(0x04034b50), u16(20), u16(0x0800), u16(0),
-      u16(DOS_TIME), u16(DOS_DATE),
-      u32(crc), u32(data.length), u32(data.length),
-      u16(name.length), u16(0),
-      name, data
-    )
-    central.push(
-      cat(
-        u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0),
-        u16(DOS_TIME), u16(DOS_DATE),
-        u32(crc), u32(data.length), u32(data.length),
-        u16(name.length), u16(0), u16(0), u16(0), u16(0),
-        u32(0), u32(offset),
-        name
-      )
-    )
-    chunks.push(local)
-    offset += local.length
-  }
-
-  const centralBlob = cat(...central)
-  const eocd = cat(
-    u32(0x06054b50), u16(0), u16(0),
-    u16(entries.length), u16(entries.length),
-    u32(centralBlob.length), u32(offset),
-    u16(0)
-  )
-  return cat(...chunks, centralBlob, eocd)
-}
-
-// ─── Public entry point ──────────────────────────────────────────────────────
 
 /**
  * Convert a pure-branching Ink story to a .h5p package (zip bytes).
  * Throws with a construct-by-construct explanation if the story uses state.
  */
-export function exportH5P(inkSource: string, title: string): Uint8Array {
-  const content = toBranchingScenarioContent(inkSource, title)
-  return zipStore([
-    { name: 'h5p.json', text: JSON.stringify(h5pManifest(title)) },
-    { name: 'content/content.json', text: JSON.stringify(content) }
-  ])
+export async function exportH5P(
+  inkSource: string,
+  title: string,
+  sceneImages?: Record<string, string>
+): Promise<Uint8Array> {
+  return h5pZip(await toBranchingScenarioContent(inkSource, title, sceneImages), title)
 }
 
-/** Base64-encode package bytes (works in both Node and the browser). */
-export function bytesToBase64(bytes: Uint8Array): string {
-  const B = (globalThis as { Buffer?: { from(b: Uint8Array): { toString(e: string): string } } }).Buffer
-  if (B) return B.from(bytes).toString('base64')
-  let binary = ''
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  }
-  return btoa(binary)
+/** Same as `exportH5P` when the caller already has the compiled JSON. */
+export function exportH5PFromCompiled(
+  compiledJson: string | object,
+  title: string,
+  sceneImages?: Record<string, string>
+): Uint8Array {
+  return h5pZip(toBranchingScenarioContentFromCompiled(compiledJson, title, sceneImages), title)
 }

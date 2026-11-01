@@ -38,7 +38,9 @@ services:
   # bundles a small Stable Diffusion model ('stablediffusion'); the first
   # start downloads several GB. GPU images exist (localai/localai:*-gpu-*).
   localai:
-    image: localai/localai:latest-aio-cpu
+    # Pinned to a digest so a moving `latest` tag cannot silently change the
+    # image under a deployment. Bump the digest deliberately after testing.
+    image: localai/localai:latest-aio-cpu@sha256:4cbc20c59558ed6c1cae9bc3f6ae34d75d390b370aa8ac62a59327089fa56cec
     profiles: ["images"]
     volumes:
       - localai-models:/models

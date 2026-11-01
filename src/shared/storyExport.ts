@@ -178,7 +178,7 @@ ${FAVICON_LINK}
 <body>
 <div id="story">
   <h1>${safeTitle}</h1>
-  <div id="content"></div>
+  <div id="content" role="region" aria-live="polite" aria-label="Story"></div>
 </div>
 
 <!-- inkjs ${INKJS_VERSION} runtime embedded inline so this file plays fully offline -->
@@ -205,24 +205,26 @@ ${FAVICON_LINK}
     }
 
     // Scene illustrations: resolve IMAGE_PROMPT tags via the embedded map;
-    // IMAGE tags render only when they carry a usable URL/data URL.
-    var imgSrcs = [];
+    // IMAGE tags render only when they carry a usable URL/data URL. The prompt
+    // doubles as alt text so screen readers describe the illustration.
+    var imgs = [];
     tags.forEach(function(tag) {
       if (tag.indexOf('IMAGE_PROMPT:') === 0) {
-        var src = sceneImages[tag.substring('IMAGE_PROMPT:'.length).trim()];
-        if (src) imgSrcs.push(src);
+        var prompt = tag.substring('IMAGE_PROMPT:'.length).trim();
+        var src = sceneImages[prompt];
+        if (src) imgs.push({ src: src, alt: prompt });
       } else if (tag.indexOf('IMAGE:') === 0) {
         var val = tag.substring('IMAGE:'.length).trim();
         // NB: no '//' inside this regex — in this template literal \/ collapses
         // to / and would turn into a line comment in the generated page.
-        if (/^(data:|https?:)/.test(val)) imgSrcs.push(val);
+        if (/^(data:|https?:)/.test(val)) imgs.push({ src: val, alt: '' });
       }
     });
-    imgSrcs.forEach(function(src) {
+    imgs.forEach(function(item) {
       var img = document.createElement('img');
       img.className = 'scene-img';
-      img.src = src;
-      img.alt = '';
+      img.src = item.src;
+      img.alt = item.alt;
       textDiv.insertBefore(img, textDiv.firstChild);
     });
 

@@ -19,11 +19,14 @@ function App(): React.ReactElement {
   // Load secrets from the OS keychain into memory for this session.
   useEffect(() => {
     const store = useAppStore.getState()
-    window.api.getSecret('apiKey').then((v) => { if (v) store.setApiKey(v) })
-    window.api.getSecret('ollamaToken').then((v) => { if (v) store.setOllamaToken(v) })
-    window.api.getSecret('customApiKey').then((v) => { if (v) store.setCustomApiKey(v) })
-    window.api.getSecret('imageApiKey').then((v) => { if (v) store.setImageApiKey(v) })
-    window.api.getSecret('geminiApiKey').then((v) => { if (v) store.setGeminiApiKey(v) })
+    const load = (key: string, apply: (v: string) => void) => {
+      window.api.getSecret(key).then((v) => { if (v) apply(v) }).catch(() => {})
+    }
+    load('apiKey', store.setApiKey)
+    load('ollamaToken', store.setOllamaToken)
+    load('customApiKey', store.setCustomApiKey)
+    load('imageApiKey', store.setImageApiKey)
+    load('geminiApiKey', store.setGeminiApiKey)
   }, [])
 
   return (

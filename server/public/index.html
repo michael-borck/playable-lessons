@@ -328,7 +328,7 @@
           <span class="feature">&#10003; Projects dashboard</span>
           <span class="feature">&#10003; Longer stories</span>
           <span class="feature">&#10003; Scene image generation</span>
-          <span class="feature">&#10003; More exports (Twine, PDF, GitHub Pages)</span>
+          <span class="feature">&#10003; More exports (Twine, SCORM, EPUB, PDF, GitHub Pages)</span>
           <span class="feature">&#10003; Offline (Ollama)</span>
           <span class="feature">&#10003; No rate limits</span>
         </div>
@@ -415,15 +415,18 @@
     return releaseAssets.find(function (a) { return a.name.endsWith(ext) }) || null
   }
 
+  // Release metadata comes from GitHub; treat it as untrusted text.
+  function escHtml(t) { var d = document.createElement('div'); d.textContent = String(t || ''); return d.innerHTML }
+
   function renderDownloads() {
     var primaryAsset = matchAsset(detectedPlatform)
     var primaryUrl = primaryAsset ? primaryAsset.browser_download_url : 'https://github.com/' + REPO + '/releases/latest'
-    var primaryLabel = '&darr; Download for ' + PLATFORM_LABEL[detectedPlatform]
-    var versionText = releaseVersion ? ('<span style="color:var(--text-muted);font-size:12px;margin-left:8px">' + releaseVersion + '</span>') : ''
+    var primaryLabel = '\u2193 Download for ' + PLATFORM_LABEL[detectedPlatform]
+    var versionText = releaseVersion ? ('<span style="color:var(--text-muted);font-size:12px;margin-left:8px">' + escHtml(releaseVersion) + '</span>') : ''
 
     // Landing page download
     var dlPrimary = document.getElementById('dl-primary')
-    if (dlPrimary) dlPrimary.innerHTML = '<a class="btn btn-secondary" href="' + primaryUrl + '">' + primaryLabel + '</a>' + versionText
+    if (dlPrimary) dlPrimary.innerHTML = '<a class="btn btn-secondary" href="' + escHtml(primaryUrl) + '">' + escHtml(primaryLabel) + '</a>' + versionText
 
     var otherPlatforms = Object.keys(PLATFORM_EXT).filter(function (k) { return k !== detectedPlatform })
     var dlOther = document.getElementById('dl-other')
@@ -431,18 +434,18 @@
       dlOther.innerHTML = otherPlatforms.map(function (p) {
         var a = matchAsset(p)
         var url = a ? a.browser_download_url : 'https://github.com/' + REPO + '/releases/latest'
-        return '<a href="' + url + '">' + PLATFORM_LABEL[p] + '</a>'
+        return '<a href="' + escHtml(url) + '">' + escHtml(PLATFORM_LABEL[p]) + '</a>'
       }).join(' \u00b7 ')
     }
 
     // Create page pitch download
     var pitchDl = document.getElementById('pitch-dl-row')
     if (pitchDl) {
-      pitchDl.innerHTML = '<a class="btn btn-secondary" href="' + primaryUrl + '">' + primaryLabel + '</a>' +
+      pitchDl.innerHTML = '<a class="btn btn-secondary" href="' + escHtml(primaryUrl) + '">' + escHtml(primaryLabel) + '</a>' +
         '<div class="dl-other">' + otherPlatforms.map(function (p) {
           var a = matchAsset(p)
           var url = a ? a.browser_download_url : 'https://github.com/' + REPO + '/releases/latest'
-          return '<a href="' + url + '">' + PLATFORM_LABEL[p] + '</a>'
+          return '<a href="' + escHtml(url) + '">' + escHtml(PLATFORM_LABEL[p]) + '</a>'
         }).join(' \u00b7 ') + '</div>'
     }
   }
@@ -658,15 +661,17 @@
     var area = document.getElementById('result-area')
     if (target === 'story' || result.type === 'story') {
       var blob = new Blob([result.html], {type:'text/html'}); var url = URL.createObjectURL(blob)
-      var h5pLink = ''
-      if (result.h5p) {
-        var bin = atob(result.h5p); var bytes = new Uint8Array(bin.length)
+      function packageUrl(base64, mime) {
+        var bin = atob(base64); var bytes = new Uint8Array(bin.length)
         for (var bi = 0; bi < bin.length; bi++) bytes[bi] = bin.charCodeAt(bi)
-        var h5pUrl = URL.createObjectURL(new Blob([bytes], {type:'application/zip'}))
-        h5pLink = ' \u00B7 <a class="download-link" href="'+h5pUrl+'" download="playable-story.h5p">Download .h5p (LMS import)</a>'
+        return URL.createObjectURL(new Blob([bytes], {type:mime}))
       }
+      var links = ''
+      if (result.h5p) links += ' \u00B7 <a class="download-link" href="'+packageUrl(result.h5p,'application/zip')+'" download="playable-story.h5p">Download .h5p (LMS)</a>'
+      if (result.scorm) links += ' \u00B7 <a class="download-link" href="'+packageUrl(result.scorm,'application/zip')+'" download="playable-story-scorm.zip">Download SCORM .zip</a>'
+      if (result.epub) links += ' \u00B7 <a class="download-link" href="'+packageUrl(result.epub,'application/epub+zip')+'" download="playable-story.epub">Download .epub</a>'
       var imgNote = result.imageCount ? '<p style="color:var(--text-muted);font-size:13px">Illustrated with '+result.imageCount+' scene image'+(result.imageCount===1?'':'s')+'.</p>' : ''
-      area.innerHTML = '<div class="gen-result"><h3>Your story is ready!</h3><p>A self-contained playable HTML file. Works offline \u2014 share via email or LMS.</p>'+imgNote+'<a class="btn btn-primary play-btn" href="'+url+'" target="_blank">\u25B6 Play Story</a><br><a class="download-link" href="'+url+'" download="playable-story.html">Download .html</a>'+h5pLink+'</div>'
+      area.innerHTML = '<div class="gen-result"><h3>Your story is ready!</h3><p>A self-contained playable HTML file. Works offline \u2014 share via email or LMS.</p>'+imgNote+'<a class="btn btn-primary play-btn" href="'+url+'" target="_blank">\u25B6 Play Story</a><br><a class="download-link" href="'+url+'" download="playable-story.html">Download .html</a>'+links+'</div>'
       return
     }
     var labels = { summary:'Summary', flashcards:'Flashcards', quiz:'Quiz', 'ai-task':'AI Tasks', 'case-study':'Case Study' }

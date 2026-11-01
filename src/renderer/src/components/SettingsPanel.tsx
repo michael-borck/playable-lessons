@@ -25,6 +25,8 @@ export default function SettingsPanel() {
   const setCustomModel = useAppStore((s) => s.setCustomModel)
   const theme = useAppStore((s) => s.theme)
   const setTheme = useAppStore((s) => s.setTheme)
+  const timerAutoAdvance = useAppStore((s) => s.timerAutoAdvance)
+  const setTimerAutoAdvance = useAppStore((s) => s.setTimerAutoAdvance)
   const imageProvider = useAppStore((s) => s.imageProvider)
   const setImageProvider = useAppStore((s) => s.setImageProvider)
   const imageModel = useAppStore((s) => s.imageModel)
@@ -327,6 +329,23 @@ export default function SettingsPanel() {
               <option value="light">Light</option>
               <option value="system">System</option>
             </select>
+          </div>
+        </div>
+
+        <div className="settings-section">
+          <div className="settings-section-title">Accessibility</div>
+          <div className="form-group">
+            <label className="form-label" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={timerAutoAdvance}
+                onChange={(e) => setTimerAutoAdvance(e.target.checked)}
+              />
+              Timed choices auto-select the first option when the timer runs out
+            </label>
+            <div style={hintStyle}>
+              Turn this off so every reader gets to choose; the countdown still displays.
+            </div>
           </div>
         </div>
       </div>

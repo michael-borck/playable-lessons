@@ -157,6 +157,11 @@ export interface AppState {
   theme: 'light' | 'dark' | 'system'
   setTheme: (theme: 'light' | 'dark' | 'system') => void
 
+  // Accessibility: when a timed passage expires, auto-select the first choice
+  // (the intended game mechanic) or leave the choice to the reader.
+  timerAutoAdvance: boolean
+  setTimerAutoAdvance: (enabled: boolean) => void
+
   // Node editor
   selectedNodeId: string | null
   setSelectedNodeId: (id: string | null) => void
@@ -287,6 +292,10 @@ export const useAppStore = create<AppState>()(persist((set) => ({
   theme: 'dark',
   setTheme: (theme) => set({ theme }),
 
+  // Accessibility
+  timerAutoAdvance: true,
+  setTimerAutoAdvance: (timerAutoAdvance) => set({ timerAutoAdvance }),
+
   // Node editor
   selectedNodeId: null,
   setSelectedNodeId: (selectedNodeId) => set({ selectedNodeId }),
@@ -314,6 +323,7 @@ export const useAppStore = create<AppState>()(persist((set) => ({
     customBaseUrl: state.customBaseUrl,
     customModel: state.customModel,
     theme: state.theme,
+    timerAutoAdvance: state.timerAutoAdvance,
     storyLength: state.storyLength,
     branchingStyle: state.branchingStyle,
     protagonistType: state.protagonistType,

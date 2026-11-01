@@ -191,6 +191,20 @@ playable-lessons export -i story.ink -o dist/ -f html,json,ink
 | `html` | Self-contained player (`.html`) — works offline, share via LMS/email |
 | `json` | Compiled Ink story JSON |
 | `ink`  | The raw Ink source (copied through) |
+| `h5p` | H5P Branching Scenario package (`.h5p`) — imports into Moodle/Canvas/Lumi |
+| `epub` | Playable EPUB 3 book (`.epub`) — each scene a chapter, each choice a link |
+| `scorm` | SCORM 1.2 package (`.zip`) — reports completion to an LMS |
+
+The desktop app also exports **Twee3/Twine** together with H5P, EPUB, and SCORM.
+H5P, EPUB, and Twee represent a decision tree, so they require a pure-branching
+story: generate with **“H5P / LMS compatible”** ticked (CLI `--style branching`).
+Stateful stories are refused with a line-level explanation rather than being
+silently flattened. SCORM wraps the full HTML player and works with either
+story style.
+
+All structural exports read the **compiled Ink JSON** (not a second regex parse
+of the source), so choice text, tags, and divert targets match exactly what the
+player executes.
 
 Run `playable-lessons --help` for all options.
 
@@ -280,6 +294,24 @@ Notes for operators:
 - The LocalAI service runs **CPU-only by default and is slow** (a minute or more per scene on a small VPS). It's internal-only (no published port — LocalAI has no auth). For usable self-hosting, use a GPU host and the `localai/localai:*-gpu-*` images; for a CPU-only VPS, prefer Gemini/OpenAI.
 - First LocalAI start downloads a multi-GB model into the `localai-models` volume.
 - If the app sits behind nginx/Caddy, raise `proxy_read_timeout` (e.g. `300s`) — illustrated stories take minutes — and set `TRUST_PROXY=1` so the per-IP rate limiter sees real visitor IPs instead of one shared proxy bucket.
+
+---
+
+## Security
+
+- **Desktop app:** sandboxed renderer with context isolation, cross-origin
+  navigation blocked, IPC sender + project-id validation, device permissions
+  denied, producer CSP, and API keys/GitHub tokens in the OS keychain.
+- **Web server:** Helmet security headers, constant-time access-code check,
+  typed/clamped inputs, a bounded job queue (`MAX_JOBS` / `MAX_RESULT_MB`), and
+  per-IP rate limiting. `/api/health` is public so the UI can discover whether
+  a code is required.
+- **Supply chain:** `npm audit --omit=dev` is clean and CI enforces it
+  (`.github/workflows/security.yml`), while blocking any high/critical advisory
+  in the build toolchain. The remaining moderate advisories are build-time-only
+  (`glob`/`minimatch` inside ESLint and electron-builder) and are tracked by
+  Dependabot. GitHub Actions and the build/packaging images are pinned, with Dependabot
+  and CodeQL running weekly.
 
 ---
 

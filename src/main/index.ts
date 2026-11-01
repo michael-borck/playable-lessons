@@ -1,8 +1,40 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, session, safeStorage } from 'electron'
-import { join } from 'path'
-import { readFile, writeFile, readdir, mkdir, rm } from 'fs/promises'
+import { join, resolve } from 'path'
+import { readFile, writeFile, readdir, mkdir, rm, rename } from 'fs/promises'
+import { isSafeProjectId } from '../shared/projectId'
 
 const isDev = !app.isPackaged
+
+/** Keys the renderer is allowed to read/write through the keychain bridge. */
+const SECRET_KEYS = new Set([
+  'apiKey',
+  'ollamaToken',
+  'customApiKey',
+  'imageApiKey',
+  'geminiApiKey',
+  'githubToken'
+])
+
+/** Hard cap on a project snapshot (base64 scene images are the bulk). */
+const MAX_PROJECT_BYTES = 64 * 1024 * 1024
+
+/** Reject IPC from anything other than the app's own renderer. */
+function assertTrustedSender(event: Electron.IpcMainInvokeEvent): void {
+  const url = event.senderFrame?.url ?? ''
+  const devUrl = process.env['ELECTRON_RENDERER_URL'] ?? ''
+  // Packaged builds load a file:// bundle; dev may load the Vite dev server.
+  const trusted = url.startsWith('file://') || (isDev && !!devUrl && url.startsWith(devUrl))
+  if (!trusted) throw new Error('Untrusted IPC sender')
+}
+
+/** Resolve a project folder, refusing traversal and symlink escapes. */
+function projectDir(id: string): string {
+  if (!isSafeProjectId(id)) throw new Error('Invalid project id')
+  const root = resolve(projectsRoot())
+  const dir = resolve(root, id)
+  if (dir !== join(root, id)) throw new Error('Invalid project id')
+  return dir
+}
 
 /** Content-Security-Policy applied to renderer responses. */
 function contentSecurityPolicy(): string {
@@ -18,12 +50,19 @@ function contentSecurityPolicy(): string {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
+    // `https:` is required for user-supplied custom AI/image endpoints and for
+    // `# IMAGE:` tags pointing at remote illustrations.
     "img-src 'self' data: blob: https:",
     "font-src 'self'",
-    // AI providers + GitHub + a locally-running Ollama. `https:` covers a
-    // user-configured remote Ollama over TLS.
-    "connect-src 'self' https://api.anthropic.com https://api.openai.com https://api.github.com http://localhost:* https:",
+    // Named providers are allowlisted; `https:` is kept for user-configured
+    // OpenAI-compatible / image endpoints (OpenRouter, LiteLLM, SwarmUI, …).
+    "connect-src 'self' https://api.anthropic.com https://api.openai.com https://api.github.com https://generativelanguage.googleapis.com http://localhost:* https:",
+    "media-src 'none'",
     "object-src 'none'",
+    "frame-src 'none'",
+    "worker-src 'none'",
+    "manifest-src 'none'",
+    "form-action 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'"
   ].join('; ')
@@ -47,7 +86,12 @@ async function readSecrets(): Promise<Record<string, string>> {
 }
 
 async function writeSecrets(map: Record<string, string>): Promise<void> {
-  await writeFile(secretsPath(), JSON.stringify(map), 'utf-8')
+  const file = secretsPath()
+  const tmp = `${file}.tmp`
+  // 0600 + write-then-rename: the keychain ciphertext is never world-readable
+  // and a crash mid-write cannot corrupt the store.
+  await writeFile(tmp, JSON.stringify(map), { encoding: 'utf-8', mode: 0o600 })
+  await rename(tmp, file)
 }
 
 function createWindow(): BrowserWindow {
@@ -59,8 +103,12 @@ function createWindow(): BrowserWindow {
     show: false,
     titleBarStyle: 'hiddenInset',
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
-      sandbox: false
+      preload: join(__dirname, '../preload/index.cjs'),
+      // The preload only needs contextBridge + ipcRenderer, both available in
+      // a sandboxed renderer. Keep the renderer out of Node entirely.
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
@@ -79,6 +127,25 @@ function createWindow(): BrowserWindow {
       // Malformed URL — ignore.
     }
     return { action: 'deny' }
+  })
+
+  // Never navigate the app window away from its own bundled UI. The preload
+  // bridge is attached to the window and would otherwise be exposed to any
+  // page the renderer navigates to. Vite's dev server origin is allowed so
+  // hot reloads keep working; packaged builds allow no navigation at all.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const devUrl = process.env['ELECTRON_RENDERER_URL']
+    if (isDev && devUrl) {
+      try {
+        if (new URL(url).origin === new URL(devUrl).origin) return
+      } catch {
+        // Malformed URL — fall through and block it.
+      }
+    }
+    event.preventDefault()
+  })
+  mainWindow.webContents.on('will-attach-webview', (event) => {
+    event.preventDefault()
   })
 
   if (isDev && process.env['ELECTRON_RENDERER_URL']) {
@@ -104,8 +171,15 @@ app.whenReady().then(() => {
     })
   })
 
+  // The app needs no camera/mic/geolocation/notifications/etc.
+  session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => {
+    callback(false)
+  })
+  session.defaultSession.setPermissionCheckHandler(() => false)
+
   // IPC: Open file dialog
-  ipcMain.handle('dialog:openFile', async (_event, filters?: Electron.FileFilter[]) => {
+  ipcMain.handle('dialog:openFile', async (event, filters?: Electron.FileFilter[]) => {
+    assertTrustedSender(event)
     const result = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: filters || [
@@ -120,7 +194,9 @@ app.whenReady().then(() => {
   })
 
   // IPC: Save file dialog
-  ipcMain.handle('dialog:saveFile', async (_event, defaultName: string, content: string, filters?: Electron.FileFilter[]) => {
+  ipcMain.handle('dialog:saveFile', async (event, defaultName: string, content: string, filters?: Electron.FileFilter[]) => {
+    assertTrustedSender(event)
+    if (typeof content !== 'string') throw new Error('Invalid content')
     const result = await dialog.showSaveDialog({
       defaultPath: defaultName,
       filters: filters || [
@@ -135,7 +211,9 @@ app.whenReady().then(() => {
   })
 
   // IPC: Save binary file dialog (content arrives base64-encoded, e.g. .h5p zips)
-  ipcMain.handle('dialog:saveBinaryFile', async (_event, defaultName: string, base64: string, filters?: Electron.FileFilter[]) => {
+  ipcMain.handle('dialog:saveBinaryFile', async (event, defaultName: string, base64: string, filters?: Electron.FileFilter[]) => {
+    assertTrustedSender(event)
+    if (typeof base64 !== 'string') throw new Error('Invalid binary content')
     const result = await dialog.showSaveDialog({
       defaultPath: defaultName,
       filters: filters || [{ name: 'All Files', extensions: ['*'] }]
@@ -146,7 +224,8 @@ app.whenReady().then(() => {
   })
 
   // IPC: Open image file and return as base64 data URL
-  ipcMain.handle('image:import', async () => {
+  ipcMain.handle('image:import', async (event) => {
+    assertTrustedSender(event)
     const result = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [
@@ -169,7 +248,9 @@ app.whenReady().then(() => {
   })
 
   // IPC: Read a secret (e.g. API key) from the OS-encrypted store.
-  ipcMain.handle('secret:get', async (_event, key: string): Promise<string> => {
+  ipcMain.handle('secret:get', async (event, key: string): Promise<string> => {
+    assertTrustedSender(event)
+    if (!SECRET_KEYS.has(key)) throw new Error('Unknown secret key')
     if (!safeStorage.isEncryptionAvailable()) return ''
     const map = await readSecrets()
     const enc = map[key]
@@ -183,7 +264,10 @@ app.whenReady().then(() => {
 
   // IPC: Write a secret to the OS-encrypted store. Returns false if the OS
   // provides no secure storage (in which case the secret is NOT persisted).
-  ipcMain.handle('secret:set', async (_event, key: string, value: string): Promise<boolean> => {
+  ipcMain.handle('secret:set', async (event, key: string, value: string): Promise<boolean> => {
+    assertTrustedSender(event)
+    if (!SECRET_KEYS.has(key)) throw new Error('Unknown secret key')
+    if (typeof value !== 'string' || value.length > 16_384) throw new Error('Invalid secret value')
     if (!safeStorage.isEncryptionAvailable()) return false
     const map = await readSecrets()
     if (value) {
@@ -197,9 +281,13 @@ app.whenReady().then(() => {
 
   // ─── Projects (local dashboard) ───
   // Each project is a folder under the projects root containing project.json.
-  ipcMain.handle('projects:root', () => projectsRoot())
+  ipcMain.handle('projects:root', (event) => {
+    assertTrustedSender(event)
+    return projectsRoot()
+  })
 
-  ipcMain.handle('projects:list', async (): Promise<any[]> => {
+  ipcMain.handle('projects:list', async (event): Promise<any[]> => {
+    assertTrustedSender(event)
     const root = projectsRoot()
     let entries: import('fs').Dirent[]
     try {
@@ -209,7 +297,7 @@ app.whenReady().then(() => {
     }
     const metas: any[] = []
     for (const entry of entries) {
-      if (!entry.isDirectory()) continue
+      if (!entry.isDirectory() || !isSafeProjectId(entry.name)) continue
       try {
         const data = JSON.parse(
           await readFile(join(root, entry.name, 'project.json'), 'utf-8')
@@ -236,10 +324,11 @@ app.whenReady().then(() => {
     return metas.sort((a, b) => b.updatedAt - a.updatedAt)
   })
 
-  ipcMain.handle('projects:read', async (_event, id: string): Promise<any> => {
+  ipcMain.handle('projects:read', async (event, id: string): Promise<any> => {
+    assertTrustedSender(event)
     try {
       return JSON.parse(
-        await readFile(join(projectsRoot(), id, 'project.json'), 'utf-8')
+        await readFile(join(projectDir(id), 'project.json'), 'utf-8')
       )
     } catch {
       return null
@@ -247,18 +336,36 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('projects:save', async (
-    _event,
+    event,
     project: any
   ): Promise<{ id: string; path: string }> => {
-    const dir = join(projectsRoot(), project.id)
+    assertTrustedSender(event)
+    if (!project || typeof project !== 'object' || Array.isArray(project)) {
+      throw new Error('Invalid project')
+    }
+    if (!isSafeProjectId(project.id)) throw new Error('Invalid project id')
+    if (typeof project.name !== 'string' || project.name.length > 512) {
+      throw new Error('Invalid project name')
+    }
+    // Stamp a schema version so future migrations have an anchor.
+    const snapshot = { ...project, schemaVersion: project.schemaVersion ?? 1 }
+    const json = JSON.stringify(snapshot, null, 2)
+    if (Buffer.byteLength(json, 'utf-8') > MAX_PROJECT_BYTES) {
+      throw new Error('Project is too large to save (64 MB limit).')
+    }
+    const dir = projectDir(project.id)
     await mkdir(dir, { recursive: true })
     const filePath = join(dir, 'project.json')
-    await writeFile(filePath, JSON.stringify(project, null, 2), 'utf-8')
+    // Write-then-rename: a crash mid-save cannot truncate the previous file.
+    const tmpPath = join(dir, '.project.json.tmp')
+    await writeFile(tmpPath, json, 'utf-8')
+    await rename(tmpPath, filePath)
     return { id: project.id, path: filePath }
   })
 
-  ipcMain.handle('projects:delete', async (_event, id: string): Promise<void> => {
-    await rm(join(projectsRoot(), id), { recursive: true, force: true })
+  ipcMain.handle('projects:delete', async (event, id: string): Promise<void> => {
+    assertTrustedSender(event)
+    await rm(projectDir(id), { recursive: true, force: true })
   })
 
   createWindow()

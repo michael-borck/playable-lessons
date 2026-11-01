@@ -30,6 +30,8 @@ export interface ImageProviderConfig {
 }
 
 const REQUEST_TIMEOUT_MS = 180_000 // image generation can be slow
+/** Refuse to download an image larger than this (protects renderer memory). */
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024
 
 /** Short style directive prepended to every scene prompt. */
 const STYLE_DIRECTIVES: Record<ImageStyle, string> = {
@@ -204,8 +206,15 @@ async function generateSwarmUIImage(prompt: string, config: ImageProviderConfig)
     throw new Error('SwarmUI returned no image')
   }
 
-  // 3. Fetch the generated image by its server path.
-  return fetchAsDataUrl(`${baseUrl}/${images[0].replace(/^\/+/, '')}`, headers)
+  // 3. Fetch the generated image by its server path. Only send the bearer
+  // token when the URL stays on the configured SwarmUI origin.
+  let origin: string | undefined
+  try {
+    origin = new URL(baseUrl).origin
+  } catch {
+    origin = undefined
+  }
+  return fetchAsDataUrl(`${baseUrl}/${images[0].replace(/^\/+/, '')}`, headers, origin)
 }
 
 /** Parse a '1024x576' size string into [width, height]; null if malformed. */
@@ -246,12 +255,35 @@ async function fetchWithTimeout(url: string, options: FetchOpts, timeoutMs = REQ
   }
 }
 
-/** Download an image URL and return it as a data URL (avoids expiring URLs). */
-async function fetchAsDataUrl(url: string, headers: Record<string, string> = {}): Promise<string> {
-  const response = await fetchWithTimeout(url, { method: 'GET', headers }, 60_000)
+/**
+ * Download an image URL and return it as a data URL (avoids expiring URLs).
+ * Only absolute http(s) URLs are accepted, so a hostile custom provider
+ * cannot make the app read `file:`/`data:` URLs from the machine. Auth headers
+ * are only sent when the URL stays on `authOrigin`.
+ */
+async function fetchAsDataUrl(
+  url: string,
+  headers: Record<string, string> = {},
+  authOrigin?: string
+): Promise<string> {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    throw new Error('Image provider returned a non-absolute URL')
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`Refusing to fetch an image over ${parsed.protocol}`)
+  }
+  const sendHeaders = authOrigin && parsed.origin === authOrigin ? headers : {}
+
+  const response = await fetchWithTimeout(url, { method: 'GET', headers: sendHeaders }, 60_000)
   if (!response.ok) throw new Error(`Could not download image (${response.status})`)
+  const declared = Number(response.headers.get('content-length') || 0)
+  if (declared > MAX_IMAGE_BYTES) throw new Error('Downloaded image is too large')
   const mime = response.headers.get('content-type')?.split(';')[0] || 'image/png'
   const buffer = await response.arrayBuffer()
+  if (buffer.byteLength > MAX_IMAGE_BYTES) throw new Error('Downloaded image is too large')
   return `data:${mime};base64,${arrayBufferToBase64(buffer)}`
 }
 

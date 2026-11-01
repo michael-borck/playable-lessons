@@ -9,6 +9,16 @@ files:
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{tsconfig*.json}'
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  # Never package build outputs or non-runtime assets: including release/ makes
+  # electron-builder pack the app into itself (a corrupt, ~300 MB asar).
+  - '!release/**/*'
+  - '!dist/**/*'
+  - '!docs/**/*'
+  - '!scripts/**/*'
+  - '!server/**/*'
+  # macOS AppleDouble metadata from external volumes.
+  - '!**/._*'
+  - '!**/*.map'
 # macOS notarization is handled by the custom afterSign hook (scripts/notarize.js),
 # which reads NOTARIZE_APPLE_* env vars. mac.notarize stays false so
 # electron-builder's buggy built-in notarize wrapper doesn't also fire.

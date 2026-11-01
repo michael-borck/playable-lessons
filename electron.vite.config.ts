@@ -21,6 +21,12 @@ export default defineConfig({
         external: ['electron'],
         input: {
           index: resolve(__dirname, 'src/preload/index.ts')
+        },
+        // Sandboxed preload scripts must be CommonJS; ESM (.mjs) preloads are
+        // only supported with sandbox disabled.
+        output: {
+          format: 'cjs',
+          entryFileNames: 'index.cjs'
         }
       }
     }

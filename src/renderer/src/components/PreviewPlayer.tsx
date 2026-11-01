@@ -13,6 +13,7 @@ interface StoryState {
 export default function PreviewPlayer() {
   const inkSource = useAppStore((s) => s.inkSource)
   const sceneImages = useAppStore((s) => s.sceneImages)
+  const timerAutoAdvance = useAppStore((s) => s.timerAutoAdvance)
   const [story, setStory] = useState<any>(null)
   const [storyState, setStoryState] = useState<StoryState>({
     text: [],
@@ -133,9 +134,10 @@ export default function PreviewPlayer() {
       timerRef.current = setInterval(() => {
         setTimerRemaining((prev) => {
           if (prev <= 1) {
-            // Time's up — auto-select first choice
+            // Time's up. Only auto-select when the reader has opted in; the
+            // choices stay available otherwise (accessibility / fairness).
             clearTimer()
-            if (story && storyState.choices.length > 0) {
+            if (timerAutoAdvance && story && storyState.choices.length > 0) {
               makeChoiceRef.current(0)
             }
             return 0
@@ -296,7 +298,7 @@ export default function PreviewPlayer() {
           })}
 
         {/* Story text */}
-        <div className="player-text">
+        <div className="player-text" role="region" aria-live="polite" aria-label="Story">
           {storyState.text.map((line, i) => (
             <p key={i} style={{ marginBottom: 12 }}>{line}</p>
           ))}

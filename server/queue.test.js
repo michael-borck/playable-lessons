@@ -82,14 +82,41 @@ describe('generation queue', () => {
     expect(q.get(job.id)).toBeNull()
   })
 
+  it('returns null when the queue is full of running work', async () => {
+    const q = createGenerationQueue({ concurrency: 1, maxJobs: 1 })
+    const d = deferred()
+    expect(q.submit(() => d.promise)).not.toBeNull()
+    expect(q.submit(async () => 2)).toBeNull()
+    d.resolve(1)
+    await flush(); await flush()
+  })
+
+  it('evicts the oldest finished job to make room', async () => {
+    const q = createGenerationQueue({ concurrency: 1, maxJobs: 1 })
+    const first = q.submit(async () => 1)
+    await flush(); await flush()
+    const second = q.submit(async () => 2)
+    expect(second).not.toBeNull()
+    await flush(); await flush()
+    expect(q.get(first.id)).toBeNull()
+  })
+
+  it('fails a result over the byte cap instead of retaining it', async () => {
+    const q = createGenerationQueue({ concurrency: 1, maxResultBytes: 10 })
+    const job = q.submit(async () => ({ big: 'x'.repeat(100) }))
+    await flush(); await flush()
+    expect(q.get(job.id).status).toBe('failed')
+    expect(q.get(job.id).error).toMatch(/too large/i)
+  })
+
   it('exposes queue stats for the health endpoint', async () => {
     const q = createGenerationQueue({ concurrency: 1 })
     const d1 = deferred()
     q.submit(() => d1.promise)
     q.submit(async () => 2)
-    expect(q.stats()).toEqual({ queued: 1, active: 1 })
+    expect(q.stats()).toEqual({ queued: 1, active: 1, tracked: 2 })
     d1.resolve(1)
     await flush(); await flush(); await flush(); await flush()
-    expect(q.stats()).toEqual({ queued: 0, active: 0 })
+    expect(q.stats()).toEqual({ queued: 0, active: 0, tracked: 2 })
   })
 })

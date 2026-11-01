@@ -54,24 +54,27 @@ describe('findStateConstructs', () => {
 })
 
 describe('toBranchingScenarioContent', () => {
-  const content = toBranchingScenarioContent(BRANCHING_INK, 'Crossroads') as {
-    branchingScenario: {
-      content: {
-        contentId: number
-        nextContentId: number
-        type: { library: string; params: Record<string, unknown> }
-      }[]
-      startScreen: { startScreenTitle: string }
+  async function content() {
+    return (await toBranchingScenarioContent(BRANCHING_INK, 'Crossroads')) as {
+      branchingScenario: {
+        content: {
+          contentId: number
+          nextContentId: number
+          type: { library: string; params: Record<string, unknown> }
+        }[]
+        startScreen: { startScreenTitle: string }
+      }
     }
   }
-  const items = content.branchingScenario.content
 
-  it('puts the start knot first and titles the start screen', () => {
-    expect(content.branchingScenario.startScreen.startScreenTitle).toBe('Crossroads')
-    expect(items[0].type.library).toBe('H5P.BranchingQuestion 1.0')
+  it('puts the start knot first and titles the start screen', async () => {
+    const c = await content()
+    expect(c.branchingScenario.startScreen.startScreenTitle).toBe('Crossroads')
+    expect(c.branchingScenario.content[0].type.library).toBe('H5P.BranchingQuestion 1.0')
   })
 
-  it('maps choice knots to branching questions with resolved targets', () => {
+  it('maps choice knots to branching questions with resolved targets', async () => {
+    const items = (await content()).branchingScenario.content
     const q = items[0].type.params as {
       branchingQuestion: { question: string; alternatives: { text: string; nextContentId: number }[] }
     }
@@ -84,27 +87,31 @@ describe('toBranchingScenarioContent', () => {
     })
   })
 
-  it('maps linear knots to text screens following their divert', () => {
+  it('maps linear knots to text screens following their divert', async () => {
+    const items = (await content()).branchingScenario.content
     const forest = items.find((i) => JSON.stringify(i).includes('The forest is quiet.'))!
     const ending = items.findIndex((i) => JSON.stringify(i).includes('You made it through.'))
     expect(forest.type.library).toBe('H5P.AdvancedText 1.1')
     expect(forest.nextContentId).toBe(ending)
   })
 
-  it('routes END diverts to the default end screen (-1)', () => {
+  it('routes END diverts to the default end screen (-1)', async () => {
+    const items = (await content()).branchingScenario.content
     const mountain = items.find((i) => JSON.stringify(i).includes('The climb is hard'))!
     expect(mountain.nextContentId).toBe(-1)
   })
 
-  it('refuses a stateful story with a construct-by-construct message', () => {
-    expect(() => toBranchingScenarioContent(STATEFUL_INK, 'X')).toThrow(/H5P Branching Scenario cannot represent/)
-    expect(() => toBranchingScenarioContent(STATEFUL_INK, 'X')).toThrow(/line 1/)
+  it('refuses a stateful story with a construct-by-construct message', async () => {
+    await expect(toBranchingScenarioContent(STATEFUL_INK, 'X')).rejects.toThrow(
+      /H5P Branching Scenario cannot represent/
+    )
+    await expect(toBranchingScenarioContent(STATEFUL_INK, 'X')).rejects.toThrow(/line 1/)
   })
 })
 
 describe('exportH5P', () => {
-  it('produces a valid zip containing h5p.json and content/content.json', () => {
-    const bytes = exportH5P(BRANCHING_INK, 'Crossroads')
+  it('produces a valid zip containing h5p.json and content/content.json', async () => {
+    const bytes = await exportH5P(BRANCHING_INK, 'Crossroads')
     // Zip local-file-header magic
     expect([...bytes.slice(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04])
     const text = new TextDecoder('latin1').decode(bytes)
@@ -113,14 +120,32 @@ describe('exportH5P', () => {
     expect(text).toContain('H5P.BranchingScenario')
   })
 
-  it('is deterministic (same input, byte-identical output)', () => {
-    const a = exportH5P(BRANCHING_INK, 'T')
-    const b = exportH5P(BRANCHING_INK, 'T')
+  it('is deterministic (same input, byte-identical output)', async () => {
+    const a = await exportH5P(BRANCHING_INK, 'T')
+    const b = await exportH5P(BRANCHING_INK, 'T')
     expect(bytesToBase64(a)).toBe(bytesToBase64(b))
   })
 
-  it('throws on a stateful story', () => {
-    expect(() => exportH5P(STATEFUL_INK, 'X')).toThrow(/cannot represent/)
+  it('throws on a stateful story', async () => {
+    await expect(exportH5P(STATEFUL_INK, 'X')).rejects.toThrow(/cannot represent/)
+  })
+})
+
+describe('H5P content safety', () => {
+  it('escapes choice text so AI output cannot inject HTML', async () => {
+    const ink = '-> start\n=== start ===\nHi.\n* [<script>alert(1)</script>] -> END\n'
+    const text = new TextDecoder('latin1').decode(await exportH5P(ink, 'T'))
+    expect(text).not.toContain('<script>alert(1)</script>')
+    expect(text).toContain('&lt;script&gt;')
+  })
+
+  it('embeds resolved scene images with alt text', async () => {
+    const ink = '-> start\n=== start ===\n# IMAGE_PROMPT: a lighthouse\nHi.\n-> END\n'
+    const text = new TextDecoder('latin1').decode(
+      await exportH5P(ink, 'T', { 'a lighthouse': 'data:image/png;base64,AAA' })
+    )
+    expect(text).toContain('data:image/png;base64,AAA')
+    expect(text).toContain('alt=\\"a lighthouse\\"')
   })
 })
 

@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '../stores/appStore'
 import { exportStandaloneHTML } from '../lib/exporter'
 import { exportToTwee3 } from '../lib/tweeExporter'
 import { exportH5P, findStateConstructs, bytesToBase64 } from '../../../shared/h5pExporter'
+import { exportEpub } from '../../../shared/epubExporter'
+import { exportScorm } from '../../../shared/scormExporter'
 import { generateWalkthroughHTML } from '../lib/pdfExporter'
 import { publishToGitHubPages } from '../lib/githubPublisher'
 import { toCSV, toAnkiTSV, toStandaloneHTML as toFlashcardHTML } from '../../../shared/flashcardExport'
@@ -27,9 +29,16 @@ export default function ExportPanel() {
   const [ghRepoName, setGhRepoName] = useState('')
   const [publishUrl, setPublishUrl] = useState<string | null>(null)
   const [publishError, setPublishError] = useState<string | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
   const [exportDone, setExportDone] = useState<string | null>(null)
 
   const name = projectName || 'story'
+
+  // The GitHub token is a credential: keep it in the OS keychain, not state
+  // that could be persisted, and prefill it for the session.
+  useEffect(() => {
+    window.api.getSecret('githubToken').then((v) => { if (v) setGhToken(v) }).catch(() => {})
+  }, [])
 
   // H5P can only represent stateless branching — check the current story once.
   const h5pBlockers = useMemo(
@@ -42,11 +51,49 @@ export default function ExportPanel() {
     setExporting('h5p')
     setExportDone(null)
     try {
-      const bytes = exportH5P(inkSource, name)
+      const bytes = await exportH5P(inkSource, name, sceneImages)
       const saved = await window.api.saveBinaryFile(`${name}.h5p`, bytesToBase64(bytes), [
         { name: 'H5P Packages', extensions: ['h5p'] }
       ])
       if (saved) setExportDone(saved)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'H5P export failed')
+    } finally {
+      setExporting(null)
+    }
+  }
+
+  const handleExportScorm = async () => {
+    if (!inkSource.trim()) return
+    setExporting('scorm')
+    setExportError(null)
+    setExportDone(null)
+    try {
+      const bytes = await exportScorm(inkSource, name, sceneImages)
+      const saved = await window.api.saveBinaryFile(`${name}-scorm.zip`, bytesToBase64(bytes), [
+        { name: 'SCORM Packages', extensions: ['zip'] }
+      ])
+      if (saved) setExportDone(saved)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'SCORM export failed')
+    } finally {
+      setExporting(null)
+    }
+  }
+
+  const handleExportEpub = async () => {
+    if (!inkSource.trim() || h5pBlockers.length > 0) return
+    setExporting('epub')
+    setExportError(null)
+    setExportDone(null)
+    try {
+      const bytes = await exportEpub(inkSource, name, sceneImages)
+      const saved = await window.api.saveBinaryFile(`${name}.epub`, bytesToBase64(bytes), [
+        { name: 'EPUB Books', extensions: ['epub'] }
+      ])
+      if (saved) setExportDone(saved)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'EPUB export failed')
     } finally {
       setExporting(null)
     }
@@ -72,12 +119,15 @@ export default function ExportPanel() {
   }
 
   const handleExportTwee = async () => {
-    if (!inkSource.trim()) return
+    if (!inkSource.trim() || h5pBlockers.length > 0) return
     setExporting('twee')
+    setExportError(null)
     try {
-      const twee = exportToTwee3(inkSource, name)
+      const twee = await exportToTwee3(inkSource, name)
       const saved = await window.api.saveFile(`${name}.twee`, twee, [{ name: 'Twee Files', extensions: ['twee', 'tw'] }])
       if (saved) setExportDone(saved)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Twee export failed')
     } finally {
       setExporting(null)
     }
@@ -215,6 +265,20 @@ export default function ExportPanel() {
       <h2 className="panel-title">Export</h2>
       <p className="panel-subtitle">Export your generated materials</p>
 
+      {exportError && (
+        <div style={{
+          background: 'rgba(232, 168, 56, 0.15)',
+          border: '1px solid var(--warning)',
+          borderRadius: 'var(--radius)',
+          padding: '12px 16px',
+          marginBottom: 20,
+          color: 'var(--warning)',
+          whiteSpace: 'pre-wrap'
+        }}>
+          {exportError}
+        </div>
+      )}
+
       {exportDone && (
         <div style={{
           background: 'rgba(76, 175, 124, 0.15)',
@@ -249,10 +313,14 @@ export default function ExportPanel() {
 
             <ExportCard
               title="Twee3 / Twine"
-              desc="A .twee file compatible with Twinery.org and Tweego. Useful for handing off to users who prefer the Twine ecosystem."
+              desc={
+                h5pBlockers.length > 0
+                  ? 'Pure-branching stories only — this story uses variables or conditional text that Harlowe cannot represent. Regenerate with “H5P / LMS compatible” ticked to export to Twine.'
+                  : 'A .twee file compatible with Twinery.org and Tweego. Useful for handing off to users who prefer the Twine ecosystem.'
+              }
               buttonText={exporting === 'twee' ? 'Exporting...' : 'Export .twee'}
               onClick={handleExportTwee}
-              disabled={exporting === 'twee'}
+              disabled={exporting === 'twee' || h5pBlockers.length > 0}
             />
 
             <ExportCard
@@ -261,6 +329,29 @@ export default function ExportPanel() {
               buttonText={exporting === 'pdf' ? 'Generating...' : 'Export Walkthrough'}
               onClick={handleExportPDF}
               disabled={exporting === 'pdf'}
+            />
+
+            <ExportCard
+              title="SCORM 1.2 Package"
+              desc={
+                'A .zip to upload as a SCORM activity in Moodle, Canvas, or Blackboard. ' +
+                'Reports completion to the LMS when the reader reaches an ending. Works with both story styles.'
+              }
+              buttonText={exporting === 'scorm' ? 'Packaging...' : 'Export SCORM .zip'}
+              onClick={handleExportScorm}
+              disabled={exporting === 'scorm'}
+            />
+
+            <ExportCard
+              title="EPUB 3 Reader"
+              desc={
+                h5pBlockers.length > 0
+                  ? 'Pure-branching stories only — EPUB readers cannot evaluate Ink variables or conditional text. Regenerate with “H5P / LMS compatible” ticked.'
+                  : 'A playable .epub: each scene is a chapter and each choice a link. Works offline in any EPUB 3 reader, with scene images embedded.'
+              }
+              buttonText={exporting === 'epub' ? 'Building...' : 'Export .epub'}
+              onClick={handleExportEpub}
+              disabled={exporting === 'epub' || h5pBlockers.length > 0}
             />
 
             {/* H5P export — only stateless branching stories convert faithfully */}
@@ -329,7 +420,8 @@ export default function ExportPanel() {
                   style={{ fontSize: 13 }}
                 />
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                  Needs &apos;repo&apos; scope. Create at github.com/settings/tokens
+                  Needs &apos;repo&apos; scope. Create at github.com/settings/tokens.
+                  Stored in your OS keychain.
                 </div>
               </div>
 
@@ -354,6 +446,7 @@ export default function ExportPanel() {
                   try {
                     const html = await exportStandaloneHTML(inkSource, name, sceneImages)
                     const repoName = ghRepoName || name.replace(/\s+/g, '-').toLowerCase()
+                    await window.api.setSecret('githubToken', ghToken)
                     const result = await publishToGitHubPages(ghToken, repoName, html)
                     setPublishUrl(result.url)
                   } catch (err) {
