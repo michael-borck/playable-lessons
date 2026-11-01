@@ -1,5 +1,14 @@
 appId: com.playablelessons.app
 productName: Playable Lessons
+
+# GitHub Releases auto-update metadata (electron-updater reads latest*.yml).
+# The release workflow builds with `--publish never` and uploads the generated
+# metadata + blockmaps with the installers.
+publish:
+  provider: github
+  owner: michael-borck
+  repo: playable-lessons
+
 directories:
   buildResources: resources
   output: release

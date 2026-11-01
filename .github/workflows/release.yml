@@ -78,6 +78,8 @@ jobs:
             release/*.zip
             release/*.exe
             release/*.AppImage
+            release/latest*.yml
+            release/*.blockmap
           if-no-files-found: ignore
           retention-days: 5
 
@@ -105,6 +107,8 @@ jobs:
             artifacts/**/*.zip
             artifacts/**/*.exe
             artifacts/**/*.AppImage
+            artifacts/**/latest*.yml
+            artifacts/**/*.blockmap
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

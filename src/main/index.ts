@@ -1,7 +1,10 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, session, safeStorage } from 'electron'
 import { join, resolve } from 'path'
 import { readFile, writeFile, readdir, mkdir, rm, rename } from 'fs/promises'
+import electronUpdater from 'electron-updater'
 import { isSafeProjectId } from '../shared/projectId'
+
+const { autoUpdater } = electronUpdater
 
 const isDev = !app.isPackaged
 
@@ -157,8 +160,52 @@ function createWindow(): BrowserWindow {
   return mainWindow
 }
 
+/**
+ * GitHub Releases auto-update. Only packaged builds update; dev runs skip.
+ * The release workflow publishes `latest*.yml` + blockmaps alongside the
+ * installers, and electron-updater verifies the SHA-512 from that metadata.
+ * macOS updates additionally require the app to be code-signed (it is, in CI).
+ */
+function setupAutoUpdater(): void {
+  if (!app.isPackaged) return
+
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
+
+  autoUpdater.on('error', (err) => {
+    console.error('[updater]', err instanceof Error ? err.message : err)
+  })
+
+  autoUpdater.on('update-downloaded', async (info) => {
+    const { response } = await dialog.showMessageBox({
+      type: 'info',
+      buttons: ['Restart now', 'Later'],
+      defaultId: 0,
+      cancelId: 1,
+      title: 'Update ready',
+      message: `Playable Lessons ${info.version} is ready to install.`,
+      detail: 'Restart now to finish updating, or it will install when you quit.'
+    })
+    if (response === 0) autoUpdater.quitAndInstall()
+  })
+
+  const check = (): void => {
+    // `checkForUpdates` downloads automatically (autoDownload) and emits
+    // `update-downloaded`; no system notification to duplicate our dialog.
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('[updater] check failed:', err instanceof Error ? err.message : err)
+    })
+  }
+
+  // Don't compete with startup; then check every six hours while running.
+  setTimeout(check, 5_000).unref?.()
+  const timer = setInterval(check, 6 * 60 * 60 * 1000)
+  timer.unref?.()
+}
+
 app.whenReady().then(() => {
-  app.setAppUserModelId?.('com.playablelessons')
+  // Must match `appId` in electron-builder.yml for Windows notifications.
+  app.setAppUserModelId?.('com.playablelessons.app')
 
   // Apply a Content-Security-Policy to every response served to the renderer.
   const csp = contentSecurityPolicy()
@@ -369,6 +416,7 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+  setupAutoUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

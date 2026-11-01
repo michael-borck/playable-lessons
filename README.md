@@ -221,6 +221,19 @@ npm run typecheck
 npm test
 ```
 
+### Updates
+
+Packaged desktop builds check GitHub Releases shortly after launch and every six
+hours, download an update in the background, and prompt to restart when it is
+ready. Updates are verified against the SHA-512 in `latest*.yml`; macOS builds
+are code-signed in CI, which Squirrel.Mac also verifies.
+
+Two caveats: versions before **0.8.0** did not contain the updater, so those
+users must install 0.8.0 manually once — every release after that updates
+itself. Windows installers are currently unsigned, so the first install may
+show a SmartScreen warning (updates still work). On Linux the app must be run
+as an AppImage for AppImage updates to apply.
+
 ### AI providers
 
 The desktop app supports **Claude**, **OpenAI**, a local **Ollama**, and any **OpenAI-compatible endpoint** (remote Ollama, OpenRouter, LiteLLM, vLLM, …) via a base URL + bearer token. Model IDs are editable, with live model listing and a connection test. API keys are stored in your OS keychain (via Electron `safeStorage`), not in plain config.
