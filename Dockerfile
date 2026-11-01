@@ -7,7 +7,7 @@
 # .dockerignore excludes node_modules/, out/, .git/, etc. so COPY . . doesn't
 # clobber the fresh npm ci install or copy macOS binaries into the Linux image.
 
-FROM node:22-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da AS build
+FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS build
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 RUN npm run embed:runtime && npm run build:cli
 
-FROM node:22-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da AS runtime
+FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
