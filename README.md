@@ -41,7 +41,7 @@ cat lecture.txt | playable-lessons generate -o lesson/ -p ollama -m llama3.1:8b
 OPENAI_API_KEY=sk-... playable-lessons generate -i notes.md -p ollama -o lesson/ --images --image-style cartoon
 ```
 
-`--images` adds a `# IMAGE_PROMPT:` tag to every scene, then generates each image with an image provider (`--image-provider openai|gemini|custom`, inferred from `OPENAI_API_KEY`/`GEMINI_API_KEY`/`--image-base-url`; `--image-model` to override the default model). Images are embedded in the HTML export and written to an `images/` folder.
+`--images` adds a `# IMAGE_PROMPT:` tag to every scene, then generates each image with an image provider (`--image-provider openai|gemini|custom|swarmui`, inferred from `OPENAI_API_KEY`/`GEMINI_API_KEY`/`--image-base-url`; `--image-model` to override the default model). `--image-style cartoon|photorealistic|pixar` controls the look. For SwarmUI, `--image-lora pixar-xl:1.0` applies a LoRA. Images are embedded in the HTML export and written to an `images/` folder.
 
 Provider selection and API keys:
 

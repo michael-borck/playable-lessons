@@ -1,4 +1,5 @@
 import { useAppStore, InputMode } from '../stores/appStore'
+import type { ImageStyle } from '../../../shared/imageClient'
 
 const INPUT_MODES: { mode: InputMode; title: string; desc: string }[] = [
   { mode: 'topic', title: 'Topic', desc: 'A word or phrase to build a scenario around' },
@@ -118,10 +119,11 @@ export default function InputPanel() {
             <select
               className="form-select"
               value={imageStyle}
-              onChange={(e) => setImageStyle(e.target.value as 'cartoon' | 'photorealistic')}
+              onChange={(e) => setImageStyle(e.target.value as ImageStyle)}
             >
               <option value="cartoon">Cartoon — flat storybook illustration</option>
               <option value="photorealistic">Photorealistic — cinematic photo</option>
+              <option value="pixar">Pixar — warm 3D animated feature</option>
             </select>
           </div>
         )}

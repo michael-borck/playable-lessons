@@ -83,6 +83,7 @@ function buildCliImageConfig(o: {
   imageProvider?: string
   imageModel?: string
   imageBaseUrl?: string
+  imageLora?: string
 }): ImageProviderConfig {
   const provider =
     (o.imageProvider as ImageProvider | undefined) ||
@@ -92,7 +93,11 @@ function buildCliImageConfig(o: {
       '--images needs an image provider: set OPENAI_API_KEY or GEMINI_API_KEY, or pass --image-provider custom --image-base-url <url> --image-model <id>'
     )
   }
-  const config: ImageProviderConfig = { provider, model: o.imageModel || undefined }
+  const config: ImageProviderConfig = {
+    provider,
+    model: o.imageModel || undefined,
+    lora: o.imageLora || undefined
+  }
   switch (provider) {
     case 'openai':
       config.apiKey = process.env.OPENAI_API_KEY
@@ -240,10 +245,11 @@ yargs(hideBin(process.argv))
       .option('length', { alias: 'l', type: 'string', default: 'medium', describe: 'Story length: short | medium | long' })
       .option('style', { type: 'string', default: 'stateful', describe: 'Story branching style: stateful (Ink variables + conditional text) | branching (pure tree, H5P/LMS-convertible)' })
       .option('images', { type: 'boolean', default: false, describe: 'Generate an illustration for every scene (story target only). Images are embedded in the HTML export and written to an images/ folder.' })
-      .option('image-style', { type: 'string', default: 'cartoon', describe: 'Scene image style: cartoon | photorealistic' })
+      .option('image-style', { type: 'string', default: 'cartoon', describe: 'Scene image style: cartoon | photorealistic | pixar' })
       .option('image-provider', { type: 'string', describe: 'openai | gemini | custom | swarmui (default: inferred from OPENAI_API_KEY / GEMINI_API_KEY / --image-base-url)' })
       .option('image-model', { type: 'string', describe: 'Image model id (defaults: gpt-image-1 | imagen-4.0-fast-generate-001; required by custom)' })
       .option('image-base-url', { type: 'string', describe: 'Base URL for a custom OpenAI-compatible /images/generations endpoint or a SwarmUI server' })
+      .option('image-lora', { type: 'string', describe: 'SwarmUI LoRA as name[:weight], e.g. pixar-xl:1.0' })
       .option('tone', { type: 'string', default: 'professional', describe: 'Narrative tone' })
       .option('protagonist', { type: 'string', default: 'the reader', describe: 'Protagonist type' })
       .option('answers', { type: 'string', describe: 'Optional answers to clarifying questions' })
@@ -496,7 +502,8 @@ yargs(hideBin(process.argv))
           ? buildCliImageConfig({
               imageProvider: argv['image-provider'] as string | undefined,
               imageModel: argv['image-model'] as string | undefined,
-              imageBaseUrl: argv['image-base-url'] as string | undefined
+              imageBaseUrl: argv['image-base-url'] as string | undefined,
+              imageLora: argv['image-lora'] as string | undefined
             })
           : undefined
         const result = await generateInk(
@@ -518,7 +525,13 @@ yargs(hideBin(process.argv))
         // export and written to an images/ folder, slide-stream style).
         let sceneImages: Record<string, string> | undefined
         if (wantImages && imageConfig) {
-          const imageStyle: ImageStyle = (argv['image-style'] as string) === 'photorealistic' ? 'photorealistic' : 'cartoon'
+          const imageStyleValue = argv['image-style'] as string
+          const imageStyle: ImageStyle =
+            imageStyleValue === 'photorealistic'
+              ? 'photorealistic'
+              : imageStyleValue === 'pixar'
+                ? 'pixar'
+                : 'cartoon'
           console.error(`Generating scene images with ${imageConfig.provider} (${imageConfig.model || 'default model'})…`)
           sceneImages = await generateSceneImages(result.inkSource, imageConfig, {
             style: imageStyle,

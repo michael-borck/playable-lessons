@@ -11,7 +11,7 @@
 
 export type ImageProvider = 'openai' | 'gemini' | 'custom' | 'swarmui'
 
-export type ImageStyle = 'cartoon' | 'photorealistic'
+export type ImageStyle = 'cartoon' | 'photorealistic' | 'pixar'
 
 export interface ImageProviderConfig {
   provider: ImageProvider
@@ -21,6 +21,8 @@ export interface ImageProviderConfig {
   apiKey?: string
   /** Base URL incl. version path for a custom OpenAI-compatible endpoint. */
   baseUrl?: string
+  /** Optional SwarmUI LoRA as name[:weight], for example pixar-xl:1.0. */
+  lora?: string
   /**
    * Image size/aspect. OpenAI/custom: a size string ('1024x1024', '1536x1024',
    * '1024x1536' — '1792x1024'/'1024x1792' for dall-e-3). Gemini: an aspect
@@ -38,7 +40,9 @@ const STYLE_DIRECTIVES: Record<ImageStyle, string> = {
   cartoon:
     'Flat cartoon illustration: bold clean outlines, vibrant colors, simple storybook style.',
   photorealistic:
-    'Photorealistic cinematic photograph: natural lighting, shallow depth of field, high detail.'
+    'Photorealistic cinematic photograph: natural lighting, shallow depth of field, high detail.',
+  pixar:
+    'Warm 3D animated feature style, Pixar-inspired: soft cinematic lighting, expressive characters, consistent design, rich colour.'
 }
 
 /**
@@ -191,6 +195,11 @@ async function generateSwarmUIImage(prompt: string, config: ImageProviderConfig)
   const [width, height] = parseSize(config.size) ?? [1024, 576]
   const body: Record<string, unknown> = { session_id: sessionId, prompt, images: 1, width, height }
   if (config.model) body.model = config.model
+  if (config.lora) {
+    const [name, weight] = config.lora.split(':')
+    body.loras = name
+    body.loraweights = weight || '1.0'
+  }
 
   const gen = await fetchWithTimeout(`${baseUrl}/API/GenerateText2Image`, {
     method: 'POST',

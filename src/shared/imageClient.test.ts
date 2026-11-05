@@ -37,6 +37,12 @@ describe('buildSceneImagePrompt', () => {
     expect(p).toContain('Scene: a warehouse at dawn')
   })
 
+  it('uses the pixar directive for that style', () => {
+    const p = buildSceneImagePrompt('a boardroom', 'pixar')
+    expect(p).toContain('Pixar')
+    expect(p).toContain('Scene: a boardroom')
+  })
+
   it('defaults to cartoon for an unknown style', () => {
     const p = buildSceneImagePrompt('x', 'watercolor' as never)
     expect(p).toContain('cartoon')
@@ -199,6 +205,25 @@ describe('generateImage', () => {
     await expect(generateImage('a scene', { provider: 'swarmui' })).rejects.toThrow(/base URL/)
     expect(isImageProviderConfigured({ provider: 'swarmui' })).toBe(false)
     expect(isImageProviderConfigured({ provider: 'swarmui', baseUrl: 'http://x' })).toBe(true)
+  })
+
+  it('swarmui: passes a LoRA name and weight when configured', async () => {
+    const calls: { url: string; init?: RequestInit }[] = []
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      calls.push({ url, init })
+      if (url.endsWith('/API/GetNewSession')) return new Response('{"session_id":"s"}', { status: 200 })
+      if (url.endsWith('/API/GenerateText2Image')) return new Response('{"images":["o.png"]}', { status: 200 })
+      return new Response(new Uint8Array([1]), { status: 200 })
+    })
+    await generateImage('a scene', {
+      provider: 'swarmui',
+      baseUrl: 'http://x',
+      model: 'juggernautXL_v9',
+      lora: 'pixar-xl:1.0'
+    })
+    const genBody = JSON.parse(String(calls[1].init?.body))
+    expect(genBody.loras).toBe('pixar-xl')
+    expect(genBody.loraweights).toBe('1.0')
   })
 
   it('throws a descriptive error when the API fails', async () => {
