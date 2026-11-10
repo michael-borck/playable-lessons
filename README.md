@@ -260,7 +260,7 @@ The desktop app supports **Claude**, **OpenAI**, a local **Ollama**, and any **O
 
 ### Inline editing + AI refinement
 
-After generating any output (flashcards, quiz, summary, AI-collaboration tasks, case study), switch to **Study → Edit** to tweak the content inline — edit text fields, add/delete items, and use the **✨** button to AI-refine individual fields. Click **💬** before ✨ to give a custom direction (e.g. "simplify for beginners"). Changes flow through to exports.
+After generating any output (flashcards, quiz, summary, AI-collaboration tasks, case study, activity), switch to **Study → Edit** to tweak the content inline — edit text fields, add/delete items, and use the **✨** button to AI-refine individual fields. Click **💬** before ✨ to give a custom direction (e.g. "simplify for beginners"). Activities additionally support editing grid axes/labels/cells (add or remove rows/columns) and slider statements. Changes flow through to exports.
 
 ---
 

@@ -21,7 +21,7 @@ export default function StudyView() {
   const [editing, setEditing] = useState(false)
 
   const hasContent = !!(flashcards || quiz || summary || aiTask || caseStudy || activity)
-  const canEdit = !!(flashcards || quiz || summary || aiTask || caseStudy)
+  const canEdit = !!(flashcards || quiz || summary || aiTask || caseStudy || activity)
 
   if (!hasContent && !plan) {
     return (
@@ -81,7 +81,7 @@ export default function StudyView() {
       {summary && <SummarySheet result={summary} editable={editing} />}
       {aiTask && <AiTaskSheet result={aiTask} editable={editing} />}
       {caseStudy && <CaseStudySheet result={caseStudy} editable={editing} />}
-      {activity && <ActivitySheet result={activity} />}
+      {activity && <ActivitySheet result={activity} editable={editing} />}
     </div>
   )
 }
