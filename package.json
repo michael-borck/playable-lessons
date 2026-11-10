@@ -1,6 +1,6 @@
 {
   "name": "playable-lessons",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Turn educational source material into playable interactive fiction (Ink, HTML, H5P, EPUB, SCORM).",
   "main": "./out/main/index.mjs",
   "scripts": {
