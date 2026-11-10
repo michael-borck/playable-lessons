@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,7 +14,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-15
             platform: mac
           - os: ubuntu-latest
             platform: linux
@@ -42,8 +43,24 @@ jobs:
       # CSC_KEY_PASSWORD for signing; scripts/notarize.js (the afterSign hook)
       # reads NOTARIZE_APPLE_*. The names are NOTARIZE_APPLE_* (not APPLE_*) so
       # electron-builder's own buggy auto-notarize wrapper doesn't also fire.
+      - name: Prepare App Store Connect API key
+        if: matrix.os == 'macos-15'
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          if [ -n "$APPLE_API_KEY_CONTENT" ] && [ -n "$APPLE_API_KEY" ]; then
+            mkdir -p "$RUNNER_TEMP/apple-api"
+            KEY_PATH="$RUNNER_TEMP/apple-api/AuthKey_${APPLE_API_KEY}.p8"
+            printf '%s' "$APPLE_API_KEY_CONTENT" | openssl base64 -d -A > "$KEY_PATH"
+            chmod 600 "$KEY_PATH"
+            echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          else
+            echo "No API key secrets; notarization will fall back to Apple ID"
+          fi
+
       - name: Build for mac
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-15'
         # An UNSET CSC_LINK secret arrives as an empty string, which
         # electron-builder treats as a certificate file path and dies on
         # ("not a file"). Unset it and disable identity discovery so the build
@@ -51,20 +68,26 @@ jobs:
         run: |
           if [ -z "$CSC_LINK" ]; then
             unset CSC_LINK CSC_KEY_PASSWORD
+            unset NOTARIZE_APPLE_ID NOTARIZE_APPLE_PASSWORD NOTARIZE_APPLE_TEAM_ID
+            unset APPLE_API_KEY_PATH APPLE_API_KEY APPLE_API_ISSUER APPLE_API_KEY_CONTENT
             export CSC_IDENTITY_AUTO_DISCOVERY=false
             echo "CSC_LINK not set - building unsigned"
           fi
           npx electron-builder --mac --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE || secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD || secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          # Legacy fallback; scripts/notarize.js prefers the API key path.
           NOTARIZE_APPLE_ID: ${{ secrets.APPLE_ID }}
           NOTARIZE_APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           NOTARIZE_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Build for ${{ matrix.platform }}
-        if: matrix.os != 'macos-latest'
+        if: matrix.os != 'macos-15'
         run: npx electron-builder --${{ matrix.platform }} --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,6 +108,7 @@ jobs:
 
   publish-release:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
 
     steps:
@@ -114,6 +138,7 @@ jobs:
 
   publish-npm:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
 
     # Trusted publishing (OIDC): GitHub vouches for this job to npm.
