@@ -20,6 +20,10 @@ export default function InputPanel() {
   const setView = useAppStore((s) => s.setCurrentView)
   const storyLength = useAppStore((s) => s.storyLength)
   const setStoryLength = useAppStore((s) => s.setStoryLength)
+  const tone = useAppStore((s) => s.tone)
+  const setTone = useAppStore((s) => s.setTone)
+  const protagonistType = useAppStore((s) => s.protagonistType)
+  const setProtagonistType = useAppStore((s) => s.setProtagonistType)
   const branchingStyle = useAppStore((s) => s.branchingStyle)
   const setBranchingStyle = useAppStore((s) => s.setBranchingStyle)
   const sceneImagesEnabled = useAppStore((s) => s.sceneImagesEnabled)
@@ -85,6 +89,36 @@ export default function InputPanel() {
           <option value="medium">Medium (~15 nodes)</option>
           <option value="long">Long (~30+ nodes)</option>
         </select>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Narrative Tone</label>
+        <select
+          className="form-select"
+          value={tone}
+          onChange={(e) => setTone(e.target.value)}
+        >
+          <option value="professional">Professional / realistic</option>
+          <option value="conversational">Conversational</option>
+          <option value="playful">Playful</option>
+          <option value="dramatic">Dramatic</option>
+          <option value="academic">Academic</option>
+          <option value="empathetic">Empathetic</option>
+        </select>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Protagonist</label>
+        <input
+          className="form-input"
+          type="text"
+          placeholder="the reader"
+          value={protagonistType}
+          onChange={(e) => setProtagonistType(e.target.value)}
+        />
+        <p className="form-hint">
+          How the story refers to the learner, e.g. “the reader”, “a new team lead”, or a named character.
+        </p>
       </div>
 
       <div className="form-group">

@@ -21,6 +21,9 @@ const SECRET_KEYS = new Set([
 /** Hard cap on a project snapshot (base64 scene images are the bulk). */
 const MAX_PROJECT_BYTES = 64 * 1024 * 1024
 
+/** Imported images are embedded as data URLs in the Ink source; keep them small. */
+const MAX_IMPORTED_IMAGE_BYTES = 8 * 1024 * 1024
+
 /** Reject IPC from anything other than the app's own renderer. */
 function assertTrustedSender(event: Electron.IpcMainInvokeEvent): void {
   const url = event.senderFrame?.url ?? ''
@@ -82,7 +85,12 @@ function projectsRoot(): string {
 
 async function readSecrets(): Promise<Record<string, string>> {
   try {
-    return JSON.parse(await readFile(secretsPath(), 'utf-8'))
+    const parsed = JSON.parse(await readFile(secretsPath(), 'utf-8'))
+    // A truncated/hand-edited file could parse to null, a string, or an array.
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, string>
+    }
+    return {}
   } catch {
     return {}
   }
@@ -282,6 +290,9 @@ app.whenReady().then(() => {
     if (result.canceled || result.filePaths.length === 0) return null
     const filePath = result.filePaths[0]
     const buffer = await readFile(filePath)
+    if (buffer.byteLength > MAX_IMPORTED_IMAGE_BYTES) {
+      throw new Error('Image is too large to attach (max 8 MB).')
+    }
     const ext = filePath.split('.').pop()?.toLowerCase() || 'png'
     const mimeTypes: Record<string, string> = {
       jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
@@ -293,6 +304,23 @@ app.whenReady().then(() => {
     const fileName = filePath.split('/').pop() || `image.${ext}`
     return { dataUrl, fileName, filePath }
   })
+
+  // IPC: Report whether the OS offers real encrypted storage. On Linux,
+  // `isEncryptionAvailable()` can be true while the selected backend is
+  // `basic_text` (obfuscated, not encrypted), so expose both facts.
+  ipcMain.handle(
+    'secret:status',
+    (event): { encryptionAvailable: boolean; backend: string } => {
+      assertTrustedSender(event)
+      let backend = 'unknown'
+      try {
+        backend = safeStorage.getSelectedStorageBackend()
+      } catch {
+        // Not supported on every platform/version.
+      }
+      return { encryptionAvailable: safeStorage.isEncryptionAvailable(), backend }
+    }
+  )
 
   // IPC: Read a secret (e.g. API key) from the OS-encrypted store.
   ipcMain.handle('secret:get', async (event, key: string): Promise<string> => {
@@ -361,7 +389,8 @@ app.whenReady().then(() => {
             quiz: !!data.quiz,
             summary: !!data.summary,
             aiTask: !!data.aiTask,
-            caseStudy: !!data.caseStudy
+            caseStudy: !!data.caseStudy,
+            activity: !!data.activity
           }
         })
       } catch {

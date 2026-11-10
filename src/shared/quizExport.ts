@@ -97,6 +97,8 @@ ${FAVICON_LINK}
 <script>
 (function () {
   var ALL = ${dataJson};
+  // A session shows 5 random questions; "Try again" draws another five. The
+  // full set is embedded, so a large generated quiz stays replayable.
   var QUIZ_SIZE = 5;
   var deck = [], pos = 0, answers = {}, submitted = false;
   var content = document.getElementById('content');

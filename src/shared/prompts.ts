@@ -589,6 +589,73 @@ Depth rules:
 - Omit the "narrative" key entirely unless depth is "complete"; never send null or empty strings
 - Do not output any text outside the JSON object`,
 
+  activitySystem: `You are the Playable Lessons assistant. You turn educational source material into a short, self-paced reflective activity for one learner. This is not a live audience poll: there are no accounts, no real-time results, and no class to display. Feedback must be useful wherever the learner places themselves, not only for one "correct" answer. Keep labels short enough to fit on a phone screen and preserve factual accuracy from the source material.
+
+Respond with ONLY the JSON object requested — no preamble, no commentary.`,
+
+  gridActivity: `Create a reflection grid from the following source material.
+
+Input mode: {{inputMode}}
+Source material:
+"""
+{{inputText}}
+"""
+Tone: {{tone}}
+
+The grid should make the material's central trade-off, risk, or decision legible. Good axes are things like Likelihood × Impact, Effort × Value, Certainty × Consequence, or Urgency × Importance.
+
+Return ONLY this JSON shape (wrapped in a \`\`\`json block is fine):
+{
+  "title": "a short title for the activity",
+  "instructions": "one or two sentences telling the learner what to place on the grid",
+  "xLabel": "what the horizontal axis measures",
+  "yLabel": "what the vertical axis measures",
+  "columns": ["low-to-high column labels, left to right (2-4 items)"],
+  "rows": ["high-to-low row labels, top to bottom (2-4 items)"],
+  "cells": [
+    { "label": "a short placement label", "feedback": "what placing the case here implies" }
+  ],
+  "debrief": "a short synthesis of how to use the grid"
+}
+
+Rules:
+- Use 2-4 columns and 2-4 rows.
+- "cells" MUST contain exactly rows.length * columns.length entries, ordered row-major: all columns of the top row first, then the next row, and so on.
+- Every cell needs a short label and a genuinely useful feedback sentence.
+- Omit no cell, and do not send null or empty strings.
+- Do not output any text outside the JSON object`,
+
+  sliderActivity: `Create a reflective slider activity from the following source material.
+
+Input mode: {{inputMode}}
+Source material:
+"""
+{{inputText}}
+"""
+Tone: {{tone}}
+
+Each statement should be a claim, judgement, or trade-off the learner rates on a low-to-high scale. The low and high labels must name the two ends of that scale. Feedback should be useful wherever the learner places the slider — explain what leaning toward each end suggests, not just whether they are "right".
+
+Return ONLY this JSON shape (wrapped in a \`\`\`json block is fine):
+{
+  "title": "a short title for the activity",
+  "instructions": "one or two sentences telling the learner how to use the sliders",
+  "statements": [
+    {
+      "text": "a claim or judgement to rate",
+      "lowLabel": "what the low end of the scale means",
+      "highLabel": "what the high end of the scale means",
+      "feedback": "what leaning toward each end suggests about the learner's reasoning"
+    }
+  ],
+  "debrief": "a short synthesis tying the statements together"
+}
+
+Rules:
+- Produce close to {{statementCount}} statements (1-8).
+- Every statement needs text, both endpoint labels, and feedback.
+- Do not output any text outside the JSON object`,
+
   planSystem: `You are the Playable Lessons planning assistant. You analyze educational source material and recommend a complementary SET of outputs an educator could generate from it.
 
 Available output targets and what each is good for:

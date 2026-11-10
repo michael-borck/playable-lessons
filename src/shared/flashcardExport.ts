@@ -105,6 +105,8 @@ ${FAVICON_LINK}
 <script>
 (function () {
   var ALL = ${cardsJson};
+  // A session shows 5 random cards; "New deck" draws another five. The full
+  // deck is embedded, so a large generated set stays replayable.
   var DECK_SIZE = 5;
   var deck = [], idx = 0, flipped = false;
   var cardEl = document.getElementById('card');

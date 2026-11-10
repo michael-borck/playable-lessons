@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppStore } from '../stores/appStore'
 import { listModels, testConnection } from '../lib/aiService'
 
@@ -41,9 +41,35 @@ export default function SettingsPanel() {
   const [models, setModels] = useState<string[]>([])
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null)
   const [busy, setBusy] = useState<'test' | 'refresh' | null>(null)
+  const [secretNotice, setSecretNotice] = useState<string | null>(null)
+
+  // Tell the user up front when the OS can't actually encrypt secrets (or is
+  // using the weak Linux basic_text backend) instead of pretending the key is
+  // safely persisted.
+  useEffect(() => {
+    window.api.getSecretStatus().then((s) => {
+      if (!s.encryptionAvailable) {
+        setSecretNotice('OS secure storage is unavailable — API keys are kept in memory for this session only.')
+      } else if (s.backend === 'basic_text') {
+        setSecretNotice(
+          'The OS keychain is using the basic_text backend (obfuscated, not encrypted at rest). Set up gnome-keyring or KWallet for stronger protection.'
+        )
+      }
+    }).catch(() => {})
+  }, [])
 
   // Keep in-memory secrets in sync with the OS keychain.
-  const persistSecret = (key: string, value: string) => { window.api.setSecret(key, value) }
+  const persistSecret = (key: string, value: string) => {
+    window.api.setSecret(key, value)
+      .then((ok) => {
+        if (!ok) {
+          setSecretNotice('OS secure storage is unavailable — this key is kept in memory for this session only.')
+        }
+      })
+      .catch(() => {
+        setSecretNotice('Could not save the key to the OS keychain — it is kept in memory for this session only.')
+      })
+  }
   const updateApiKey = (v: string) => { setApiKey(v); persistSecret('apiKey', v) }
   const updateOllamaToken = (v: string) => { setOllamaToken(v); persistSecret('ollamaToken', v) }
   const updateCustomApiKey = (v: string) => { setCustomApiKey(v); persistSecret('customApiKey', v) }
@@ -80,6 +106,20 @@ export default function SettingsPanel() {
     <div className="panel">
       <h2 className="panel-title">Settings</h2>
       <p className="panel-subtitle">Configure AI providers and application preferences</p>
+
+      {secretNotice && (
+        <div style={{
+          background: 'rgba(232, 168, 56, 0.15)',
+          border: '1px solid var(--warning)',
+          borderRadius: 'var(--radius)',
+          padding: '12px 16px',
+          marginBottom: 20,
+          color: 'var(--warning)',
+          fontSize: 13
+        }}>
+          {secretNotice}
+        </div>
+      )}
 
       <div className="settings-grid">
         <div className="settings-section">
@@ -243,7 +283,9 @@ export default function SettingsPanel() {
                   value={imageApiKey}
                   onChange={(e) => updateImageApiKey(e.target.value)}
                 />
-                <div style={hintStyle}>Stored in your OS keychain. Falls back to the main OpenAI API key above.</div>
+                <div style={hintStyle}>
+                  Stored in your OS keychain. Reuses the main API key above when the AI provider is OpenAI.
+                </div>
               </div>
             </>
           )}

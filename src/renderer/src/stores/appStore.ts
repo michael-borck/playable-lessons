@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { FlashcardResult, QuizResult, SummaryResult, AiTaskResult, CaseStudyResult, PlanResult, BranchingStyle } from '../../../shared/generate'
+import type { FlashcardResult, QuizResult, SummaryResult, AiTaskResult, CaseStudyResult, ActivityResult, PlanResult, BranchingStyle } from '../../../shared/generate'
 import type { ImageProvider, ImageStyle } from '../../../shared/imageClient'
 import type { ProjectMeta } from '../../../shared/project'
 
@@ -11,7 +11,7 @@ export type View = 'input' | 'generation' | 'graph' | 'preview' | 'study' | 'exp
 export type AIProvider = 'claude' | 'openai' | 'ollama' | 'custom' | 'auto'
 export type StoryLength = 'short' | 'medium' | 'long'
 export type GenerationStage = 'idle' | 'analysis' | 'clarification' | 'outline' | 'ink-generation' | 'review' | 'compile' | 'done' | 'error'
-export type GenerationTarget = 'story' | 'flashcards' | 'quiz' | 'summary' | 'ai-task' | 'case-study' | 'plan'
+export type GenerationTarget = 'story' | 'flashcards' | 'quiz' | 'summary' | 'ai-task' | 'case-study' | 'activity' | 'plan'
 
 export interface StoryOutlineNode {
   id: string
@@ -134,6 +134,8 @@ export interface AppState {
   setAiTask: (aiTask: AiTaskResult | null) => void
   caseStudy: CaseStudyResult | null
   setCaseStudy: (caseStudy: CaseStudyResult | null) => void
+  activity: ActivityResult | null
+  setActivity: (activity: ActivityResult | null) => void
   plan: PlanResult | null
   setPlan: (plan: PlanResult | null) => void
 
@@ -269,6 +271,8 @@ export const useAppStore = create<AppState>()(persist((set) => ({
   setAiTask: (aiTask) => set({ aiTask }),
   caseStudy: null,
   setCaseStudy: (caseStudy) => set({ caseStudy }),
+  activity: null,
+  setActivity: (activity) => set({ activity }),
   plan: null,
   setPlan: (plan) => set({ plan }),
 

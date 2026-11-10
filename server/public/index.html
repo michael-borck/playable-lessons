@@ -133,6 +133,24 @@
     .result-card .back { display: block; margin-top: 4px; }
     .result-card .hint { display: block; font-size: 13px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
     .result-h { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 18px 0 8px; }
+    .a-axis { text-align: center; color: var(--text-muted); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; margin: 8px 0; }
+    .a-grid-wrap { overflow-x: auto; }
+    .a-grid { border-collapse: separate; border-spacing: 4px; width: 100%; min-width: 420px; }
+    .a-grid th { color: var(--text-muted); font-size: 12px; padding: 6px; text-align: center; }
+    .a-grid th:first-child { text-align: right; white-space: nowrap; }
+    .a-grid td { padding: 0; }
+    .a-cell { width: 100%; min-height: 56px; padding: 8px 6px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+    .a-cell:hover, .a-cell.selected { border-color: var(--accent); background: rgba(124,110,240,0.18); }
+    .a-feedback { margin-top: 12px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; line-height: 1.6; }
+    .a-feedback strong { color: var(--accent-hover); display: block; margin-bottom: 4px; }
+    .a-hint { color: var(--text-muted); font-size: 13px; }
+    .a-slider { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+    .a-statement { font-size: 16px; margin-bottom: 10px; }
+    .a-slider-row { display: flex; align-items: center; gap: 10px; }
+    .a-slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .a-end { flex: 0 0 90px; color: var(--text-muted); font-size: 11px; line-height: 1.3; }
+    .a-end:last-child { text-align: right; }
+    .a-debrief { margin-top: 14px; padding: 14px 16px; background: rgba(124,110,240,0.1); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; color: var(--text-muted); line-height: 1.6; }
     @media (max-width: 760px) { .hero-grid { grid-template-columns: 1fr; } .form-row { flex-direction: column; } .hero-cta { flex-direction: column; } }
   </style>
 </head>
@@ -198,6 +216,7 @@
           <span class="output-pill">Quiz</span>
           <span class="output-pill">AI-Collaboration Tasks</span>
           <span class="output-pill">Case Study</span>
+          <span class="output-pill">Reflection Activities</span>
         </div>
       </div>
     </div>
@@ -244,6 +263,10 @@
         <div class="target-card" data-target="case-study" onclick="switchTarget('case-study')">
           <div class="target-card-title">Case Study</div>
           <div class="target-card-desc">A teaching case with structured analysis</div>
+        </div>
+        <div class="target-card" data-target="activity" onclick="switchTarget('activity')">
+          <div class="target-card-title">Activity</div>
+          <div class="target-card-desc">A reflection grid or slider with feedback</div>
         </div>
       </div>
 
@@ -313,9 +336,18 @@
           </select>
         </div>
       </div>
+      <div class="form-row" id="activity-options" style="display:none">
+        <div class="form-group">
+          <label>Activity type</label>
+          <select id="activity-kind">
+            <option value="grid" selected>Reflection grid (place the case on two axes)</option>
+            <option value="slider">Reflection sliders (rate a set of statements)</option>
+          </select>
+        </div>
+      </div>
 
       <button id="generate-btn" class="btn btn-primary btn-lg" style="width:100%" onclick="generate()">Generate</button>
-      <p class="web-note">Web demo generates ~5 scenes or cards. Want longer stories, every format, editing and no limits? <a href="#" onclick="event.preventDefault();var el=document.getElementById('pitch-dl-row');el.scrollIntoView({behavior:'smooth'});">Get the desktop app</a></p>
+      <p class="web-note">Web demo generates ~5 scenes, cards, or activity items. Want longer stories, every format, editing and no limits? <a href="#" onclick="event.preventDefault();var el=document.getElementById('pitch-dl-row');el.scrollIntoView({behavior:'smooth'});">Get the desktop app</a></p>
       <div id="error" class="error"></div>
       <div id="result-area"></div>
 
@@ -515,6 +547,7 @@
     document.getElementById('story-options').style.display = t === 'story' ? 'flex' : 'none'
     document.getElementById('images-block').style.display = (t === 'story' && sceneImagesAvailable) ? 'block' : 'none'
     document.getElementById('case-study-options').style.display = t === 'case-study' ? 'flex' : 'none'
+    document.getElementById('activity-options').style.display = t === 'activity' ? 'flex' : 'none'
   }
   function switchGenMode(m) {
     currentInputMode = m
@@ -547,12 +580,13 @@
     var style = document.getElementById('style-h5p').checked ? 'branching' : 'stateful'
     var images = target === 'story' && sceneImagesAvailable && document.getElementById('scene-images').checked
     var imageStyle = document.getElementById('image-style').value
+    var activityKind = document.getElementById('activity-kind').value
     if (!source) { showError('Please enter or upload some source material first.'); return }
     var btn = document.getElementById('generate-btn'), ea = document.getElementById('error')
     btn.disabled = true; btn.textContent = target === 'story' ? 'Crafting...' : 'Generating...'; ea.style.display = 'none'
     renderJobState({ status: 'submitting' })
     try {
-      var res = await fetch('/api/generate', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify({source:source,target:target,count:5,inputMode:currentInputMode,depth:depth,style:style,images:images,imageStyle:imageStyle}) })
+      var res = await fetch('/api/generate', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify({source:source,target:target,count:5,inputMode:currentInputMode,depth:depth,style:style,images:images,imageStyle:imageStyle,activityKind:activityKind}) })
       var data = await res.json(); if(!res.ok) throw new Error(data.error||'Generation failed.')
       trackJob(data.jobId, target)
       pollJob(data.jobId, target)
@@ -581,7 +615,7 @@
         if (!res.ok) throw new Error(data.error || 'Status check failed')
         if (data.status === 'complete') {
           stopTrackingJob()
-          renderResult(data.result, target)
+          renderResult(data.result, target, jobId)
           btn.disabled = false; btn.textContent = 'Generate'
           return
         }
@@ -657,21 +691,129 @@
     pollJob(jobId, target)
   }
 
-  function renderResult(result, target) {
+  async function fetchExport(jobId, format) {
+    var res = await fetch('/api/job/' + encodeURIComponent(jobId) + '/export/' + format, { headers: authHeaders() })
+    if (!res.ok) {
+      var data = await res.json().catch(function () { return {} })
+      throw new Error(data.error || ('Export failed (' + res.status + ')'))
+    }
+    return await res.blob()
+  }
+
+  async function playStory(jobId) {
+    // Open the tab synchronously so the browser treats it as user-initiated;
+    // the blob URL is filled in after the export request returns.
+    var w = window.open('', '_blank')
+    if (!w) { showError('Please allow pop-ups to play the story.'); return }
+    try {
+      var blob = await fetchExport(jobId, 'html')
+      var url = URL.createObjectURL(blob)
+      w.opener = null
+      w.location.href = url
+      setTimeout(function () { URL.revokeObjectURL(url) }, 60000)
+    } catch (err) {
+      try { w.close() } catch (e) {}
+      showError(err.message || 'Could not open the story.')
+    }
+  }
+
+  async function downloadExport(jobId, format, filename) {
+    try {
+      var blob = await fetchExport(jobId, format)
+      var url = URL.createObjectURL(blob)
+      var a = document.createElement('a')
+      a.href = url; a.download = filename
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(function () { URL.revokeObjectURL(url) }, 60000)
+    } catch (err) {
+      showError(err.message || 'Export failed.')
+    }
+  }
+
+  function renderResult(result, target, jobId) {
     var area = document.getElementById('result-area')
     if (target === 'story' || result.type === 'story') {
-      var blob = new Blob([result.html], {type:'text/html'}); var url = URL.createObjectURL(blob)
-      function packageUrl(base64, mime) {
-        var bin = atob(base64); var bytes = new Uint8Array(bin.length)
-        for (var bi = 0; bi < bin.length; bi++) bytes[bi] = bin.charCodeAt(bi)
-        return URL.createObjectURL(new Blob([bytes], {type:mime}))
+      // Exports are built on demand by the server; show only what the story
+      // can actually convert to (H5P/EPUB need a stateless branching story).
+      var formats = result.formats || { html: true, scorm: true, h5p: true, epub: true }
+      var links = []
+      function addLink(format, filename, label) {
+        if (!formats[format]) return
+        links.push('<a class="download-link" href="#" data-export="' + format + '" data-filename="' + filename + '">' + label + '</a>')
       }
-      var links = ''
-      if (result.h5p) links += ' \u00B7 <a class="download-link" href="'+packageUrl(result.h5p,'application/zip')+'" download="playable-story.h5p">Download .h5p (LMS)</a>'
-      if (result.scorm) links += ' \u00B7 <a class="download-link" href="'+packageUrl(result.scorm,'application/zip')+'" download="playable-story-scorm.zip">Download SCORM .zip</a>'
-      if (result.epub) links += ' \u00B7 <a class="download-link" href="'+packageUrl(result.epub,'application/epub+zip')+'" download="playable-story.epub">Download .epub</a>'
+      addLink('html', 'playable-story.html', 'Download .html')
+      addLink('h5p', 'playable-story.h5p', 'Download .h5p (LMS)')
+      addLink('scorm', 'playable-story-scorm.zip', 'Download SCORM .zip')
+      addLink('epub', 'playable-story.epub', 'Download .epub')
       var imgNote = result.imageCount ? '<p style="color:var(--text-muted);font-size:13px">Illustrated with '+result.imageCount+' scene image'+(result.imageCount===1?'':'s')+'.</p>' : ''
-      area.innerHTML = '<div class="gen-result"><h3>Your story is ready!</h3><p>A self-contained playable HTML file. Works offline \u2014 share via email or LMS.</p>'+imgNote+'<a class="btn btn-primary play-btn" href="'+url+'" target="_blank">\u25B6 Play Story</a><br><a class="download-link" href="'+url+'" download="playable-story.html">Download .html</a>'+links+'</div>'
+      area.innerHTML = '<div class="gen-result"><h3>Your story is ready!</h3><p>A self-contained playable HTML file. Works offline \u2014 share via email or LMS.</p>'+imgNote+'<button class="btn btn-primary play-btn" id="play-story-btn">\u25B6 Play Story</button>'+(links.length ? '<div style="margin-top:12px">'+links.join(' \u00B7 ')+'</div>' : '')+'</div>'
+      var play = document.getElementById('play-story-btn')
+      if (play) play.addEventListener('click', function () { playStory(jobId) })
+      Array.prototype.forEach.call(area.querySelectorAll('[data-export]'), function (a) {
+        a.addEventListener('click', function (e) {
+          e.preventDefault()
+          downloadExport(jobId, a.getAttribute('data-export'), a.getAttribute('data-filename'))
+        })
+      })
+      return
+    }
+    if (target === 'activity' || result.activity) {
+      var a = result.activity
+      var uid = 'act-' + Date.now()
+      var html = '<div class="inline-result"><h3>'+esc(result.title || 'Activity')+' \u2014 ready</h3>'
+      if (result.instructions) html += '<p style="color:var(--text-muted);margin-bottom:12px">'+esc(result.instructions)+'</p>'
+      if (a && a.kind === 'grid') {
+        html += '<div class="a-axis">'+esc(a.yLabel)+'</div>'
+        html += '<div class="a-grid-wrap"><table class="a-grid"><thead><tr><th></th>'
+        a.columns.forEach(function(c){ html += '<th>'+esc(c)+'</th>' })
+        html += '</tr></thead><tbody>'
+        a.rows.forEach(function(r, ri){
+          html += '<tr><th>'+esc(r)+'</th>'
+          a.columns.forEach(function(c, ci){
+            var idx = ri * a.columns.length + ci
+            var cell = a.cells[idx] || {}
+            html += '<td><button type="button" class="a-cell" data-index="'+idx+'">'+esc(cell.label || 'Choose')+'</button></td>'
+          })
+          html += '</tr>'
+        })
+        html += '</tbody></table></div>'
+        html += '<div class="a-axis">'+esc(a.xLabel)+'</div>'
+        html += '<div class="a-feedback" id="'+uid+'-fb"><span class="a-hint">Tap a cell to see what it means.</span></div>'
+      } else if (a) {
+        a.statements.forEach(function(s, i){
+          html += '<div class="a-slider"><div class="a-statement">'+esc(s.text)+'</div>'
+          html += '<div class="a-slider-row"><span class="a-end">'+esc(s.lowLabel)+'</span>'
+          html += '<input type="range" min="0" max="100" step="1" value="50" data-index="'+i+'">'
+          html += '<span class="a-end">'+esc(s.highLabel)+'</span></div>'
+          html += '<div class="a-feedback" id="'+uid+'-fb-'+i+'"><span class="a-hint">Move the slider to see feedback.</span></div></div>'
+        })
+      }
+      if (a && a.debrief) html += '<div class="a-debrief">'+esc(a.debrief)+'</div>'
+      var ajb = new Blob([JSON.stringify(result, null, 2)], { type:'application/json' }); var aju = URL.createObjectURL(ajb)
+      html += '<div style="text-align:center;margin-top:18px"><a class="download-link" href="'+aju+'" download="activity.json">Download .json</a></div></div>'
+      area.innerHTML = html
+      if (a && a.kind === 'grid') {
+        var fb = document.getElementById(uid+'-fb')
+        Array.prototype.forEach.call(area.querySelectorAll('.a-cell'), function(btn){
+          btn.addEventListener('click', function(){
+            Array.prototype.forEach.call(area.querySelectorAll('.a-cell'), function(b){ b.classList.remove('selected') })
+            btn.classList.add('selected')
+            var cell = a.cells[Number(btn.getAttribute('data-index'))] || {}
+            fb.innerHTML = (cell.label ? '<strong>'+esc(cell.label)+'</strong>' : '') + '<span>'+esc(cell.feedback || 'No feedback for this cell.')+'</span>'
+          })
+        })
+      } else if (a) {
+        Array.prototype.forEach.call(area.querySelectorAll('input[type=range][data-index]'), function(input){
+          input.addEventListener('input', function(){
+            var i = Number(input.getAttribute('data-index'))
+            var s = a.statements[i]
+            var v = Number(input.value)
+            var leaning = v < 45 ? s.lowLabel : v > 55 ? s.highLabel : 'the middle'
+            var f = document.getElementById(uid+'-fb-'+i)
+            if (f) f.innerHTML = (s.feedback ? '<span>'+esc(s.feedback)+'</span> ' : '') + '<span class="a-hint">You are leaning toward '+esc(leaning)+'.</span>'
+          })
+        })
+      }
       return
     }
     var labels = { summary:'Summary', flashcards:'Flashcards', quiz:'Quiz', 'ai-task':'AI Tasks', 'case-study':'Case Study' }

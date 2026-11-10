@@ -1,4 +1,4 @@
-import { useAppStore } from '../stores/appStore'
+import { useAppStore, type StoryOutline } from '../stores/appStore'
 import { PROMPTS, storyPrompts } from './prompts'
 import { compileInk } from './inkCompiler'
 import {
@@ -9,7 +9,7 @@ import {
   type ProviderConfig,
   type ResolvedProvider
 } from '../../../shared/aiClient'
-import { extractInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan, refineText, generateSceneImages } from '../../../shared/generate'
+import { extractInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generateActivity, generatePlan, applyPlan, refineText, generateSceneImages } from '../../../shared/generate'
 import { buildSceneImagePrompt, generateImage, isImageProviderConfigured, type ImageProviderConfig } from '../../../shared/imageClient'
 import { projectIdFromName, type ProjectFull } from '../../../shared/project'
 import { projectService } from './projectService'
@@ -42,15 +42,19 @@ function buildProviderConfig(): ProviderConfig {
 const ai = (messages: AIMessage[]) => callAI(messages, buildProviderConfig())
 
 /**
- * Build an image-provider config from the store. The OpenAI key falls back to
- * the main API key (an OpenAI chat user needs no duplicate entry); Gemini and
- * custom endpoints use their own credentials.
+ * Build an image-provider config from the store. The OpenAI image key falls
+ * back to the main API key ONLY when the chat provider is OpenAI (a single
+ * OpenAI key covers both); when chat runs on Claude/Ollama, the main key is a
+ * different credential and must never be sent to OpenAI. Gemini and custom
+ * endpoints use their own credentials.
  */
 export function buildImageConfig(): ImageProviderConfig {
   const s = useAppStore.getState()
   switch (s.imageProvider) {
-    case 'openai':
-      return { provider: 'openai', model: s.imageModel || undefined, apiKey: s.imageApiKey || s.apiKey }
+    case 'openai': {
+      const openAiChatKey = s.aiProvider === 'openai' ? s.apiKey : ''
+      return { provider: 'openai', model: s.imageModel || undefined, apiKey: s.imageApiKey || openAiChatKey }
+    }
     case 'gemini':
       return { provider: 'gemini', model: s.imageModel || undefined, apiKey: s.geminiApiKey }
     case 'custom':
@@ -96,12 +100,20 @@ export function testConnection(): Promise<{ ok: boolean; message: string; models
 }
 
 /**
- * Interactive generation pipeline for the GUI. Runs stages 1-6, pausing after
- * stage 2 so the UI can collect clarification answers; the UI calls
- * generateStory(true) to resume. (The CLI uses the headless generateInk in
- * src/shared/generate.ts instead.)
+ * Interactive generation pipeline for the GUI. Runs stages 1-6, pausing twice:
+ * after clarification (so the user can answer) and after the outline (so the
+ * user can review/edit it before prose is generated).
+ *
+ * - generateStory()                 → analysis + clarification, then pause
+ * - generateStory(true, false)      → generate the outline, then pause
+ * - generateStory(true, true)       → generate Ink from the edited outline
+ *
+ * (The CLI and web server use the headless generateInk in src/shared/generate.ts.)
  */
-export async function generateStory(resumeAfterClarification = false): Promise<void> {
+export async function generateStory(
+  resumeAfterClarification = false,
+  resumeAfterOutline = false
+): Promise<void> {
   const store = useAppStore.getState()
   const { inputMode, inputText } = store
   const log = (msg: string) => useAppStore.getState().addGenerationLog(msg)
@@ -142,45 +154,57 @@ export async function generateStory(resumeAfterClarification = false): Promise<v
     log(`Generated ${questions.length} clarification questions.`)
     log('Awaiting user input...')
 
-    // Pause here — the UI will call generateStory(true) to resume
+    // Pause here — the UI calls generateStory(true, false) for the outline.
     return
   }
 
   // ─── Stage 3: Outline ───
   const storeNow = useAppStore.getState()
   const log2 = (msg: string) => useAppStore.getState().addGenerationLog(msg)
+  let outlineRaw: string
 
-  storeNow.setGenerationStage('outline')
-  log2('[Stage 3] Generating story outline...')
+  if (!resumeAfterOutline) {
+    storeNow.setGenerationStage('outline')
+    log2('[Stage 3] Generating story outline...')
 
-  const answers = storeNow.clarificationQuestions
-    .map((q) => `Q: ${q.question}\nA: ${q.answer || '(no preference)'}`)
-    .join('\n\n')
+    const answers = storeNow.clarificationQuestions
+      .map((q) => `Q: ${q.question}\nA: ${q.answer || '(no preference)'}`)
+      .join('\n\n')
 
-  const outlineRaw = await ai([
-    { role: 'system', content: sp.system },
-    {
-      role: 'user',
-      content: sp.outline
-        .replace('{{inputMode}}', storeNow.inputMode)
-        .replace('{{inputText}}', storeNow.inputText)
-        .replace('{{storyLength}}', storeNow.storyLength)
-        .replace('{{answers}}', answers)
-        .replace('{{protagonistType}}', storeNow.protagonistType)
-        .replace('{{tone}}', storeNow.tone)
-    }
-  ])
+    outlineRaw = await ai([
+      { role: 'system', content: sp.system },
+      {
+        role: 'user',
+        content: sp.outline
+          .replace('{{inputMode}}', storeNow.inputMode)
+          .replace('{{inputText}}', storeNow.inputText)
+          .replace('{{storyLength}}', storeNow.storyLength)
+          .replace('{{answers}}', answers)
+          .replace('{{protagonistType}}', storeNow.protagonistType)
+          .replace('{{tone}}', storeNow.tone)
+      }
+    ])
 
-  // Try to parse JSON outline
-  try {
-    const jsonMatch = outlineRaw.match(/```json\s*([\s\S]*?)```/) || outlineRaw.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      const outline = JSON.parse(jsonMatch[1] || jsonMatch[0])
+    const outline = extractOutline(outlineRaw)
+    if (outline) {
       storeNow.setStoryOutline(outline)
-      log2(`Outline: ${outline.nodes?.length || 0} nodes, ${outline.edges?.length || 0} edges`)
+      log2(`Outline: ${outline.nodes.length} nodes, ${outline.edges.length} edges`)
+      log2('Outline ready — review and edit it, then continue to generate the prose.')
+      return
     }
-  } catch {
+
+    // A model that ignores the JSON contract still gets the old behaviour:
+    // continue with the raw text outline rather than blocking the user.
     log2('(Could not parse structured outline, continuing with text outline)')
+  } else {
+    const outline = useAppStore.getState().storyOutline
+    if (!outline) {
+      useAppStore.getState().setGenerationStage('error')
+      useAppStore.getState().setError('No outline is available. Generate the outline again.')
+      return
+    }
+    outlineRaw = JSON.stringify(outline, null, 2)
+    log2('Using the edited outline.')
   }
 
   // ─── Stage 4: Ink Generation ───
@@ -324,6 +348,7 @@ export async function generateFlashcardsGUI(count: number): Promise<void> {
     useAppStore.getState().setSummary(null)
     useAppStore.getState().setAiTask(null)
     useAppStore.getState().setCaseStudy(null)
+    useAppStore.getState().setActivity(null)
     useAppStore.getState().setGenerationStage('done')
     log('[Done] Flashcards ready.')
   } catch (err) {
@@ -354,6 +379,7 @@ export async function generateQuizGUI(count: number): Promise<void> {
     useAppStore.getState().setSummary(null)
     useAppStore.getState().setAiTask(null)
     useAppStore.getState().setCaseStudy(null)
+    useAppStore.getState().setActivity(null)
     useAppStore.getState().setGenerationStage('done')
     log('[Done] Quiz ready.')
   } catch (err) {
@@ -384,6 +410,7 @@ export async function generateSummaryGUI(count: number): Promise<void> {
     useAppStore.getState().setQuiz(null)
     useAppStore.getState().setAiTask(null)
     useAppStore.getState().setCaseStudy(null)
+    useAppStore.getState().setActivity(null)
     useAppStore.getState().setGenerationStage('done')
     log('[Done] Summary ready.')
   } catch (err) {
@@ -414,6 +441,7 @@ export async function generateAiTaskGUI(count: number): Promise<void> {
     useAppStore.getState().setQuiz(null)
     useAppStore.getState().setSummary(null)
     useAppStore.getState().setCaseStudy(null)
+    useAppStore.getState().setActivity(null)
     useAppStore.getState().setGenerationStage('done')
     log('[Done] AI-collaboration tasks ready.')
   } catch (err) {
@@ -444,11 +472,46 @@ export async function generateCaseStudyGUI(depth: 'idea' | 'outline' | 'complete
     useAppStore.getState().setQuiz(null)
     useAppStore.getState().setSummary(null)
     useAppStore.getState().setAiTask(null)
+    useAppStore.getState().setActivity(null)
     useAppStore.getState().setGenerationStage('done')
     log('[Done] Case study ready.')
   } catch (err) {
     useAppStore.getState().setGenerationStage('error')
     log(`[Error] ${err instanceof Error ? err.message : 'Case-study generation failed'}`)
+    throw err
+  }
+}
+
+/**
+ * Generate a reflective activity (grid or slider) from the current input.
+ * Single AI call. Stores the result and clears any other artifact.
+ */
+export async function generateActivityGUI(
+  kind: 'grid' | 'slider',
+  statementCount: number
+): Promise<void> {
+  const store = useAppStore.getState()
+  const { inputMode, inputText, tone } = store
+  store.clearGenerationLog()
+  store.setGenerationStage('analysis')
+  const log = (msg: string) => useAppStore.getState().addGenerationLog(msg)
+  try {
+    const result = await generateActivity(
+      { inputMode, inputText, kind, tone, statementCount },
+      buildProviderConfig(),
+      { log, call: ai }
+    )
+    useAppStore.getState().setActivity(result)
+    useAppStore.getState().setFlashcards(null)
+    useAppStore.getState().setQuiz(null)
+    useAppStore.getState().setSummary(null)
+    useAppStore.getState().setAiTask(null)
+    useAppStore.getState().setCaseStudy(null)
+    useAppStore.getState().setGenerationStage('done')
+    log('[Done] Activity ready.')
+  } catch (err) {
+    useAppStore.getState().setGenerationStage('error')
+    log(`[Error] ${err instanceof Error ? err.message : 'Activity generation failed'}`)
     throw err
   }
 }
@@ -545,6 +608,40 @@ export async function generateAllToProject(): Promise<void> {
     useAppStore.getState().setGenerationStage('error')
     log(`[Error] ${err instanceof Error ? err.message : 'Apply failed'}`)
     throw err
+  }
+}
+
+/** Pull a structured outline out of an AI response, or null if it is unusable. */
+function extractOutline(raw: string): StoryOutline | null {
+  try {
+    const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/) || raw.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) return null
+    const parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]) as StoryOutline
+    if (!parsed || !Array.isArray(parsed.nodes)) return null
+
+    const nodes = parsed.nodes
+      .filter((n) => n && typeof n.id === 'string' && n.id.trim())
+      .map((n) => ({
+        id: n.id.trim(),
+        title: typeof n.title === 'string' && n.title.trim() ? n.title.trim() : n.id.trim(),
+        summary: typeof n.summary === 'string' ? n.summary.trim() : ''
+      }))
+    if (nodes.length === 0) return null
+
+    const ids = new Set(nodes.map((n) => n.id))
+    const edges = (Array.isArray(parsed.edges) ? parsed.edges : [])
+      .filter((e) => e && ids.has(e.from) && ids.has(e.to))
+      .map((e) => ({
+        from: e.from,
+        to: e.to,
+        choiceText: typeof e.choiceText === 'string' && e.choiceText.trim() ? e.choiceText.trim() : 'Continue'
+      }))
+    const variables = Array.isArray(parsed.variables) ? parsed.variables : []
+    const canonPath = (Array.isArray(parsed.canonPath) ? parsed.canonPath : []).filter((id) => ids.has(id))
+
+    return { nodes, edges, variables, canonPath }
+  } catch {
+    return null
   }
 }
 

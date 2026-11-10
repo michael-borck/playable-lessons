@@ -56,12 +56,14 @@ export default function ProjectsView() {
         updatedAt: Date.now(),
         inkSource: s.inkSource || undefined,
         compiledStoryJson: s.compiledStoryJson || undefined,
+        nodePositions: Object.keys(s.nodePositions).length > 0 ? s.nodePositions : undefined,
         sceneImages: Object.keys(s.sceneImages).length > 0 ? s.sceneImages : undefined,
         flashcards: s.flashcards || undefined,
         quiz: s.quiz || undefined,
         summary: s.summary || undefined,
         aiTask: s.aiTask || undefined,
-        caseStudy: s.caseStudy || undefined
+        caseStudy: s.caseStudy || undefined,
+        activity: s.activity || undefined
       }
       await projectService.save(project)
       useAppStore.getState().setLoadedProjectId(id)
@@ -84,6 +86,16 @@ export default function ProjectsView() {
         return
       }
       const s = useAppStore.getState()
+      // Reset all per-project state first — otherwise a plan, outline, or
+      // node layout from the previously open project leaks into this one.
+      s.setPlan(null)
+      s.setStoryOutline(null)
+      s.setClarificationQuestions([])
+      s.clearGenerationLog()
+      s.setNodePositions(full.nodePositions || {})
+      s.setSelectedNodeId(null)
+      s.setGenerationStage('idle')
+      s.setError(null)
       s.setInputMode(full.inputMode as InputMode)
       s.setInputText(full.inputText)
       s.setProjectName(full.name)
@@ -95,6 +107,7 @@ export default function ProjectsView() {
       s.setSummary(full.summary || null)
       s.setAiTask(full.aiTask || null)
       s.setCaseStudy(full.caseStudy || null)
+      s.setActivity(full.activity || null)
       s.setLoadedProjectId(full.id)
       setView(
         full.inkSource
@@ -166,6 +179,7 @@ export default function ProjectsView() {
                   {p.artifacts.flashcards && <span className="badge">Flashcards</span>}
                   {p.artifacts.quiz && <span className="badge">Quiz</span>}
                   {p.artifacts.summary && <span className="badge">Summary</span>}
+                  {p.artifacts.activity && <span className="badge">Activity</span>}
                 </div>
               </div>
               <div className="project-card-actions">

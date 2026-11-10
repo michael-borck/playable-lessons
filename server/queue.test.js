@@ -23,6 +23,45 @@ describe('generation queue', () => {
     expect(view.result).toEqual({ ok: true })
   })
 
+  it('keeps internal artifacts out of the public view and removes them with the job', async () => {
+    const q = createGenerationQueue({ retentionMs: 30, sweepMs: 10 })
+    const job = q.submit(async (log, id) => {
+      q.setArtifact(id, { secret: 'src' })
+      return { ok: true }
+    })
+    await flush(); await flush()
+    expect(q.get(job.id).result).toEqual({ ok: true })
+    expect(q.get(job.id).artifact).toBeUndefined()
+    expect(q.getArtifact(job.id)).toEqual({ secret: 'src' })
+    await sleep(80)
+    expect(q.get(job.id)).toBeNull()
+    expect(q.getArtifact(job.id)).toBeNull()
+  })
+
+  it('rejects an artifact over its byte cap', async () => {
+    const q = createGenerationQueue({ maxArtifactBytes: 10 })
+    const job = q.submit(async (log, id) => {
+      q.setArtifact(id, { big: 'x'.repeat(100) })
+    })
+    await flush(); await flush()
+    expect(q.get(job.id).status).toBe('failed')
+    expect(q.get(job.id).error).toMatch(/too large/i)
+    expect(q.getArtifact(job.id)).toBeNull()
+  })
+
+  it('drops an artifact when a job is cancelled while waiting', async () => {
+    const q = createGenerationQueue({ concurrency: 1 })
+    const d1 = deferred()
+    q.submit(() => d1.promise)
+    const second = q.submit(async () => 2)
+    q.setArtifact(second.id, 'x')
+    expect(q.getArtifact(second.id)).toBe('x')
+    expect(q.cancel(second.id)).toBe('cancelled')
+    expect(q.getArtifact(second.id)).toBeNull()
+    d1.resolve(1)
+    await flush(); await flush()
+  })
+
   it('assigns unguessable (UUID) job ids', () => {
     const q = createGenerationQueue()
     const job = q.submit(async () => 1)

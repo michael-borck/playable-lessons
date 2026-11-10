@@ -12,6 +12,7 @@ import { toStandaloneHTML as toQuizHTML, toPlainText as toQuizText } from '../..
 import { toStandaloneHTML as toSummaryHTML, toPlainText as toSummaryText } from '../../../shared/summaryExport'
 import { toStandaloneHTML as toAiTaskHTML, toPlainText as toAiTaskText } from '../../../shared/aiTaskExport'
 import { toStandaloneHTML as toCaseStudyHTML, toPlainText as toCaseStudyText } from '../../../shared/caseStudyExport'
+import { toStandaloneHTML as toActivityHTML, toPlainText as toActivityText } from '../../../shared/activityExport'
 import { toStandaloneHTML as toPlanHTML, toPlainText as toPlanText } from '../../../shared/planExport'
 
 export default function ExportPanel() {
@@ -21,6 +22,7 @@ export default function ExportPanel() {
   const summary = useAppStore((s) => s.summary)
   const aiTask = useAppStore((s) => s.aiTask)
   const caseStudy = useAppStore((s) => s.caseStudy)
+  const activity = useAppStore((s) => s.activity)
   const plan = useAppStore((s) => s.plan)
   const sceneImages = useAppStore((s) => s.sceneImages)
   const projectName = useAppStore((s) => s.projectName)
@@ -46,212 +48,230 @@ export default function ExportPanel() {
     [inkSource]
   )
 
-  const handleExportH5P = async () => {
-    if (!inkSource.trim() || h5pBlockers.length > 0) return
-    setExporting('h5p')
+  /**
+   * Run one export with consistent busy/error/success handling. Without this,
+   * an IPC or filesystem failure in the save step becomes an unhandled
+   * rejection and the user sees nothing.
+   */
+  const runExport = async (label: string, action: () => Promise<string | null>) => {
+    setExporting(label)
+    setExportError(null)
     setExportDone(null)
     try {
-      const bytes = await exportH5P(inkSource, name, sceneImages)
-      const saved = await window.api.saveBinaryFile(`${name}.h5p`, bytesToBase64(bytes), [
-        { name: 'H5P Packages', extensions: ['h5p'] }
-      ])
+      const saved = await action()
       if (saved) setExportDone(saved)
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'H5P export failed')
+      setExportError(err instanceof Error ? err.message : 'Export failed')
     } finally {
       setExporting(null)
     }
+  }
+
+  const handleExportH5P = async () => {
+    if (!inkSource.trim() || h5pBlockers.length > 0) return
+    await runExport('h5p', async () => {
+      const bytes = await exportH5P(inkSource, name, sceneImages)
+      return window.api.saveBinaryFile(`${name}.h5p`, bytesToBase64(bytes), [
+        { name: 'H5P Packages', extensions: ['h5p'] }
+      ])
+    })
   }
 
   const handleExportScorm = async () => {
     if (!inkSource.trim()) return
-    setExporting('scorm')
-    setExportError(null)
-    setExportDone(null)
-    try {
+    await runExport('scorm', async () => {
       const bytes = await exportScorm(inkSource, name, sceneImages)
-      const saved = await window.api.saveBinaryFile(`${name}-scorm.zip`, bytesToBase64(bytes), [
+      return window.api.saveBinaryFile(`${name}-scorm.zip`, bytesToBase64(bytes), [
         { name: 'SCORM Packages', extensions: ['zip'] }
       ])
-      if (saved) setExportDone(saved)
-    } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'SCORM export failed')
-    } finally {
-      setExporting(null)
-    }
+    })
   }
 
   const handleExportEpub = async () => {
     if (!inkSource.trim() || h5pBlockers.length > 0) return
-    setExporting('epub')
-    setExportError(null)
-    setExportDone(null)
-    try {
+    await runExport('epub', async () => {
       const bytes = await exportEpub(inkSource, name, sceneImages)
-      const saved = await window.api.saveBinaryFile(`${name}.epub`, bytesToBase64(bytes), [
+      return window.api.saveBinaryFile(`${name}.epub`, bytesToBase64(bytes), [
         { name: 'EPUB Books', extensions: ['epub'] }
       ])
-      if (saved) setExportDone(saved)
-    } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'EPUB export failed')
-    } finally {
-      setExporting(null)
-    }
+    })
   }
 
   const handleExportHTML = async () => {
     if (!inkSource.trim()) return
-    setExporting('html')
-    setExportDone(null)
-    try {
+    await runExport('html', async () => {
       const html = await exportStandaloneHTML(inkSource, name, sceneImages)
-      const saved = await window.api.saveFile(`${name}.html`, html, [{ name: 'HTML Files', extensions: ['html'] }])
-      if (saved) setExportDone(saved)
-    } finally {
-      setExporting(null)
-    }
+      return window.api.saveFile(`${name}.html`, html, [{ name: 'HTML Files', extensions: ['html'] }])
+    })
   }
 
   const handleExportInk = async () => {
     if (!inkSource.trim()) return
-    const saved = await window.api.saveFile(`${name}.ink`, inkSource, [{ name: 'Ink Files', extensions: ['ink'] }])
-    if (saved) setExportDone(saved)
+    await runExport('ink', () =>
+      window.api.saveFile(`${name}.ink`, inkSource, [{ name: 'Ink Files', extensions: ['ink'] }])
+    )
   }
 
   const handleExportTwee = async () => {
     if (!inkSource.trim() || h5pBlockers.length > 0) return
-    setExporting('twee')
-    setExportError(null)
-    try {
+    await runExport('twee', async () => {
       const twee = await exportToTwee3(inkSource, name)
-      const saved = await window.api.saveFile(`${name}.twee`, twee, [{ name: 'Twee Files', extensions: ['twee', 'tw'] }])
-      if (saved) setExportDone(saved)
-    } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'Twee export failed')
-    } finally {
-      setExporting(null)
-    }
+      return window.api.saveFile(`${name}.twee`, twee, [{ name: 'Twee Files', extensions: ['twee', 'tw'] }])
+    })
   }
 
   const handleExportPDF = async () => {
     if (!inkSource.trim()) return
-    setExporting('pdf')
-    try {
-      const html = generateWalkthroughHTML(inkSource, name)
-      const saved = await window.api.saveFile(
+    await runExport('pdf', () =>
+      window.api.saveFile(
         `${name}_walkthrough.html`,
-        html,
+        generateWalkthroughHTML(inkSource, name),
         [{ name: 'HTML Files', extensions: ['html'] }]
       )
-      if (saved) setExportDone(saved)
-    } finally {
-      setExporting(null)
-    }
+    )
   }
 
   // ─── Flashcard exports ───
   const handleExportFlashCSV = async () => {
     if (!flashcards) return
-    const saved = await window.api.saveFile(`${name}.flashcards.csv`, toCSV(flashcards), [{ name: 'CSV Files', extensions: ['csv'] }])
-    if (saved) setExportDone(saved)
+    await runExport('flashcards-csv', () =>
+      window.api.saveFile(`${name}.flashcards.csv`, toCSV(flashcards), [{ name: 'CSV Files', extensions: ['csv'] }])
+    )
   }
   const handleExportFlashAnki = async () => {
     if (!flashcards) return
-    const saved = await window.api.saveFile(`${name}.flashcards.txt`, toAnkiTSV(flashcards), [{ name: 'Text Files', extensions: ['txt'] }])
-    if (saved) setExportDone(saved)
+    await runExport('flashcards-anki', () =>
+      window.api.saveFile(`${name}.flashcards.txt`, toAnkiTSV(flashcards), [{ name: 'Text Files', extensions: ['txt'] }])
+    )
   }
   const handleExportFlashHTML = async () => {
     if (!flashcards) return
-    const saved = await window.api.saveFile(`${name}.flashcards.html`, toFlashcardHTML(flashcards, name), [{ name: 'HTML Files', extensions: ['html'] }])
-    if (saved) setExportDone(saved)
+    await runExport('flashcards-html', () =>
+      window.api.saveFile(`${name}.flashcards.html`, toFlashcardHTML(flashcards, name), [{ name: 'HTML Files', extensions: ['html'] }])
+    )
   }
 
   // ─── Quiz exports ───
   const handleExportQuizHTML = async () => {
     if (!quiz) return
-    const saved = await window.api.saveFile(`${name}.quiz.html`, toQuizHTML(quiz, name), [{ name: 'HTML Files', extensions: ['html'] }])
-    if (saved) setExportDone(saved)
+    await runExport('quiz-html', () =>
+      window.api.saveFile(`${name}.quiz.html`, toQuizHTML(quiz, name), [{ name: 'HTML Files', extensions: ['html'] }])
+    )
   }
   const handleExportQuizTxt = async () => {
     if (!quiz) return
-    const saved = await window.api.saveFile(`${name}.quiz.txt`, toQuizText(quiz, name), [{ name: 'Text Files', extensions: ['txt'] }])
-    if (saved) setExportDone(saved)
+    await runExport('quiz-txt', () =>
+      window.api.saveFile(`${name}.quiz.txt`, toQuizText(quiz, name), [{ name: 'Text Files', extensions: ['txt'] }])
+    )
   }
   const handleExportQuizJson = async () => {
     if (!quiz) return
-    const saved = await window.api.saveFile(`${name}.quiz.json`, JSON.stringify(quiz, null, 2), [{ name: 'JSON Files', extensions: ['json'] }])
-    if (saved) setExportDone(saved)
+    await runExport('quiz-json', () =>
+      window.api.saveFile(`${name}.quiz.json`, JSON.stringify(quiz, null, 2), [{ name: 'JSON Files', extensions: ['json'] }])
+    )
   }
 
   // ─── Summary exports ───
   const handleExportSummaryHTML = async () => {
     if (!summary) return
-    const saved = await window.api.saveFile(`${name}.summary.html`, toSummaryHTML(summary, name), [{ name: 'HTML Files', extensions: ['html'] }])
-    if (saved) setExportDone(saved)
+    await runExport('summary-html', () =>
+      window.api.saveFile(`${name}.summary.html`, toSummaryHTML(summary, name), [{ name: 'HTML Files', extensions: ['html'] }])
+    )
   }
   const handleExportSummaryTxt = async () => {
     if (!summary) return
-    const saved = await window.api.saveFile(`${name}.summary.txt`, toSummaryText(summary, name), [{ name: 'Text Files', extensions: ['txt'] }])
-    if (saved) setExportDone(saved)
+    await runExport('summary-txt', () =>
+      window.api.saveFile(`${name}.summary.txt`, toSummaryText(summary, name), [{ name: 'Text Files', extensions: ['txt'] }])
+    )
   }
   const handleExportSummaryJson = async () => {
     if (!summary) return
-    const saved = await window.api.saveFile(`${name}.summary.json`, JSON.stringify(summary, null, 2), [{ name: 'JSON Files', extensions: ['json'] }])
-    if (saved) setExportDone(saved)
+    await runExport('summary-json', () =>
+      window.api.saveFile(`${name}.summary.json`, JSON.stringify(summary, null, 2), [{ name: 'JSON Files', extensions: ['json'] }])
+    )
   }
 
   // ─── AI-task exports ───
   const handleExportAiTaskHTML = async () => {
     if (!aiTask) return
-    const saved = await window.api.saveFile(`${name}.ai-task.html`, toAiTaskHTML(aiTask, name), [{ name: 'HTML Files', extensions: ['html'] }])
-    if (saved) setExportDone(saved)
+    await runExport('ai-task-html', () =>
+      window.api.saveFile(`${name}.ai-task.html`, toAiTaskHTML(aiTask, name), [{ name: 'HTML Files', extensions: ['html'] }])
+    )
   }
   const handleExportAiTaskTxt = async () => {
     if (!aiTask) return
-    const saved = await window.api.saveFile(`${name}.ai-task.txt`, toAiTaskText(aiTask, name), [{ name: 'Text Files', extensions: ['txt'] }])
-    if (saved) setExportDone(saved)
+    await runExport('ai-task-txt', () =>
+      window.api.saveFile(`${name}.ai-task.txt`, toAiTaskText(aiTask, name), [{ name: 'Text Files', extensions: ['txt'] }])
+    )
   }
   const handleExportAiTaskJson = async () => {
     if (!aiTask) return
-    const saved = await window.api.saveFile(`${name}.ai-task.json`, JSON.stringify(aiTask, null, 2), [{ name: 'JSON Files', extensions: ['json'] }])
-    if (saved) setExportDone(saved)
+    await runExport('ai-task-json', () =>
+      window.api.saveFile(`${name}.ai-task.json`, JSON.stringify(aiTask, null, 2), [{ name: 'JSON Files', extensions: ['json'] }])
+    )
   }
 
   // ─── Case-study exports ───
   const handleExportCaseStudyHTML = async () => {
     if (!caseStudy) return
-    const saved = await window.api.saveFile(`${name}.case-study.html`, toCaseStudyHTML(caseStudy, name), [{ name: 'HTML Files', extensions: ['html'] }])
-    if (saved) setExportDone(saved)
+    await runExport('case-study-html', () =>
+      window.api.saveFile(`${name}.case-study.html`, toCaseStudyHTML(caseStudy, name), [{ name: 'HTML Files', extensions: ['html'] }])
+    )
   }
   const handleExportCaseStudyTxt = async () => {
     if (!caseStudy) return
-    const saved = await window.api.saveFile(`${name}.case-study.txt`, toCaseStudyText(caseStudy, name), [{ name: 'Text Files', extensions: ['txt'] }])
-    if (saved) setExportDone(saved)
+    await runExport('case-study-txt', () =>
+      window.api.saveFile(`${name}.case-study.txt`, toCaseStudyText(caseStudy, name), [{ name: 'Text Files', extensions: ['txt'] }])
+    )
   }
   const handleExportCaseStudyJson = async () => {
     if (!caseStudy) return
-    const saved = await window.api.saveFile(`${name}.case-study.json`, JSON.stringify(caseStudy, null, 2), [{ name: 'JSON Files', extensions: ['json'] }])
-    if (saved) setExportDone(saved)
+    await runExport('case-study-json', () =>
+      window.api.saveFile(`${name}.case-study.json`, JSON.stringify(caseStudy, null, 2), [{ name: 'JSON Files', extensions: ['json'] }])
+    )
+  }
+
+  // ─── Activity exports ───
+  const handleExportActivityHTML = async () => {
+    if (!activity) return
+    await runExport('activity-html', () =>
+      window.api.saveFile(`${name}.activity.html`, toActivityHTML(activity, name), [{ name: 'HTML Files', extensions: ['html'] }])
+    )
+  }
+  const handleExportActivityTxt = async () => {
+    if (!activity) return
+    await runExport('activity-txt', () =>
+      window.api.saveFile(`${name}.activity.txt`, toActivityText(activity, name), [{ name: 'Text Files', extensions: ['txt'] }])
+    )
+  }
+  const handleExportActivityJson = async () => {
+    if (!activity) return
+    await runExport('activity-json', () =>
+      window.api.saveFile(`${name}.activity.json`, JSON.stringify(activity, null, 2), [{ name: 'JSON Files', extensions: ['json'] }])
+    )
   }
 
   // ─── Plan exports ───
   const handleExportPlanHTML = async () => {
     if (!plan) return
-    const saved = await window.api.saveFile(`${name}.plan.html`, toPlanHTML(plan, name), [{ name: 'HTML Files', extensions: ['html'] }])
-    if (saved) setExportDone(saved)
+    await runExport('plan-html', () =>
+      window.api.saveFile(`${name}.plan.html`, toPlanHTML(plan, name), [{ name: 'HTML Files', extensions: ['html'] }])
+    )
   }
   const handleExportPlanTxt = async () => {
     if (!plan) return
-    const saved = await window.api.saveFile(`${name}.plan.txt`, toPlanText(plan), [{ name: 'Text Files', extensions: ['txt'] }])
-    if (saved) setExportDone(saved)
+    await runExport('plan-txt', () =>
+      window.api.saveFile(`${name}.plan.txt`, toPlanText(plan), [{ name: 'Text Files', extensions: ['txt'] }])
+    )
   }
   const handleExportPlanJson = async () => {
     if (!plan) return
-    const saved = await window.api.saveFile(`${name}.plan.json`, JSON.stringify(plan, null, 2), [{ name: 'JSON Files', extensions: ['json'] }])
-    if (saved) setExportDone(saved)
+    await runExport('plan-json', () =>
+      window.api.saveFile(`${name}.plan.json`, JSON.stringify(plan, null, 2), [{ name: 'JSON Files', extensions: ['json'] }])
+    )
   }
 
-  if (!inkSource.trim() && !flashcards && !quiz && !summary && !aiTask && !caseStudy && !plan) {
+  if (!inkSource.trim() && !flashcards && !quiz && !summary && !aiTask && !caseStudy && !activity && !plan) {
     return (
       <div className="panel">
         <h2 className="panel-title">Export</h2>
@@ -578,6 +598,30 @@ export default function ExportPanel() {
               desc="The raw structured case study, for pipelines or re-import."
               buttonText="Export .json"
               onClick={handleExportCaseStudyJson}
+            />
+          </>
+        )}
+
+        {/* Activity exports */}
+        {activity && (
+          <>
+            <ExportCard
+              title="Activity — Interactive HTML"
+              desc="A self-contained grid or slider activity with per-cell/per-position feedback. Works offline."
+              buttonText="Export .html"
+              onClick={handleExportActivityHTML}
+            />
+            <ExportCard
+              title="Activity — Printable"
+              desc="A text version with the grid/slider content and all feedback."
+              buttonText="Export .txt"
+              onClick={handleExportActivityTxt}
+            />
+            <ExportCard
+              title="Activity — JSON"
+              desc="The raw structured activity, for pipelines or re-import."
+              buttonText="Export .json"
+              onClick={handleExportActivityJson}
             />
           </>
         )}

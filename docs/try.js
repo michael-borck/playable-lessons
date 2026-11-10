@@ -59,7 +59,10 @@ async function callAI(provider, key, model, systemPrompt, userPrompt) {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': key,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
+        // Required for direct browser calls; Anthropic rejects requests from
+        // browsers without this opt-in header. Mirrors src/shared/aiClient.ts.
+        'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
         model: model || DEFAULT_MODELS.claude,
@@ -170,6 +173,7 @@ function esc(text) {
 
 // ─── Main generate function ───
 
+// eslint-disable-next-line no-unused-vars -- wired up from an inline onclick in try.html
 async function generate() {
   const text = document.getElementById('source-text').value.trim()
   const provider = document.getElementById('provider').value

@@ -15,15 +15,19 @@ export default function PassageEditor() {
   const [editContent, setEditContent] = useState('')
   const [timerValue, setTimerValue] = useState(0)
   const [endingType, setEndingType] = useState('')
+  const [imagePath, setImagePath] = useState<string | null>(null)
   const sceneImages = useAppStore((s) => s.sceneImages)
   const [imageBusy, setImageBusy] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
 
   useEffect(() => {
     if (knot) {
-      setEditContent(knot.rawContent)
+      // The IMAGE tag is managed by its own control (a data URL is far too
+      // large to edit as raw text), so keep it out of the textarea.
+      setEditContent(stripImageTag(knot.rawContent))
       setTimerValue(knot.timerSeconds)
       setEndingType(knot.endingType || '')
+      setImagePath(knot.imagePath)
     }
   }, [selectedNodeId, knot?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -36,18 +40,22 @@ export default function PassageEditor() {
   }
 
   const handleSave = () => {
-    let content = editContent
+    // Tags managed by dedicated controls are stripped from the textarea and
+    // rebuilt here, so users cannot accidentally lose or paste over them.
+    let content = stripImageTag(editContent)
 
-    // Update timer tag
     content = content.replace(/^#\s*TIMER:\s*\d+\s*$/m, '')
     if (timerValue > 0) {
       content = `# TIMER: ${timerValue}\n${content.trim()}`
     }
 
-    // Update ending tag
     content = content.replace(/^#\s*ENDING:\s*\w+\s*$/m, '')
     if (endingType) {
       content = `# ENDING: ${endingType}\n${content.trim()}`
+    }
+
+    if (imagePath) {
+      content = `# IMAGE: ${imagePath}\n${content.trim()}`
     }
 
     const newSource = updateKnotContent(inkSource, selectedNodeId, content.trim())
@@ -150,26 +158,37 @@ export default function PassageEditor() {
       {/* Image attachment */}
       <div style={{ marginBottom: 8 }}>
         <label className="form-label" style={{ fontSize: 11 }}>Image</label>
-        {knot.imagePath ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{knot.imagePath}</span>
-            <button
-              onClick={() => {
-                const content = editContent.replace(/^#\s*IMAGE:\s*.+$/m, '').trim()
-                setEditContent(content)
-              }}
-              style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', fontSize: 11 }}
-            >
-              Remove
-            </button>
+        {imagePath ? (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            {/^(data:|https?:)/.test(imagePath) && (
+              <img
+                src={imagePath}
+                alt="Attached"
+                style={{ width: 120, borderRadius: 6, display: 'block' }}
+              />
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', wordBreak: 'break-all', maxWidth: 320 }}>
+                {imagePath.startsWith('data:') ? 'Embedded image' : imagePath}
+              </span>
+              <button
+                onClick={() => setImagePath(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', fontSize: 11, textAlign: 'left' }}
+              >
+                Remove
+              </button>
+            </div>
           </div>
         ) : (
           <button
             className="btn btn-secondary"
             onClick={async () => {
-              const result = await window.api.importImage()
-              if (result) {
-                setEditContent(`# IMAGE: ${result.fileName}\n${editContent.trim()}`)
+              setImageError(null)
+              try {
+                const result = await window.api.importImage()
+                if (result) setImagePath(result.dataUrl)
+              } catch (err) {
+                setImageError(err instanceof Error ? err.message : 'Could not attach the image')
               }
             }}
             style={{ padding: '4px 10px', fontSize: 11 }}
@@ -177,6 +196,9 @@ export default function PassageEditor() {
             Attach Image
           </button>
         )}
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+          Local images are embedded as data URLs so previews and exports work offline.
+        </div>
       </div>
 
       <div className="passage-editor-body">
@@ -195,15 +217,24 @@ export default function PassageEditor() {
       <div className="btn-row" style={{ marginTop: 12 }}>
         <button className="btn btn-primary" onClick={handleSave}>Save Changes</button>
         <button className="btn btn-secondary" onClick={() => {
-          setEditContent(knot.rawContent)
+          setEditContent(stripImageTag(knot.rawContent))
           setTimerValue(knot.timerSeconds)
           setEndingType(knot.endingType || '')
+          setImagePath(knot.imagePath)
         }}>
           Revert
         </button>
       </div>
     </div>
   )
+}
+
+/** Remove IMAGE tags from editable prose (the dedicated control owns them). */
+function stripImageTag(content: string): string {
+  return content
+    .replace(/^#\s*IMAGE:\s*.+$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 function PassagePreview({ content }: { content: string; knot: InkKnot }) {

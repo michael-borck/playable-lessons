@@ -739,6 +739,194 @@ export async function generateCaseStudy(
   return result
 }
 
+// ─── Reflective activities (grid / slider) ───────────────────────────────────
+
+export type ActivityKind = 'grid' | 'slider'
+
+export interface GridCell {
+  /** Short placement label, e.g. "Monitor closely". */
+  label: string
+  /** Per-cell explanation shown after the learner picks it. */
+  feedback: string
+}
+
+export interface GridActivity {
+  kind: 'grid'
+  xLabel: string
+  yLabel: string
+  /** Column labels, left to right. */
+  columns: string[]
+  /** Row labels, top to bottom. */
+  rows: string[]
+  /** Row-major cells: rows.length * columns.length. */
+  cells: GridCell[]
+  debrief: string
+}
+
+export interface SliderStatement {
+  text: string
+  lowLabel: string
+  highLabel: string
+  feedback: string
+}
+
+export interface SliderActivity {
+  kind: 'slider'
+  statements: SliderStatement[]
+  debrief: string
+}
+
+export type ActivityBody = GridActivity | SliderActivity
+
+export interface ActivityResult {
+  title: string
+  instructions: string
+  activity: ActivityBody
+  /** The raw AI response, kept for debugging and the `json` export format. */
+  raw: string
+}
+
+export interface ActivityParams {
+  /** topic | lesson | methodology | case-study | lecture-notes | scenario */
+  inputMode: string
+  inputText: string
+  kind: ActivityKind
+  tone?: string
+  /** Slider only: number of statements to generate. */
+  statementCount?: number
+}
+
+const GRID_MIN_DIM = 2
+const GRID_MAX_DIM = 4
+const SLIDER_MAX_STATEMENTS = 8
+
+function str(value: unknown, fallback = ''): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback
+}
+
+function labelList(
+  value: unknown,
+  fallback: string[],
+  min: number,
+  max: number
+): string[] {
+  const list = Array.isArray(value)
+    ? (value as unknown[]).map((v) => (typeof v === 'string' ? v.trim() : '')).filter(Boolean)
+    : []
+  if (list.length < min) return fallback.slice(0, max)
+  return list.slice(0, Math.min(max, Math.max(min, list.length)))
+}
+
+function normalizeGrid(data: unknown, fallbackTitle: string, fallbackInstructions: string): ActivityResult {
+  const obj = (data ?? {}) as Record<string, unknown>
+  const columns = labelList(obj.columns, ['Low', 'Medium', 'High'], GRID_MIN_DIM, GRID_MAX_DIM)
+  const rows = labelList(obj.rows, ['High', 'Medium', 'Low'], GRID_MIN_DIM, GRID_MAX_DIM)
+  const rawCells = Array.isArray(obj.cells) ? obj.cells : []
+  const cells: GridCell[] = []
+  for (let i = 0; i < rows.length * columns.length; i++) {
+    const cell = (rawCells[i] ?? {}) as Record<string, unknown>
+    cells.push({
+      label: str(cell.label),
+      feedback: str(cell.feedback)
+    })
+  }
+  const activity: GridActivity = {
+    kind: 'grid',
+    xLabel: str(obj.xLabel, 'Horizontal axis'),
+    yLabel: str(obj.yLabel, 'Vertical axis'),
+    columns,
+    rows,
+    cells,
+    debrief: str(obj.debrief)
+  }
+  return {
+    title: str(obj.title, fallbackTitle),
+    instructions: str(obj.instructions, fallbackInstructions),
+    activity,
+    raw: ''
+  }
+}
+
+function normalizeSlider(
+  data: unknown,
+  fallbackTitle: string,
+  fallbackInstructions: string,
+  maxCount: number
+): ActivityResult {
+  const obj = (data ?? {}) as Record<string, unknown>
+  const statements: SliderStatement[] = []
+  for (const entry of Array.isArray(obj.statements) ? obj.statements : []) {
+    const s = entry as Record<string, unknown>
+    const text = str(s.text)
+    if (!text) continue
+    statements.push({
+      text,
+      lowLabel: str(s.lowLabel, 'Low'),
+      highLabel: str(s.highLabel, 'High'),
+      feedback: str(s.feedback)
+    })
+    if (statements.length >= maxCount) break
+  }
+  if (statements.length === 0) {
+    throw new Error('The model returned no usable slider statements')
+  }
+  const activity: SliderActivity = {
+    kind: 'slider',
+    statements,
+    debrief: str(obj.debrief)
+  }
+  return {
+    title: str(obj.title, fallbackTitle),
+    instructions: str(obj.instructions, fallbackInstructions),
+    activity,
+    raw: ''
+  }
+}
+
+/**
+ * Generate a reflective activity from source material. A single AI call that
+ * must return strict JSON — no compile/review loop (unlike generateInk).
+ */
+export async function generateActivity(
+  params: ActivityParams,
+  config: ProviderConfig,
+  opts: GenerateOptions = {}
+): Promise<ActivityResult> {
+  const log = opts.log ?? (() => {})
+  const kind: ActivityKind = params.kind === 'slider' ? 'slider' : 'grid'
+  const tone = params.tone || 'professional'
+  const count = Math.min(
+    SLIDER_MAX_STATEMENTS,
+    Math.max(1, Math.floor(params.statementCount ?? 4))
+  )
+
+  log(`[1/1] Generating ${kind === 'grid' ? 'reflection grid' : 'slider activity'}…`)
+  const { data, raw } = await callForJson([
+    { role: 'system', content: PROMPTS.activitySystem },
+    {
+      role: 'user',
+      content: (kind === 'grid' ? PROMPTS.gridActivity : PROMPTS.sliderActivity)
+        .replace('{{inputMode}}', params.inputMode)
+        .replace('{{inputText}}', params.inputText)
+        .replace('{{tone}}', tone)
+        .replace('{{statementCount}}', String(count))
+    }
+  ], config, opts)
+
+  const result =
+    kind === 'grid'
+      ? normalizeGrid(data, 'Reflection grid', 'Place the case on the grid, then read its feedback.')
+      : normalizeSlider(data, 'Reflection slider', 'Move each slider, then read its feedback.', count)
+
+  result.raw = raw
+  const countLabel =
+    result.activity.kind === 'slider'
+      ? `${result.activity.statements.length} statement(s)`
+      : `${result.activity.rows.length}×${result.activity.columns.length} grid`
+  log(`Generated ${kind === 'grid' ? 'a reflection grid' : 'a slider activity'} (${countLabel}).`)
+  return result
+}
+
 // ─── Recommender (plan) ──────────────────────────────────────────────────────
 
 export type PlanTarget = 'story' | 'flashcards' | 'quiz' | 'summary' | 'ai-task' | 'case-study'

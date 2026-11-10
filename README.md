@@ -1,14 +1,14 @@
 # Playable Lessons
 
-Turn educational source material into **playable interactive fiction**. Paste in a case study, lecture notes, a methodology, or just a topic, and Playable Lessons uses AI to weave it into a branching [Ink](https://www.inklestudios.com/ink/) story that learners can play — then export it as a self-contained HTML file, an Ink/Twee source file, or a printable walkthrough. It can also turn the same material into **study flashcards**, a **multiple-choice quiz**, a **study summary**, **AI-collaboration tasks**, or a **teaching case study**. A **Plan** mode recommends which outputs suit your material and can generate them all at once.
+Turn educational source material into **playable interactive fiction**. Paste in a case study, lecture notes, a methodology, or just a topic, and Playable Lessons uses AI to weave it into a branching [Ink](https://www.inklestudios.com/ink/) story that learners can play — then export it as a self-contained HTML file, an Ink/Twee source file, or a printable walkthrough. It can also turn the same material into **study flashcards**, a **multiple-choice quiz**, a **study summary**, **AI-collaboration tasks**, a **teaching case study**, or a **reflective activity** (a grid or a set of sliders with feedback). A **Plan** mode recommends which outputs suit your material and can generate them all at once.
 
 It ships in two forms:
 
-- **Desktop app** (Electron + React) — the full authoring experience: AI generation with an interactive clarification step, a node-graph editor, live player, a **Projects dashboard** (save / reopen / delete lessons as ownable folders on disk), **inline editing** with AI refinement (✨), and exports. Stories can be illustrated with an **AI-generated image per scene** (cartoon or photorealistic) using your own image provider — OpenAI, Google Imagen, or any OpenAI-compatible endpoint. Aimed at non-technical authors (e.g. educators).
-- **CLI** (`playable-lessons`, on npm) — the same engine, headless: **generate** an Ink story, **flashcards**, a **quiz**, a **summary**, **AI-collaboration tasks**, or a **case study**; **plan** a recommended set; **validate**, and **export**. Handy for scripts, CI, batch runs, and local/offline generation against Ollama.
+- **Desktop app** (Electron + React) — the full authoring experience: AI generation with an interactive clarification step and an **editable outline** before prose, a node-graph editor (drag to connect passages, persisted layouts), live player, a **Projects dashboard** (save / reopen / delete lessons as ownable folders on disk), **inline editing** with AI refinement (✨), and exports. Stories can be illustrated with an **AI-generated image per scene** (cartoon or photorealistic) or a local image embedded in the Ink source, using your own image provider — OpenAI, Google Imagen, or any OpenAI-compatible endpoint. Aimed at non-technical authors (e.g. educators).
+- **CLI** (`playable-lessons`, on npm) — the same engine, headless: **generate** an Ink story, **flashcards**, a **quiz**, a **summary**, **AI-collaboration tasks**, a **case study**, or a **reflective activity**; **plan** a recommended set; **validate**, and **export**. Handy for scripts, CI, batch runs, and local/offline generation against Ollama.
 - **Self-hosted web** (Docker) — a browser-based version for institutions (e.g. university staff). The server holds the API key; users just enter an access code. No per-user keys, no accounts — work is stored per-browser.
 
-The desktop app and the CLI share one generation pipeline; the app adds the interactive clarification step, visual editor, and inline editing on top.
+The desktop app and the CLI share one generation pipeline; the app adds the interactive clarification step, editable outline, visual editor, and inline editing on top.
 
 A public landing page with a **try-it demo** (bring your own key) is at **[michael-borck.github.io/playable-lessons](https://michael-borck.github.io/playable-lessons/)**.
 
@@ -69,7 +69,7 @@ playable-lessons generate -i notes.md --target flashcards --cards 20 -o deck/ -f
 | Format | Output |
 | ------ | ------ |
 | `csv` | `front,back,hint,tag` — imports into Anki, Quizlet, Excel (`.flashcards.csv`) |
-| `html` | Self-contained flip-card deck (`.flashcards.html`) — click or Space to flip, arrow keys to navigate; works offline |
+| `html` | Self-contained flip-card deck (`.flashcards.html`) — click or Space to flip, arrow keys to navigate; works offline. Each session shows 5 random cards from the full deck; “New deck” draws another five. |
 | `anki` | Tab-separated import for Anki: front, back, tag (`.flashcards.txt`) |
 | `json` | The raw structured deck (`.flashcards.json`) |
 
@@ -87,7 +87,7 @@ playable-lessons generate -i notes.md --target quiz --cards 20 -o quiz/ -f html,
 
 | Format | Output |
 | ------ | ------ |
-| `html` | Self-contained interactive quiz (`.quiz.html`) — pick answers, submit for an instant score, with correct/wrong highlighting and explanations; works offline |
+| `html` | Self-contained interactive quiz (`.quiz.html`) — pick answers, submit for an instant score, with correct/wrong highlighting and explanations; works offline. Each session shows 5 random questions from the full set; “Try again” draws another five. |
 | `json` | The raw structured quiz (`.quiz.json`) |
 | `txt` | A printable quiz with an answer key (`.quiz.txt`) |
 
@@ -152,6 +152,26 @@ playable-lessons generate -i notes.md --target case-study --depth outline -o cas
 | `json` | The raw structured case study (`.case-study.json`) |
 
 The default format for case-study is `html,txt`; `--depth` selects idea | outline | complete (default complete).
+
+### Generate a reflective activity
+
+Add `--target activity` to create a short, self-paced **reflection activity**: either a **grid** (place the case on two axes, with feedback for every cell) or a set of **sliders** (rate statements with meaningful low/high endpoints and feedback). This is the static, one-learner counterpart to a live poll — no accounts, no real-time results.
+
+```bash
+# Reflection grid (default: 2-4 x 2-4, chosen by the model)
+playable-lessons generate -i notes.md --target activity --activity-kind grid -o activity/
+
+# Slider activity with 5 statements
+playable-lessons generate --topic "supply chain resilience" --target activity --activity-kind slider --activity-count 5 -o activity/
+```
+
+| Format | Output |
+| ------ | ------ |
+| `html` | Self-contained interactive activity (`.activity.html`) — tap grid cells or move sliders to reveal feedback; works offline |
+| `txt` | A printable version with all axes, statements, and feedback (`.activity.txt`) |
+| `json` | The raw structured activity (`.activity.json`) |
+
+The default format for activity is `html,txt`; `--activity-kind grid|slider` selects the type (default grid). For sliders, `--activity-count N` sets the number of statements (1–8, default 4); it is ignored for grids.
 
 ### Plan a set of outputs (recommender)
 
@@ -316,9 +336,10 @@ Notes for operators:
   navigation blocked, IPC sender + project-id validation, device permissions
   denied, producer CSP, and API keys/GitHub tokens in the OS keychain.
 - **Web server:** Helmet security headers, constant-time access-code check,
-  typed/clamped inputs, a bounded job queue (`MAX_JOBS` / `MAX_RESULT_MB`), and
-  per-IP rate limiting. `/api/health` is public so the UI can discover whether
-  a code is required.
+  typed/clamped inputs, a bounded job queue (`MAX_JOBS` / `MAX_RESULT_MB` /
+  `MAX_ARTIFACT_MB`), per-IP sliding-window rate limiting, and downloads built
+  on demand instead of inlined as base64. `/api/health` is public so the UI can
+  discover whether a code is required.
 - **Supply chain:** `npm audit --omit=dev` is clean and CI enforces it
   (`.github/workflows/security.yml`), while blocking any high/critical advisory
   in the build toolchain. The remaining moderate advisories are build-time-only

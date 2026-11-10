@@ -23,6 +23,9 @@ const api = {
 
   setSecret: (key: string, value: string): Promise<boolean> =>
     ipcRenderer.invoke('secret:set', key, value),
+
+  getSecretStatus: (): Promise<{ encryptionAvailable: boolean; backend: string }> =>
+    ipcRenderer.invoke('secret:status'),
   // Projects (local dashboard) — each project is a folder on disk.
   projects: {
     root: (): Promise<string> => ipcRenderer.invoke('projects:root'),

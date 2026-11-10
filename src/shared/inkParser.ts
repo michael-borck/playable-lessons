@@ -10,6 +10,8 @@ export interface InkKnot {
   startLine: number
   endLine: number
   choices: InkChoice[]
+  /** A plain top-level divert at the end of the knot (linear link), if any. */
+  nextTarget: string | null
   tags: string[]
   timerSeconds: number
   imagePath: string | null
@@ -90,6 +92,7 @@ export function parseInkSource(source: string): ParsedInk {
         startLine: i,
         endLine: lines.length - 1, // will be adjusted
         choices: [],
+        nextTarget: null,
         tags: [],
         timerSeconds: 0,
         imagePath: null,
@@ -182,6 +185,16 @@ export function parseInkSource(source: string): ParsedInk {
         continue
       }
 
+      // Plain top-level divert (a linear link). Indented diverts belong to
+      // choice blocks and are captured by the choice handling above.
+      if (!/^\s/.test(line)) {
+        const nextDivert = trimmed.match(/^->\s*(\w+)\s*$/)
+        if (nextDivert) {
+          if (knot.nextTarget === null) knot.nextTarget = nextDivert[1]
+          continue
+        }
+      }
+
       // Regular content
       if (trimmed && !trimmed.startsWith('->') && !trimmed.startsWith('=')) {
         contentLines.push(trimmed)
@@ -220,6 +233,92 @@ export function addKnot(source: string, knotId: string, title?: string): string 
   const displayTitle = title || knotId.replace(/_/g, ' ')
   const newKnot = `\n=== ${knotId} ===\n${displayTitle}.\n* [Continue]\n    -> END\n`
   return source.trimEnd() + '\n' + newKnot
+}
+
+export interface ConnectKnotsResult {
+  source: string
+  error?: string
+}
+
+/**
+ * Connect two knots in the Ink source.
+ *
+ * - A knot with choices gets a new choice pointing at `toId`.
+ * - A knot with a single linear divert has that divert retargeted.
+ * - A knot with no flow control gets a linear divert appended.
+ *
+ * A knot with several top-level diverts is ambiguous; the caller gets an error
+ * rather than a silently unreachable choice.
+ */
+export function connectKnots(
+  source: string,
+  fromId: string,
+  toId: string,
+  choiceText = 'Continue'
+): ConnectKnotsResult {
+  const parsed = parseInkSource(source)
+  const from = parsed.knots.find((k) => k.id === fromId)
+  const to = parsed.knots.find((k) => k.id === toId)
+  if (!from) return { source, error: `Unknown passage: ${fromId}` }
+  if (!to) return { source, error: `Unknown passage: ${toId}` }
+  if (fromId === toId) return { source, error: 'A passage cannot connect to itself.' }
+  if (from.choices.some((c) => c.target === toId)) return { source }
+
+  const lines = source.split('\n')
+  const bodyStart = from.startLine + 1
+  const bodyEnd = from.endLine
+  const body = lines.slice(bodyStart, bodyEnd + 1)
+
+  // Walk the knot body: record top-level diverts and where the last choice
+  // block ends (choices plus their indented result/divert lines).
+  const topDiverts: number[] = []
+  let inChoiceBlock = false
+  let lastChoiceEnd = -1
+  for (let i = 0; i < body.length; i++) {
+    const line = body[i]
+    const trimmed = line.trim()
+    const indented = /^\s/.test(line)
+    if (/^[*+]\s/.test(trimmed)) {
+      inChoiceBlock = true
+      lastChoiceEnd = i
+      continue
+    }
+    if (inChoiceBlock) {
+      if (!trimmed || indented) {
+        lastChoiceEnd = i
+        continue
+      }
+      inChoiceBlock = false
+    }
+    if (!indented && /^->\s*\w+/.test(trimmed)) topDiverts.push(i)
+  }
+
+  const spliceBody = (newBody: string[]): string =>
+    [...lines.slice(0, bodyStart), ...newBody, ...lines.slice(bodyEnd + 1)].join('\n')
+
+  if (from.choices.length === 0) {
+    if (topDiverts.length === 1) {
+      const idx = topDiverts[0]
+      const current = body[idx].trim().match(/^->\s*(\w+)/)?.[1]
+      if (current === toId) return { source }
+      body[idx] = `-> ${toId}`
+      return { source: spliceBody(body) }
+    }
+    if (topDiverts.length > 1) {
+      return {
+        source,
+        error: 'This passage already has several linear diverts; add a choice manually instead.'
+      }
+    }
+    body.push(`-> ${toId}`)
+    return { source: spliceBody(body) }
+  }
+
+  // Insert after the last choice block so the new choice stays reachable and
+  // ahead of any trailing top-level END/DONE divert.
+  const insertAt = lastChoiceEnd >= 0 ? lastChoiceEnd + 1 : body.length
+  body.splice(insertAt, 0, `* [${choiceText}] -> ${toId}`)
+  return { source: spliceBody(body) }
 }
 
 /**

@@ -5,13 +5,14 @@ import { hideBin } from 'yargs/helpers'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join, basename } from 'path'
 import { compileInk, exportStandaloneHTML } from '../shared/storyExport.js'
-import { generateInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan, generateSceneImages } from '../shared/generate.js'
+import { generateInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generateActivity, generatePlan, applyPlan, generateSceneImages } from '../shared/generate.js'
 import { isImageProviderConfigured, type ImageProvider, type ImageProviderConfig, type ImageStyle } from '../shared/imageClient.js'
 import { toCSV, toAnkiTSV, toStandaloneHTML as toFlashcardHTML } from '../shared/flashcardExport.js'
 import { toStandaloneHTML as toQuizHTML, toPlainText as toQuizText } from '../shared/quizExport.js'
 import { toStandaloneHTML as toSummaryHTML, toPlainText as toSummaryText } from '../shared/summaryExport.js'
 import { toStandaloneHTML as toAiTaskHTML, toPlainText as toAiTaskText } from '../shared/aiTaskExport.js'
 import { toStandaloneHTML as toCaseStudyHTML, toPlainText as toCaseStudyText } from '../shared/caseStudyExport.js'
+import { toStandaloneHTML as toActivityHTML, toPlainText as toActivityText } from '../shared/activityExport.js'
 import { toStandaloneHTML as toPlanHTML, toPlainText as toPlanText } from '../shared/planExport.js'
 import { exportH5P } from '../shared/h5pExporter.js'
 import { exportEpub } from '../shared/epubExporter.js'
@@ -239,9 +240,11 @@ yargs(hideBin(process.argv))
       .option('base-url', { type: 'string', describe: 'Base URL for a custom OpenAI-compatible endpoint' })
       .option('ollama-url', { type: 'string', default: 'http://localhost:11434', describe: 'Ollama base URL' })
       .option('mode', { type: 'string', default: 'topic', describe: 'Input mode: topic | lesson | methodology | case-study | lecture-notes | scenario' })
-      .option('target', { type: 'string', default: 'story', describe: 'What to generate: story (interactive fiction) | flashcards | quiz | summary | ai-task | case-study' })
+      .option('target', { type: 'string', default: 'story', describe: 'What to generate: story (interactive fiction) | flashcards | quiz | summary | ai-task | case-study | activity' })
       .option('cards', { type: 'number', default: 12, describe: 'Number of items to generate — flashcards, quiz questions, summary key points, or AI-collaboration tasks (target=flashcards|quiz|summary|ai-task)' })
       .option('depth', { type: 'string', default: 'complete', describe: 'Case-study depth: idea | outline | complete (target=case-study)' })
+      .option('activity-kind', { type: 'string', default: 'grid', describe: 'Activity type: grid | slider (target=activity)' })
+      .option('activity-count', { type: 'number', default: 4, describe: 'Number of slider statements, 1-8 (target=activity --activity-kind slider)' })
       .option('length', { alias: 'l', type: 'string', default: 'medium', describe: 'Story length: short | medium | long' })
       .option('style', { type: 'string', default: 'stateful', describe: 'Story branching style: stateful (Ink variables + conditional text) | branching (pure tree, H5P/LMS-convertible)' })
       .option('images', { type: 'boolean', default: false, describe: 'Generate an illustration for every scene (story target only). Images are embedded in the HTML export and written to an images/ folder.' })
@@ -254,8 +257,8 @@ yargs(hideBin(process.argv))
       .option('protagonist', { type: 'string', default: 'the reader', describe: 'Protagonist type' })
       .option('answers', { type: 'string', describe: 'Optional answers to clarifying questions' })
       .option('retries', { type: 'number', default: 3, describe: 'Max compile attempts, with AI-assisted fixes between them (raise for weaker local models)' })
-      .option('format', { alias: 'f', type: 'string', describe: 'Output formats. story: ink|html|json|h5p|epub|scorm (default ink,html; h5p/epub require --style branching; scorm works with any story). flashcards: csv|html|anki|json (default csv,html). quiz: html|txt|json (default html,json). summary: html|txt|json (default html,txt). ai-task: html|txt|json (default html,txt). case-study: html|txt|json (default html,txt).' })
-      .option('title', { alias: 't', type: 'string', describe: 'Title for the story, flashcard deck, quiz, summary, AI-task set, or case study (defaults to the input/topic name)' })
+      .option('format', { alias: 'f', type: 'string', describe: 'Output formats. story: ink|html|json|h5p|epub|scorm (default ink,html; h5p/epub require --style branching; scorm works with any story). flashcards: csv|html|anki|json (default csv,html). quiz: html|txt|json (default html,json). summary: html|txt|json (default html,txt). ai-task: html|txt|json (default html,txt). case-study: html|txt|json (default html,txt). activity: html|txt|json (default html,txt).' })
+      .option('title', { alias: 't', type: 'string', describe: 'Title for the story, flashcard deck, quiz, summary, AI-task set, case study, or activity (defaults to the input/topic name)' })
   }, async (argv) => {
     try {
       // Resolve the source material: --input file, --topic string, or stdin.
@@ -284,8 +287,8 @@ yargs(hideBin(process.argv))
       await mkdir(outputDir, { recursive: true })
       const title = (argv.title as string) || base
       const target = (argv.target as string) || 'story'
-      if (target !== 'story' && target !== 'flashcards' && target !== 'quiz' && target !== 'summary' && target !== 'ai-task' && target !== 'case-study') {
-        throw new Error(`Unknown --target "${target}". Use story, flashcards, quiz, summary, ai-task, or case-study.`)
+      if (target !== 'story' && target !== 'flashcards' && target !== 'quiz' && target !== 'summary' && target !== 'ai-task' && target !== 'case-study' && target !== 'activity') {
+        throw new Error(`Unknown --target "${target}". Use story, flashcards, quiz, summary, ai-task, case-study, or activity.`)
       }
 
       const formatRaw = argv.format as string | undefined
@@ -301,7 +304,9 @@ yargs(hideBin(process.argv))
                 ? ['html', 'txt']
                 : target === 'case-study'
                   ? ['html', 'txt']
-                  : ['ink', 'html']
+                  : target === 'activity'
+                    ? ['html', 'txt']
+                    : ['ink', 'html']
 
       if (target === 'flashcards') {
         console.error(`Generating flashcards with ${config.provider} (${config.model})…`)
@@ -486,6 +491,45 @@ yargs(hideBin(process.argv))
             }
             case 'json': {
               const outPath = join(outputDir, `${base}.case-study.json`)
+              await writeFile(outPath, JSON.stringify(result, null, 2))
+              console.log(`Wrote ${outPath}`)
+              break
+            }
+            default:
+              console.warn(`Unknown format: ${format}`)
+          }
+        }
+      } else if (target === 'activity') {
+        const kind = argv['activity-kind'] === 'slider' ? 'slider' : 'grid'
+        console.error(`Generating a ${kind} activity with ${config.provider} (${config.model})…`)
+        const result = await generateActivity(
+          {
+            inputMode: argv.mode as string,
+            inputText,
+            kind,
+            tone: argv.tone as string,
+            statementCount: argv['activity-count'] as number
+          },
+          config,
+          { log: (m) => console.error(m) }
+        )
+
+        for (const format of formats) {
+          switch (format) {
+            case 'html': {
+              const outPath = join(outputDir, `${base}.activity.html`)
+              await writeFile(outPath, toActivityHTML(result, title))
+              console.log(`Wrote ${outPath}`)
+              break
+            }
+            case 'txt': {
+              const outPath = join(outputDir, `${base}.activity.txt`)
+              await writeFile(outPath, toActivityText(result, title))
+              console.log(`Wrote ${outPath}`)
+              break
+            }
+            case 'json': {
+              const outPath = join(outputDir, `${base}.activity.json`)
               await writeFile(outPath, JSON.stringify(result, null, 2))
               console.log(`Wrote ${outPath}`)
               break

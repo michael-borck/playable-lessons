@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppStore, GenerationStage, GenerationTarget } from '../stores/appStore'
-import { generateStory, generateFlashcardsGUI, generateQuizGUI, generateSummaryGUI, generateAiTaskGUI, generateCaseStudyGUI, generatePlanGUI } from '../lib/aiService'
+import { generateStory, generateFlashcardsGUI, generateQuizGUI, generateSummaryGUI, generateAiTaskGUI, generateCaseStudyGUI, generateActivityGUI, generatePlanGUI } from '../lib/aiService'
 import { SAMPLE_INK_SOURCE } from '../lib/sampleStory'
+import OutlineEditor from './OutlineEditor'
 
 const STAGES: { key: GenerationStage; label: string }[] = [
   { key: 'analysis', label: 'Analysis' },
@@ -19,6 +20,7 @@ const TARGETS: { key: GenerationTarget; label: string }[] = [
   { key: 'summary', label: 'Summary' },
   { key: 'ai-task', label: 'AI Task' },
   { key: 'case-study', label: 'Case Study' },
+  { key: 'activity', label: 'Activity' },
   { key: 'plan', label: 'Plan' }
 ]
 
@@ -27,6 +29,7 @@ export default function GenerationPanel() {
   const log = useAppStore((s) => s.generationLog)
   const questions = useAppStore((s) => s.clarificationQuestions)
   const updateAnswer = useAppStore((s) => s.updateClarificationAnswer)
+  const storyOutline = useAppStore((s) => s.storyOutline)
   const error = useAppStore((s) => s.error)
   const setError = useAppStore((s) => s.setError)
   const setView = useAppStore((s) => s.setCurrentView)
@@ -40,11 +43,14 @@ export default function GenerationPanel() {
   const summary = useAppStore((s) => s.summary)
   const aiTask = useAppStore((s) => s.aiTask)
   const caseStudy = useAppStore((s) => s.caseStudy)
+  const activity = useAppStore((s) => s.activity)
   const plan = useAppStore((s) => s.plan)
   const inputText = useAppStore((s) => s.inputText)
   const [isGenerating, setIsGenerating] = useState(false)
   const [count, setCount] = useState(12)
   const [depth, setDepth] = useState<'idea' | 'outline' | 'complete'>('complete')
+  const [activityKind, setActivityKind] = useState<'grid' | 'slider'>('grid')
+  const [activityCount, setActivityCount] = useState(4)
 
   const stageIndex = STAGES.findIndex((s) => s.key === stage)
   const awaitingClarification = stage === 'clarification' && questions.length > 0
@@ -55,7 +61,7 @@ export default function GenerationPanel() {
   const hasInput = inputText.trim().length > 0
 
   // For non-story targets, the "done" signal is the matching artifact in the store.
-  const artifact = target === 'flashcards' ? flashcards : target === 'quiz' ? quiz : target === 'summary' ? summary : target === 'ai-task' ? aiTask : target === 'case-study' ? caseStudy : target === 'plan' ? plan : null
+  const artifact = target === 'flashcards' ? flashcards : target === 'quiz' ? quiz : target === 'summary' ? summary : target === 'ai-task' ? aiTask : target === 'case-study' ? caseStudy : target === 'activity' ? activity : target === 'plan' ? plan : null
   const artifactCount = target === 'flashcards'
     ? flashcards?.cards.length
     : target === 'quiz'
@@ -66,7 +72,13 @@ export default function GenerationPanel() {
             ? aiTask?.tasks.length
             : target === 'plan'
               ? plan?.recommendations.length
-              : undefined
+              : target === 'activity'
+                ? activity
+                  ? activity.activity.kind === 'slider'
+                    ? activity.activity.statements.length
+                    : 1
+                  : undefined
+                : undefined
 
   const startGeneration = useCallback(async () => {
     setIsGenerating(true)
@@ -91,7 +103,19 @@ export default function GenerationPanel() {
     setIsGenerating(true)
     setError(null)
     try {
-      await generateStory(true)
+      await generateStory(true, false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generation failed')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const handleContinueFromOutline = async () => {
+    setIsGenerating(true)
+    setError(null)
+    try {
+      await generateStory(true, true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed')
     } finally {
@@ -108,6 +132,7 @@ export default function GenerationPanel() {
       else if (target === 'summary') await generateSummaryGUI(count)
       else if (target === 'ai-task') await generateAiTaskGUI(count)
       else if (target === 'case-study') await generateCaseStudyGUI(depth)
+      else if (target === 'activity') await generateActivityGUI(activityKind, activityCount)
       else if (target === 'plan') await generatePlanGUI()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed')
@@ -160,9 +185,11 @@ export default function GenerationPanel() {
                 ? 'Generating your interactive story...'
                 : awaitingClarification
                   ? 'Please answer the questions below to guide the story'
-                  : needsApiKey
-                    ? 'API key required to generate'
-                    : 'Ready to generate'}
+                  : stage === 'outline' && storyOutline
+                    ? 'Review and edit the outline, then continue to generate the prose'
+                    : needsApiKey
+                      ? 'API key required to generate'
+                      : 'Ready to generate'}
           </p>
 
           {/* No API key warning */}
@@ -215,11 +242,20 @@ export default function GenerationPanel() {
                 </div>
               ))}
               <div className="btn-row">
-                <button className="btn btn-primary" onClick={handleContinueAfterClarification}>
-                  Continue Generation
+                <button className="btn btn-primary" onClick={handleContinueAfterClarification} disabled={isGenerating}>
+                  {isGenerating ? 'Generating outline…' : 'Generate Outline'}
                 </button>
               </div>
             </div>
+          )}
+
+          {/* Editable outline — the pipeline pauses here before writing prose */}
+          {stage === 'outline' && storyOutline && (
+            <OutlineEditor
+              busy={isGenerating}
+              onContinue={handleContinueFromOutline}
+              onRegenerate={handleContinueAfterClarification}
+            />
           )}
 
           {/* Generation log */}
@@ -282,9 +318,9 @@ export default function GenerationPanel() {
         <>
           <p className="panel-subtitle">
             {isGenerating
-              ? `Generating ${target === 'flashcards' ? 'flashcards' : target === 'quiz' ? 'a quiz' : target === 'summary' ? 'a summary' : target === 'ai-task' ? 'AI tasks' : target === 'case-study' ? 'a case study' : 'a plan'}...`
+              ? `Generating ${target === 'flashcards' ? 'flashcards' : target === 'quiz' ? 'a quiz' : target === 'summary' ? 'a summary' : target === 'ai-task' ? 'AI tasks' : target === 'case-study' ? 'a case study' : target === 'activity' ? 'an activity' : 'a plan'}...`
               : artifact
-                ? (target === 'case-study' ? 'Case study ready' : target === 'plan' ? `${artifactCount} recommendations` : `${artifactCount} ${target === 'flashcards' ? 'flashcards' : target === 'quiz' ? 'questions' : target === 'summary' ? 'key points' : 'tasks'} ready`)
+                ? (target === 'case-study' ? 'Case study ready' : target === 'activity' ? 'Activity ready' : target === 'plan' ? `${artifactCount} recommendations` : `${artifactCount} ${target === 'flashcards' ? 'flashcards' : target === 'quiz' ? 'questions' : target === 'summary' ? 'key points' : 'tasks'} ready`)
                 : needsApiKey
                   ? 'API key required to generate'
                   : 'Ready to generate'}
@@ -296,6 +332,37 @@ export default function GenerationPanel() {
               <div className="btn-row" style={{ marginTop: 12 }}>
                 <button className="btn btn-secondary" onClick={() => setView('settings')}>Open Settings</button>
               </div>
+            </div>
+          ) : target === 'activity' ? (
+            <div className="form-group">
+              <label className="form-label">Activity type</label>
+              <select
+                className="form-input"
+                value={activityKind}
+                onChange={(e) => setActivityKind(e.target.value as 'grid' | 'slider')}
+              >
+                <option value="grid">Reflection grid — place the case on two axes</option>
+                <option value="slider">Reflection sliders — rate a set of statements</option>
+              </select>
+              {activityKind === 'slider' && (
+                <div style={{ marginTop: 12 }}>
+                  <label className="form-label">Number of statements</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    min={1}
+                    max={8}
+                    value={activityCount}
+                    onChange={(e) => setActivityCount(Math.max(1, Math.min(8, Number(e.target.value) || 1)))}
+                    style={{ width: 100 }}
+                  />
+                </div>
+              )}
+              <p className="form-hint">
+                {activityKind === 'grid'
+                  ? 'The model chooses two axes (e.g. Likelihood × Impact) and writes feedback for every quadrant.'
+                  : 'The model writes claims with meaningful low/high endpoints and feedback for each.'}
+              </p>
             </div>
           ) : target === 'case-study' ? (
             <div className="form-group">
@@ -342,7 +409,7 @@ export default function GenerationPanel() {
             <div className="btn-row">
               {!artifact ? (
                 <button className="btn btn-primary" disabled={!hasInput} onClick={startArtifact}>
-                  Generate {target === 'flashcards' ? 'Flashcards' : target === 'quiz' ? 'Quiz' : target === 'summary' ? 'Summary' : target === 'ai-task' ? 'AI Tasks' : target === 'case-study' ? 'Case Study' : 'Plan'}
+                  Generate {target === 'flashcards' ? 'Flashcards' : target === 'quiz' ? 'Quiz' : target === 'summary' ? 'Summary' : target === 'ai-task' ? 'AI Tasks' : target === 'case-study' ? 'Case Study' : target === 'activity' ? 'Activity' : 'Plan'}
                 </button>
               ) : (
                 <>

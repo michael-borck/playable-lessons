@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractInk, generateInk, extractJson, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generatePlan, applyPlan, quizLetter, collectSceneImagePrompts, generateSceneImages, type PlanResult } from './generate'
+import { extractInk, generateInk, extractJson, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generateActivity, generatePlan, applyPlan, quizLetter, collectSceneImagePrompts, generateSceneImages, type PlanResult } from './generate'
 import { storyPrompts } from './prompts'
 import type { ProviderConfig, AIMessage } from './aiClient'
 import type { ImageProviderConfig } from './imageClient'
@@ -551,5 +551,68 @@ describe('applyPlan', () => {
     expect(artifacts.quiz?.questions).toHaveLength(1)
     expect(artifacts.summary?.keyPoints).toEqual(['p'])
     expect(artifacts.flashcards).toBeUndefined()
+  })
+})
+
+describe('generateActivity', () => {
+  const config: ProviderConfig = { provider: 'ollama', model: 'test' }
+
+  it('normalizes a grid and pads/truncates cells to rows × columns', async () => {
+    const deck = JSON.stringify({
+      title: 'Risk grid',
+      instructions: 'Place it.',
+      xLabel: 'Likelihood',
+      yLabel: 'Impact',
+      columns: ['Low', 'High'],
+      rows: ['Severe', 'Minor'],
+      cells: [
+        { label: 'A', feedback: 'a' },
+        { label: 'B', feedback: 'b' },
+        { label: 'C', feedback: 'c' }
+      ],
+      debrief: 'Done.'
+    })
+    const result = await generateActivity(
+      { inputMode: 'topic', inputText: 'x', kind: 'grid' },
+      config,
+      { call: async () => deck }
+    )
+    expect(result.activity.kind).toBe('grid')
+    if (result.activity.kind !== 'grid') throw new Error('expected grid')
+    expect(result.activity.columns).toEqual(['Low', 'High'])
+    expect(result.activity.rows).toEqual(['Severe', 'Minor'])
+    expect(result.activity.cells).toHaveLength(4)
+    expect(result.activity.cells[3]).toEqual({ label: '', feedback: '' })
+    expect(result.raw).toBe(deck)
+  })
+
+  it('normalizes slider statements and honours the requested cap', async () => {
+    const deck = JSON.stringify({
+      statements: [
+        { text: 'One', lowLabel: 'No', highLabel: 'Yes', feedback: 'f1' },
+        { text: 'Two', lowLabel: 'No', highLabel: 'Yes', feedback: 'f2' },
+        { text: '', lowLabel: '', highLabel: '', feedback: '' },
+        { text: 'Three', lowLabel: 'No', highLabel: 'Yes', feedback: 'f3' }
+      ]
+    })
+    const result = await generateActivity(
+      { inputMode: 'topic', inputText: 'x', kind: 'slider', statementCount: 2 },
+      config,
+      { call: async () => deck }
+    )
+    expect(result.activity.kind).toBe('slider')
+    if (result.activity.kind !== 'slider') throw new Error('expected slider')
+    expect(result.activity.statements.map((s) => s.text)).toEqual(['One', 'Two'])
+    expect(result.activity.statements[0].feedback).toBe('f1')
+  })
+
+  it('throws when no usable slider statements are returned', async () => {
+    await expect(
+      generateActivity(
+        { inputMode: 'topic', inputText: 'x', kind: 'slider' },
+        config,
+        { call: async () => '{"statements":[]}' }
+      )
+    ).rejects.toThrow(/no usable slider statements/)
   })
 })

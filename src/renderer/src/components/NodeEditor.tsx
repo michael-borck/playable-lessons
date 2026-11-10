@@ -11,13 +11,12 @@ import {
   type Edge,
   type NodeMouseHandler,
   type NodeChange,
-  addEdge,
   type Connection
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
 import { useAppStore } from '../stores/appStore'
-import { parseInkSource, addKnot, removeKnot } from '../lib/inkParser'
+import { parseInkSource, addKnot, removeKnot, connectKnots } from '../lib/inkParser'
 import StoryNodeComponent from './StoryNode'
 import ChoiceEdgeComponent from './ChoiceEdge'
 import PassageEditor from './PassageEditor'
@@ -103,14 +102,17 @@ export default function NodeEditor() {
   const savedPositions = useAppStore((s) => s.nodePositions)
   const setNodePositions = useAppStore((s) => s.setNodePositions)
   const updateNodePosition = useAppStore((s) => s.updateNodePosition)
+  const error = useAppStore((s) => s.error)
+  const setError = useAppStore((s) => s.setError)
 
   const parsed = useMemo(() => parseInkSource(inkSource), [inkSource])
 
   const edgeData = useMemo(() => {
     const edges: { from: string; to: string; choiceText: string; condition: string | null }[] = []
+    const knotIds = new Set(parsed.knots.map((k) => k.id))
     for (const knot of parsed.knots) {
       for (const choice of knot.choices) {
-        if (choice.target) {
+        if (choice.target && knotIds.has(choice.target)) {
           edges.push({
             from: knot.id,
             to: choice.target,
@@ -118,6 +120,18 @@ export default function NodeEditor() {
             condition: choice.condition
           })
         }
+      }
+      if (
+        knot.nextTarget &&
+        knotIds.has(knot.nextTarget) &&
+        !knot.choices.some((c) => c.target === knot.nextTarget)
+      ) {
+        edges.push({
+          from: knot.id,
+          to: knot.nextTarget,
+          choiceText: 'Continue',
+          condition: null
+        })
       }
     }
     return edges
@@ -187,8 +201,15 @@ export default function NodeEditor() {
   }, [onNodesChange, updateNodePosition])
 
   const onConnect = useCallback((connection: Connection) => {
-    setEdges((eds) => addEdge({ ...connection, type: 'choiceEdge', data: { choiceText: 'New choice' } }, eds))
-  }, [setEdges])
+    if (!connection.source || !connection.target) return
+    const result = connectKnots(inkSource, connection.source, connection.target)
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+    setError(null)
+    setInkSource(result.source)
+  }, [inkSource, setInkSource, setError])
 
   const handleAddNode = () => {
     const id = `new_node_${Date.now()}`
@@ -240,6 +261,13 @@ export default function NodeEditor() {
             {parsed.knots.length} nodes &middot; {edgeData.length} edges &middot; {parsed.variables.length} variables
           </span>
         </div>
+
+        {error && (
+          <div className="error-banner" style={{ position: 'absolute', top: 52, left: 16, right: 16, zIndex: 10 }}>
+            <span>{error}</span>
+            <button className="error-dismiss" onClick={() => setError(null)}>&times;</button>
+          </div>
+        )}
 
         <ReactFlow
           nodes={nodes}

@@ -5,7 +5,7 @@
  * A "project" is a real folder on disk under the projects root, containing a
  * single `project.json` — so projects are ownable and fully offline.
  */
-import type { FlashcardResult, QuizResult, SummaryResult, AiTaskResult, CaseStudyResult } from './generate.js'
+import type { FlashcardResult, QuizResult, SummaryResult, AiTaskResult, CaseStudyResult, ActivityResult } from './generate.js'
 
 export { isSafeProjectId, projectIdFromName } from './projectId.js'
 
@@ -16,6 +16,7 @@ export interface ProjectArtifacts {
   summary: boolean
   aiTask: boolean
   caseStudy: boolean
+  activity: boolean
 }
 
 /** Lightweight metadata for the project list (no large payloads sent to the UI). */
@@ -40,6 +41,8 @@ export interface ProjectFull {
   updatedAt: number
   inkSource?: string
   compiledStoryJson?: string
+  /** Saved React Flow layout for the story graph. */
+  nodePositions?: Record<string, { x: number; y: number }>
   /** Generated scene illustrations: raw `# IMAGE_PROMPT:` text → data URL. */
   sceneImages?: Record<string, string>
   flashcards?: FlashcardResult
@@ -47,4 +50,5 @@ export interface ProjectFull {
   summary?: SummaryResult
   aiTask?: AiTaskResult
   caseStudy?: CaseStudyResult
+  activity?: ActivityResult
 }

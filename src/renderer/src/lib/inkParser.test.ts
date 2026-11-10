@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseInkSource } from './inkParser'
+import { parseInkSource, connectKnots } from './inkParser'
 
 const SAMPLE = `VAR score = 0
 VAR name = "Ada"
@@ -70,5 +70,74 @@ describe('parseInkSource', () => {
   it('captures variable assignments', () => {
     const ch1 = parsed.knots.find((k) => k.id === 'chapter_one')!
     expect(ch1.variableAssignments[0]).toMatchObject({ variable: 'score' })
+  })
+
+  it('captures a plain top-level divert as nextTarget', () => {
+    const linear = parseInkSource(`-> a\n=== a ===\nText.\n-> b\n=== b ===\nEnd.\n-> END\n`)
+    expect(linear.knots[0].nextTarget).toBe('b')
+    expect(linear.knots[0].choices).toHaveLength(0)
+  })
+})
+
+describe('connectKnots', () => {
+  const BASE = `-> a
+
+=== a ===
+Opening.
+* [Go to B] -> b
+
+=== b ===
+Middle.
+-> END
+
+=== c ===
+Other branch.
+-> END
+`
+
+  it('adds a choice to a knot that already has choices', () => {
+    const result = connectKnots(BASE, 'a', 'c', 'Take C')
+    expect(result.error).toBeUndefined()
+    const a = parseInkSource(result.source).knots.find((k) => k.id === 'a')!
+    expect(a.choices.map((c) => c.target)).toEqual(['b', 'c'])
+    expect(a.choices[1].text).toBe('Take C')
+  })
+
+  it('replaces a single linear divert', () => {
+    const source = `-> a\n=== a ===\nOpening.\n-> b\n=== b ===\nB\n=== c ===\nC\n`
+    const a = parseInkSource(connectKnots(source, 'a', 'c').source).knots.find((k) => k.id === 'a')!
+    expect(a.choices).toHaveLength(0)
+    expect(connectKnots(source, 'a', 'c').source).toContain('-> c')
+    expect(connectKnots(source, 'a', 'c').source).not.toContain('-> b')
+  })
+
+  it('adds a linear divert when the knot has no flow control', () => {
+    const source = `-> a\n=== a ===\nJust prose.\n=== b ===\nB\n`
+    const result = connectKnots(source, 'a', 'b')
+    expect(result.error).toBeUndefined()
+    expect(parseInkSource(result.source).knots.find((k) => k.id === 'a')!.choices).toHaveLength(0)
+    expect(result.source).toMatch(/=== a ===\nJust prose\.\n-> b/)
+  })
+
+  it('refuses to duplicate an existing choice', () => {
+    const result = connectKnots(BASE, 'a', 'b')
+    expect(result.error).toBeUndefined()
+    expect(result.source).toBe(BASE)
+  })
+
+  it('refuses a self-connection', () => {
+    expect(connectKnots(BASE, 'a', 'a').error).toMatch(/itself/i)
+  })
+
+  it('produces compilable Ink when adding a choice', async () => {
+    const { compileInk } = await import('../../../shared/storyExport')
+    const source = `-> a\n=== a ===\nOpening.\n* [B] -> b\n=== b ===\nB\n-> END\n=== c ===\nC\n-> END\n`
+    const result = connectKnots(source, 'a', 'c')
+    await expect(compileInk(result.source)).resolves.toBeTruthy()
+  })
+
+  it('refuses a passage with several linear diverts', () => {
+    const source = `-> a\n=== a ===\nOpening.\n-> b\n-> c\n=== b ===\nB\n=== c ===\nC\n`
+    expect(connectKnots(source, 'a', 'c').error).toMatch(/several linear diverts/i)
   })
 })

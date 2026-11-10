@@ -20,6 +20,7 @@ const {
   generateQuiz,
   generateAiTask,
   generateCaseStudy,
+  generateActivity,
   generateSceneImages
 } = require('../out/shared/generate.js')
 const { exportStandaloneHTML } = require('../out/shared/storyExport.js')
@@ -125,9 +126,13 @@ const STORY_LENGTH = ['short', 'medium', 'long'].includes(process.env.STORY_LENG
 const queue = createGenerationQueue({
   concurrency: intFromEnv('GENERATE_CONCURRENCY', 1, 1, 8),
   maxJobs: intFromEnv('MAX_JOBS', 100, 1, 10_000),
-  // A story result (HTML + optional base64 H5P) can be a few MB; cap total
-  // retained memory so a public teaser cannot be filled by a few requests.
-  maxResultBytes: intFromEnv('MAX_RESULT_MB', 16, 1, 256) * 1024 * 1024
+  // Cap retained memory per job: the small public result, and the internal
+  // Ink source + scene images kept for on-demand downloads (same limit unless
+  // MAX_ARTIFACT_MB is set). A public teaser must not be fillable by a few
+  // large requests.
+  maxResultBytes: intFromEnv('MAX_RESULT_MB', 16, 1, 256) * 1024 * 1024,
+  maxArtifactBytes:
+    intFromEnv('MAX_ARTIFACT_MB', intFromEnv('MAX_RESULT_MB', 16, 1, 256), 1, 512) * 1024 * 1024
 })
 
 // ─── Scene images (optional, opt-in via SCENE_IMAGES=true) ───
@@ -180,20 +185,42 @@ if (ACCESS_CODES.length > 0) {
   })
 }
 
-// ─── Rate limiting (per-IP, hourly window, in-memory) ───
+// ─── Rate limiting (per-IP, rolling hourly window, in-memory) ───
 // Only job SUBMISSION counts — polling /api/job/:id every few seconds would
 // otherwise burn a visitor's whole budget before one story finishes.
-const ipHits = new Map()
+//
+// Timestamps per IP (not a single global counter cleared hourly): a global
+// reset let every client burst twice the limit around the boundary, and one
+// busy hour grew the map without bound.
+const ipHits = new Map() // ip -> number[] (submission timestamps, oldest first)
 const WINDOW_MS = 60 * 60 * 1000
-const rateSweeper = setInterval(() => ipHits.clear(), WINDOW_MS)
+const RATE_SWEEP_MS = 10 * 60 * 1000
+
+/** Drop timestamps older than the window for one IP. */
+function recentHits(ip, now) {
+  const times = ipHits.get(ip)
+  if (!times) return []
+  const fresh = times.filter((t) => now - t < WINDOW_MS)
+  if (fresh.length > 0) ipHits.set(ip, fresh)
+  else ipHits.delete(ip)
+  return fresh
+}
+
+const rateSweeper = setInterval(() => {
+  const now = Date.now()
+  for (const ip of [...ipHits.keys()]) recentHits(ip, now)
+}, RATE_SWEEP_MS)
 rateSweeper.unref?.()
+
 app.use('/api/generate', (req, res, next) => {
   const ip = req.ip
-  const hits = (ipHits.get(ip) || 0) + 1
-  ipHits.set(ip, hits)
-  if (hits > RATE_LIMIT) {
+  const now = Date.now()
+  const times = recentHits(ip, now)
+  if (times.length >= RATE_LIMIT) {
     return res.status(429).json({ error: `Rate limit exceeded (${RATE_LIMIT}/hour). Try again later.` })
   }
+  times.push(now)
+  ipHits.set(ip, times)
   next()
 })
 
@@ -216,7 +243,7 @@ app.get('/api/health', (req, res) => {
 // POST validates + enqueues, then the client polls /api/job/:id — so a queued
 // visitor sees their position, can cancel while waiting, and can leave and
 // come back (job results are kept for an hour, in memory).
-const TARGETS = ['story', 'summary', 'flashcards', 'quiz', 'ai-task', 'case-study']
+const TARGETS = ['story', 'summary', 'flashcards', 'quiz', 'ai-task', 'case-study', 'activity']
 // Same framing cards as the desktop app's Input Mode — injected into every
 // generation prompt so the AI knows what KIND of material it was handed.
 const INPUT_MODES = ['topic', 'lesson', 'methodology', 'case-study', 'lecture-notes', 'scenario']
@@ -236,7 +263,7 @@ app.post('/api/generate', (req, res) => {
   }
 
   // Preserve the per-target defaults when the caller omits `count`.
-  const DEFAULT_COUNTS = { story: 5, summary: 8, flashcards: 12, quiz: 10, 'ai-task': 3, 'case-study': 5 }
+  const DEFAULT_COUNTS = { story: 5, summary: 8, flashcards: 12, quiz: 10, 'ai-task': 3, 'case-study': 5, activity: 4 }
   const rawCount = Number(body.count)
   const itemCount = Number.isFinite(rawCount)
     ? Math.min(50, Math.max(1, Math.floor(rawCount)))
@@ -249,7 +276,7 @@ app.post('/api/generate', (req, res) => {
     tone: safeTone
   }
 
-  const job = queue.submit(async (log) => {
+  const job = queue.submit(async (log, jobId) => {
     const logBoth = (m) => { log(m); console.log('[generate]', m) }
     try {
       switch (target) {
@@ -279,23 +306,24 @@ app.post('/api/generate', (req, res) => {
               logBoth(`Scene image generation failed: ${err.message || err}`)
             }
           }
-          const html = await exportStandaloneHTML(story.inkSource, 'Interactive Story', sceneImages)
-          const result = { type: 'story', title: 'Interactive Story', html }
-          if (sceneImages) result.imageCount = Object.keys(sceneImages).length
-          // SCORM works for any story (it wraps the full HTML player).
-          result.scorm = Buffer.from(
-            await exportScorm(story.inkSource, 'Interactive Story', sceneImages)
-          ).toString('base64')
+          // Store the story data internally; the download endpoints build the
+          // HTML/H5P/EPUB/SCORM packages on demand. Returning all four as
+          // base64 here multiplied memory and payload for exports the visitor
+          // may never fetch.
+          queue.setArtifact(jobId, {
+            title: 'Interactive Story',
+            inkSource: story.inkSource,
+            sceneImages
+          })
           // H5P and EPUB are decision-tree formats — only offered when the
-          // story is actually convertible (no variables/conditionals).
-          if (findStateConstructs(story.inkSource).length === 0) {
-            result.h5p = Buffer.from(
-              await exportH5P(story.inkSource, 'Interactive Story', sceneImages)
-            ).toString('base64')
-            result.epub = Buffer.from(
-              await exportEpub(story.inkSource, 'Interactive Story', sceneImages)
-            ).toString('base64')
+          // story has no variables/conditionals. SCORM/HTML work for any story.
+          const convertible = findStateConstructs(story.inkSource).length === 0
+          const result = {
+            type: 'story',
+            title: 'Interactive Story',
+            formats: { html: true, scorm: true, h5p: convertible, epub: convertible }
           }
+          if (sceneImages) result.imageCount = Object.keys(sceneImages).length
           return result
         }
         case 'summary':
@@ -306,6 +334,16 @@ app.post('/api/generate', (req, res) => {
           return await generateQuiz({ ...params, questionCount: itemCount }, config, { log: logBoth })
         case 'ai-task':
           return await generateAiTask({ ...params, taskCount: itemCount }, config, { log: logBoth })
+        case 'activity':
+          return await generateActivity(
+            {
+              ...params,
+              kind: body.activityKind === 'slider' ? 'slider' : 'grid',
+              statementCount: itemCount
+            },
+            config,
+            { log: logBoth }
+          )
         case 'case-study':
         default:
           return await generateCaseStudy({ ...params, depth: safeDepth }, config, { log: logBoth })
@@ -336,6 +374,57 @@ app.delete('/api/job/:id', (req, res) => {
   // 'cancelled' | 'running' | 'finished' | 'not_found' — the pipeline has no
   // abort signal, so a job already running plays out to the end.
   res.json({ status: queue.cancel(req.params.id) })
+})
+
+// ─── Story downloads (built on demand) ───
+// The job response only carries metadata, so a story with several generated
+// images doesn't ship four near-duplicate base64 packages over the wire.
+const EXPORT_FORMATS = {
+  html: { mime: 'text/html; charset=utf-8', filename: 'playable-story.html' },
+  h5p: { mime: 'application/zip', filename: 'playable-story.h5p' },
+  epub: { mime: 'application/epub+zip', filename: 'playable-story.epub' },
+  scorm: { mime: 'application/zip', filename: 'playable-story-scorm.zip' }
+}
+
+app.get('/api/job/:id/export/:format', async (req, res) => {
+  const format = req.params.format
+  const spec = EXPORT_FORMATS[format]
+  if (!spec) return res.status(400).json({ error: `Unknown export format: ${format}` })
+
+  const view = queue.get(req.params.id)
+  if (!view) {
+    return res.status(404).json({ error: 'Job not found — it may have expired or the server restarted.' })
+  }
+  if (view.status !== 'complete') {
+    return res.status(409).json({ error: 'The job is not complete yet.' })
+  }
+  const artifact = queue.getArtifact(req.params.id)
+  if (!artifact) {
+    return res.status(404).json({ error: 'Exports for this job are no longer available.' })
+  }
+
+  try {
+    let body
+    if (format === 'html') {
+      body = await exportStandaloneHTML(artifact.inkSource, artifact.title, artifact.sceneImages)
+    } else if (format === 'h5p') {
+      body = Buffer.from(await exportH5P(artifact.inkSource, artifact.title, artifact.sceneImages))
+    } else if (format === 'epub') {
+      body = Buffer.from(await exportEpub(artifact.inkSource, artifact.title, artifact.sceneImages))
+    } else {
+      body = Buffer.from(await exportScorm(artifact.inkSource, artifact.title, artifact.sceneImages))
+    }
+    res.setHeader('Content-Type', spec.mime)
+    res.setHeader('Content-Disposition', `attachment; filename="${spec.filename}"`)
+    res.setHeader('Cache-Control', 'no-store')
+    res.send(body)
+  } catch (err) {
+    // Usually a stateful story being exported to H5P/EPUB; that is a client
+    // mismatch (409), not a server fault.
+    const message = err && err.message ? err.message : String(err)
+    const status = /cannot represent/.test(message) ? 409 : 500
+    res.status(status).json({ error: message })
+  }
 })
 
 // ─── Errors (incl. malformed JSON bodies) ───

@@ -251,13 +251,16 @@ export default function PreviewPlayer() {
           </div>
         )}
 
-        {/* Images — attached files (IMAGE:) and generated scenes (IMAGE_PROMPT:) */}
+        {/* Images — attached files (IMAGE:) and generated scenes (IMAGE_PROMPT:).
+            Match the exporters: only data:/http(s) URLs are rendered, so an
+            AI-generated tag cannot trigger file: reads or arbitrary requests. */}
         {storyState.tags
           .filter((t) => t.startsWith('IMAGE:'))
+          .filter((t) => /^(data:|https?:)/.test(t.substring('IMAGE:'.length).trim()))
           .map((t, i) => (
             <img
               key={`img-${i}`}
-              src={t.replace('IMAGE:', '').trim()}
+              src={t.substring('IMAGE:'.length).trim()}
               alt=""
               style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 16 }}
             />

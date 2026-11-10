@@ -5,6 +5,7 @@ import QuizPlayer from './QuizPlayer'
 import SummarySheet from './SummarySheet'
 import AiTaskSheet from './AiTaskSheet'
 import CaseStudySheet from './CaseStudySheet'
+import ActivitySheet from './ActivitySheet'
 import PlanSheet from './PlanSheet'
 
 /** Renders the most recent artifact(s) inline — content outputs and/or a plan. */
@@ -14,11 +15,12 @@ export default function StudyView() {
   const summary = useAppStore((s) => s.summary)
   const aiTask = useAppStore((s) => s.aiTask)
   const caseStudy = useAppStore((s) => s.caseStudy)
+  const activity = useAppStore((s) => s.activity)
   const plan = useAppStore((s) => s.plan)
   const setView = useAppStore((s) => s.setCurrentView)
   const [editing, setEditing] = useState(false)
 
-  const hasContent = !!(flashcards || quiz || summary || aiTask || caseStudy)
+  const hasContent = !!(flashcards || quiz || summary || aiTask || caseStudy || activity)
   const canEdit = !!(flashcards || quiz || summary || aiTask || caseStudy)
 
   if (!hasContent && !plan) {
@@ -47,13 +49,16 @@ export default function StudyView() {
           ? 'AI-Collaboration Tasks'
           : caseStudy
             ? 'Case Study'
-            : 'Recommended outputs'
+            : activity
+              ? 'Reflection Activity'
+              : 'Recommended outputs'
   const subtitle =
     flashcards?.deckTitle ??
     quiz?.quizTitle ??
     summary?.title ??
     aiTask?.title ??
     caseStudy?.title ??
+    activity?.title ??
     plan?.title
 
   return (
@@ -76,6 +81,7 @@ export default function StudyView() {
       {summary && <SummarySheet result={summary} editable={editing} />}
       {aiTask && <AiTaskSheet result={aiTask} editable={editing} />}
       {caseStudy && <CaseStudySheet result={caseStudy} editable={editing} />}
+      {activity && <ActivitySheet result={activity} />}
     </div>
   )
 }
