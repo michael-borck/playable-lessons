@@ -929,12 +929,22 @@ export async function generateActivity(
 
 // ─── Recommender (plan) ──────────────────────────────────────────────────────
 
-export type PlanTarget = 'story' | 'flashcards' | 'quiz' | 'summary' | 'ai-task' | 'case-study'
+export type PlanTarget =
+  | 'story'
+  | 'flashcards'
+  | 'quiz'
+  | 'summary'
+  | 'ai-task'
+  | 'case-study'
+  | 'activity'
 
 export interface PlanRecommendation {
   target: PlanTarget
   rationale: string
+  /** Case-study only. */
   depth?: CaseStudyDepth
+  /** Activity only: grid or slider. */
+  activityKind?: ActivityKind
   count?: number
 }
 
@@ -957,7 +967,15 @@ export interface PlanParams {
   sceneImages?: boolean
 }
 
-const PLAN_TARGETS: PlanTarget[] = ['story', 'flashcards', 'quiz', 'summary', 'ai-task', 'case-study']
+const PLAN_TARGETS: PlanTarget[] = [
+  'story',
+  'flashcards',
+  'quiz',
+  'summary',
+  'ai-task',
+  'case-study',
+  'activity'
+]
 
 /** Coerce a parsed payload into a valid PlanResult (validates targets, drops junk). */
 function normalizePlan(data: unknown, fallbackTitle: string): PlanResult {
@@ -971,9 +989,16 @@ function normalizePlan(data: unknown, fallbackTitle: string): PlanResult {
     if (!PLAN_TARGETS.includes(target as PlanTarget)) continue
     const rationale = typeof rr.rationale === 'string' ? rr.rationale.trim() : ''
     if (!rationale) continue
+    // Each target is at most one artifact; notably, don't recommend two
+    // activities (grid and slider) for the same material.
+    if (recommendations.some((existing) => existing.target === target)) continue
     const rec: PlanRecommendation = { target: target as PlanTarget, rationale }
     const depth = typeof rr.depth === 'string' ? rr.depth.trim() : ''
     if (depth === 'idea' || depth === 'outline' || depth === 'complete') rec.depth = depth
+    if (target === 'activity') {
+      const kind = typeof rr.activityKind === 'string' ? rr.activityKind.trim() : ''
+      rec.activityKind = kind === 'slider' ? 'slider' : 'grid'
+    }
     const count = Number(rr.count)
     if (Number.isInteger(count) && count > 0) rec.count = count
     recommendations.push(rec)
@@ -1023,6 +1048,7 @@ export interface PlanArtifacts {
   summary?: SummaryResult
   aiTask?: AiTaskResult
   caseStudy?: CaseStudyResult
+  activity?: ActivityResult
 }
 
 /**
@@ -1073,6 +1099,19 @@ export async function applyPlan(
       case 'case-study':
         artifacts.caseStudy = await generateCaseStudy(
           { inputMode, inputText, depth: rec.depth, tone }, config, opts
+        )
+        break
+      case 'activity':
+        artifacts.activity = await generateActivity(
+          {
+            inputMode,
+            inputText,
+            kind: rec.activityKind === 'slider' ? 'slider' : 'grid',
+            statementCount: rec.count,
+            tone
+          },
+          config,
+          opts
         )
         break
     }

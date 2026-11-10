@@ -594,7 +594,8 @@ export async function generateAllToProject(): Promise<void> {
       quiz: artifacts.quiz,
       summary: artifacts.summary,
       aiTask: artifacts.aiTask,
-      caseStudy: artifacts.caseStudy
+      caseStudy: artifacts.caseStudy,
+      activity: artifacts.activity
     }
     await projectService.save(project)
     const list = await projectService.list()

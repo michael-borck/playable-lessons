@@ -8,7 +8,8 @@ const sample: PlanResult = {
   recommendations: [
     { target: 'summary', rationale: 'Gives learners the core concepts before applied work.' },
     { target: 'case-study', rationale: 'A dilemma forces applied analysis.', depth: 'complete' },
-    { target: 'quiz', rationale: 'Checks comprehension of the key terms.', count: 10 }
+    { target: 'quiz', rationale: 'Checks comprehension of the key terms.', count: 10 },
+    { target: 'activity', rationale: 'Surfaces assumptions about risk.', activityKind: 'grid' }
   ],
   raw: ''
 }
@@ -21,6 +22,7 @@ describe('toPlainText', () => {
     expect(txt).toContain('1. Summary')
     expect(txt).toContain('2. Case study (complete)')
     expect(txt).toContain('3. Quiz ×10')
+    expect(txt).toContain('4. Reflection activity (grid)')
     expect(txt).toContain(sample.recommendations[0].rationale)
   })
 })
@@ -41,6 +43,7 @@ describe('toStandaloneHTML', () => {
     const html = toStandaloneHTML(sample, 'Plan')
     expect(html).toContain('id="recs"')
     expect(html).toContain('Checks comprehension')
+    expect(html).toContain('Reflection activity')
     expect(html).toContain('Created with Playable Lessons')
   })
 })

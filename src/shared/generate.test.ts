@@ -517,6 +517,25 @@ describe('generatePlan', () => {
     expect(result.recommendations[0].target).toBe('summary')
   })
 
+  it('keeps one activity recommendation with its kind', async () => {
+    const deck = JSON.stringify({
+      recommendations: [
+        { target: 'activity', rationale: 'r', activityKind: 'slider', count: 4 },
+        { target: 'activity', rationale: 'duplicate', activityKind: 'grid' },
+        { target: 'quiz', rationale: 'q' }
+      ]
+    })
+    const result = await generatePlan({ inputMode: 'topic', inputText: 'x' }, config, { call: async () => deck })
+    expect(result.recommendations).toHaveLength(2)
+    expect(result.recommendations[0]).toEqual({
+      target: 'activity',
+      rationale: 'r',
+      activityKind: 'slider',
+      count: 4
+    })
+    expect(result.recommendations[1].target).toBe('quiz')
+  })
+
   it('throws when no usable recommendations are returned', async () => {
     await expect(
       generatePlan({ inputMode: 'topic', inputText: 'x' }, config, { call: async () => '{"recommendations":[]}' })
@@ -551,6 +570,32 @@ describe('applyPlan', () => {
     expect(artifacts.quiz?.questions).toHaveLength(1)
     expect(artifacts.summary?.keyPoints).toEqual(['p'])
     expect(artifacts.flashcards).toBeUndefined()
+  })
+
+  it('generates an activity recommendation with its kind', async () => {
+    const plan: PlanResult = {
+      title: 'T',
+      summary: 'S',
+      raw: '',
+      recommendations: [{ target: 'activity', rationale: 'r', activityKind: 'grid' }]
+    }
+    const call = async () =>
+      JSON.stringify({
+        title: 'Risk grid',
+        instructions: 'Place it.',
+        xLabel: 'Likelihood',
+        yLabel: 'Impact',
+        columns: ['Low', 'High'],
+        rows: ['Severe', 'Minor'],
+        cells: [
+          { label: 'A', feedback: 'a' },
+          { label: 'B', feedback: 'b' },
+          { label: 'C', feedback: 'c' },
+          { label: 'D', feedback: 'd' }
+        ]
+      })
+    const artifacts = await applyPlan(plan, { inputMode: 'topic', inputText: 'x' }, config, { call })
+    expect(artifacts.activity?.activity.kind).toBe('grid')
   })
 })
 

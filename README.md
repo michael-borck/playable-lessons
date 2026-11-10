@@ -175,7 +175,7 @@ The default format for activity is `html,txt`; `--activity-kind grid|slider` sel
 
 ### Plan a set of outputs (recommender)
 
-Not sure which outputs to make? `plan` analyzes the material and recommends a complementary set (2–4 of the targets above), then optionally generates them all into the output folder.
+Not sure which outputs to make? `plan` analyzes the material and recommends a complementary set (2–4 of the targets above, including at most one reflective activity), then optionally generates them all into the output folder.
 
 ```bash
 # Just recommend a set:

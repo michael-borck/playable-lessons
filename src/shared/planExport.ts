@@ -13,7 +13,8 @@ const TARGET_LABEL: Record<string, string> = {
   quiz: 'Quiz',
   summary: 'Summary',
   'ai-task': 'AI-collaboration tasks',
-  'case-study': 'Case study'
+  'case-study': 'Case study',
+  activity: 'Reflection activity'
 }
 
 
@@ -28,6 +29,7 @@ export function toPlainText(result: PlanResult, title?: string): string {
   result.recommendations.forEach((r, i) => {
     let line = `${i + 1}. ${TARGET_LABEL[r.target] ?? r.target}`
     if (r.depth) line += ` (${r.depth})`
+    if (r.activityKind) line += ` (${r.activityKind})`
     if (r.count) line += ` ×${r.count}`
     lines.push(line)
     lines.push(`   ${r.rationale}`)
@@ -88,6 +90,7 @@ ${FAVICON_LINK}
     head.textContent = (i + 1) + '. ' + (labels[r.target] || r.target);
     var meta = [];
     if (r.depth) meta.push(r.depth);
+    if (r.activityKind) meta.push(r.activityKind);
     if (r.count) meta.push('×' + r.count);
     if (meta.length) {
       var m = document.createElement('span');

@@ -731,6 +731,7 @@ yargs(hideBin(process.argv))
         if (artifacts.summary) await write('summary', toSummaryHTML(artifacts.summary, base), artifacts.summary)
         if (artifacts.aiTask) await write('ai-task', toAiTaskHTML(artifacts.aiTask, base), artifacts.aiTask)
         if (artifacts.caseStudy) await write('case-study', toCaseStudyHTML(artifacts.caseStudy, base), artifacts.caseStudy)
+        if (artifacts.activity) await write('activity', toActivityHTML(artifacts.activity, base), artifacts.activity)
         console.log('Applied: generated every recommended output.')
       }
       console.log('Done.')

@@ -9,7 +9,8 @@ const LABELS: Record<string, string> = {
   quiz: 'Quiz',
   summary: 'Summary',
   'ai-task': 'AI-collaboration tasks',
-  'case-study': 'Case study'
+  'case-study': 'Case study',
+  activity: 'Reflection activity'
 }
 
 /** Shows the recommended outputs + the "generate all → new project" action. */
@@ -38,9 +39,9 @@ export default function PlanSheet({ result }: { result: PlanResult }) {
           <div className="plan-rec" key={i}>
             <div className="plan-rec-head">
               {i + 1}. {LABELS[r.target] ?? r.target}
-              {(r.depth || r.count) && (
+              {(r.depth || r.activityKind || r.count) && (
                 <span className="plan-rec-meta">
-                  ({[r.depth, r.count ? `×${r.count}` : ''].filter(Boolean).join(', ')})
+                  ({[r.depth, r.activityKind, r.count ? `×${r.count}` : ''].filter(Boolean).join(', ')})
                 </span>
               )}
             </div>

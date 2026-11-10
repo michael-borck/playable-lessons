@@ -665,8 +665,9 @@ Available output targets and what each is good for:
 - summary: a concise study summary with key points + glossary (best for overview / revision)
 - ai-task: AI-collaboration tasks where the learner interrogates a chatbot (best for critical thinking, reasoning)
 - case-study: a teaching case study with a dilemma + discussion questions (best for applied analysis)
+- activity: a short reflective grid or slider with per-cell/per-position feedback (best for surfacing assumptions, prioritisation, risk, or confidence)
 
-Recommend 2-4 complementary targets that together serve the material — not all six, and not redundant ones. Pick the combination that fits the content and a likely learning goal.
+Recommend 2-4 complementary targets that together serve the material — not all seven, and not redundant ones. Pick the combination that fits the content and a likely learning goal. Include at most one activity.
 
 Respond with ONLY the JSON object requested — no preamble, no commentary.`,
 
@@ -685,18 +686,21 @@ Return ONLY this JSON shape (wrapped in a \`\`\`json block is fine):
   "summary": "1-2 sentences on what the material is and the likely learning goal",
   "recommendations": [
     {
-      "target": "one of: story | flashcards | quiz | summary | ai-task | case-study",
+      "target": "one of: story | flashcards | quiz | summary | ai-task | case-study | activity",
       "rationale": "why this target suits this material",
       "depth": "for case-study only: idea | outline | complete",
-      "count": "optional number of items (cards / questions / key points / tasks)"
+      "activityKind": "for activity only: grid | slider",
+      "count": "optional number of items (cards / questions / key points / tasks / slider statements)"
     }
   ]
 }
 
 Rules:
-- Recommend 2-4 targets; each target must be one of the six listed
+- Recommend 2-4 targets; each target must be one of the seven listed
+- Recommend at most one activity (grid OR slider), never both
+- Use a grid when the material involves a trade-off, risk, priority, or two-dimensional judgement; use sliders for claims, confidence, or readiness
 - Order them by usefulness for this material
-- Include "depth" only when target is "case-study"; include "count" only when relevant — omit them otherwise
+- Include "depth" only when target is "case-study"; include "activityKind" only when target is "activity"; include "count" only when relevant — omit them otherwise
 - Do not output any text outside the JSON object`
 }
 
