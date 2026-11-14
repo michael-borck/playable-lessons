@@ -17,6 +17,7 @@ import '@xyflow/react/dist/style.css'
 
 import { useAppStore } from '../stores/appStore'
 import { parseInkSource, addKnot, removeKnot, connectKnots } from '../lib/inkParser'
+import { canRedoInk, canUndoInk } from '../lib/inkHistory'
 import StoryNodeComponent from './StoryNode'
 import ChoiceEdgeComponent from './ChoiceEdge'
 import PassageEditor from './PassageEditor'
@@ -96,7 +97,7 @@ function layoutNodes(
 
 export default function NodeEditor() {
   const inkSource = useAppStore((s) => s.inkSource)
-  const setInkSource = useAppStore((s) => s.setInkSource)
+  const applyInkEdit = useAppStore((s) => s.applyInkEdit)
   const selectedNodeId = useAppStore((s) => s.selectedNodeId)
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId)
   const savedPositions = useAppStore((s) => s.nodePositions)
@@ -104,6 +105,9 @@ export default function NodeEditor() {
   const updateNodePosition = useAppStore((s) => s.updateNodePosition)
   const error = useAppStore((s) => s.error)
   const setError = useAppStore((s) => s.setError)
+  const inkHistory = useAppStore((s) => s.inkHistory)
+  const undoInk = useAppStore((s) => s.undoInk)
+  const redoInk = useAppStore((s) => s.redoInk)
 
   const parsed = useMemo(() => parseInkSource(inkSource), [inkSource])
 
@@ -208,20 +212,20 @@ export default function NodeEditor() {
       return
     }
     setError(null)
-    setInkSource(result.source)
-  }, [inkSource, setInkSource, setError])
+    applyInkEdit(result.source)
+  }, [inkSource, applyInkEdit, setError])
 
   const handleAddNode = () => {
     const id = `new_node_${Date.now()}`
     const newSource = addKnot(inkSource, id)
-    setInkSource(newSource)
+    applyInkEdit(newSource)
   }
 
   const handleDeleteNode = () => {
     if (!selectedNodeId) return
     if (parsed.knots.length <= 1) return // don't delete the last node
     const newSource = removeKnot(inkSource, selectedNodeId)
-    setInkSource(newSource)
+    applyInkEdit(newSource)
     setSelectedNodeId(null)
   }
 
@@ -243,6 +247,24 @@ export default function NodeEditor() {
       <div style={{ flex: 1, position: 'relative' }}>
         {/* Toolbar */}
         <div className="editor-toolbar">
+          <button
+            className="btn btn-secondary"
+            onClick={undoInk}
+            disabled={!canUndoInk(inkHistory)}
+            title="Undo (Cmd/Ctrl+Z)"
+            style={{ padding: '4px 12px', fontSize: 12 }}
+          >
+            Undo
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={redoInk}
+            disabled={!canRedoInk(inkHistory)}
+            title="Redo (Shift+Cmd/Ctrl+Z)"
+            style={{ padding: '4px 12px', fontSize: 12 }}
+          >
+            Redo
+          </button>
           <button className="btn btn-secondary" onClick={handleAddNode} style={{ padding: '4px 12px', fontSize: 12 }}>
             + Add Node
           </button>

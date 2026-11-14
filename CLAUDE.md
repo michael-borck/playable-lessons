@@ -37,6 +37,7 @@ src/
         SummarySheet.tsx    # Inline study summary (overview, key points, glossary)
         AiTaskSheet.tsx    # Inline AI-collaboration task sheet (scenario, brief, specifics, rubric)
         CaseStudySheet.tsx # Inline teaching case study (narrative + structured fields)
+        StoryHealth.tsx    # Advisory structural checks (dead ends, unreachable passages, tags)
         ActivitySheet.tsx  # Inline reflective activity (grid / slider; editable grid/statement form)
         OutlineEditor.tsx  # Editable story outline (pauses before prose generation)
         PlanSheet.tsx    # Recommender plan: recommended outputs + "generate all → project"
@@ -65,6 +66,7 @@ src/
     activityExport.ts # reflective activity exports: interactive grid/slider HTML, printable text
     activityEdit.ts   # pure grid add/remove row/column helpers (tested)
     planExport.ts    # recommender plan exports: standalone-HTML sheet, printable text
+    storyLint.ts      # advisory Story Health checks (dead ends, unreachable, broken tags; shared)
     aiClient.ts     # provider-agnostic AI calls + model listing (config-driven)
     imageClient.ts  # provider-agnostic image generation (openai/gemini/custom) → data URLs
     prompts.ts      # AI prompt templates (story + flashcards/quiz/summary/ai-task/case-study/activity/plan)
@@ -87,6 +89,7 @@ resources/         # App icons and static assets
 ## Architecture Notes
 - The AI layer is shared: provider calls + model listing live in `src/shared/aiClient.ts` (config-driven, no store), the headless pipeline in `src/shared/generate.ts`. The renderer's `src/renderer/src/lib/aiService.ts` builds a ProviderConfig from the Zustand store and wraps the pipeline with the GUI's interactive clarification flow; the CLI calls `generateInk` directly.
 - Shared modules are standalone-ish: the CLI imports them with explicit `.js` extensions (NodeNext); the renderer imports them extensionless (Vite/bundler resolves `.js` → `.ts`).
+- Editor safety: the Ink source has coalesced undo/redo history (`lib/inkHistory.ts`), and the working copy is autosaved to `userData/autosave.json`; `ProjectsView` offers Restore/Discard for an unsaved draft. Story Health is advisory; compile errors remain the only hard gate.
 - GUI generation: 6 stages (analysis → clarification → outline → ink-gen → review → compile). The GUI pauses after clarification and again after the outline so the outline can be edited (`OutlineEditor`); CLI generation skips both pauses and runs 4 stages.
 - Reflective activities: the `activity` target (grid | slider) is a single-call JSON generator in `shared/generate.ts`, normalized to `ActivityResult` (grid cells are row-major `rows × columns`; slider statements carry low/high labels + feedback). It renders inline in `ActivitySheet`, is editable in Study (grid axes/labels/cells and add/remove rows or columns; slider statements), and exports through `shared/activityExport.ts`. Duck-typing note: grid resizing lives in `shared/activityEdit.ts`. Available in the desktop app, CLI (`--target activity --activity-kind grid|slider`), web server (`activityKind` in the POST body), and the Plan recommender (at most one activity).
 - Stories have a branching style: `stateful` (default — Ink variables, assignments, conditional text) or `branching` (pure tree, no state — convertible to H5P Branching Scenario / LMS formats). Style-dependent prompts are selected via `storyPrompts(style)` in `src/shared/prompts.ts`; GUI (InputPanel → store), CLI (`--style`), and the web server (`style` in POST body) all route through it so every entry point generates identically. In user-facing UI the style is presented as an "H5P / LMS compatible" checkbox (checked = `branching`), never as stateful/branching jargon.

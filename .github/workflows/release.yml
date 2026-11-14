@@ -10,7 +10,12 @@ permissions:
   contents: write
 
 jobs:
+  # Reuse the normal CI checks before packaging or publishing anything.
+  preflight:
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: preflight
     strategy:
       matrix:
         include:

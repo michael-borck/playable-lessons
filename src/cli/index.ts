@@ -17,6 +17,7 @@ import { toStandaloneHTML as toPlanHTML, toPlainText as toPlanText } from '../sh
 import { exportH5P } from '../shared/h5pExporter.js'
 import { exportEpub } from '../shared/epubExporter.js'
 import { exportScorm } from '../shared/scormExporter.js'
+import { countIssues, lintInk } from '../shared/storyLint.js'
 import { APP_VERSION } from '../shared/version.generated.js'
 import type { ProviderConfig, ResolvedProvider } from '../shared/aiClient.js'
 
@@ -142,13 +143,32 @@ yargs(hideBin(process.argv))
   .scriptName('playable-lessons')
   .usage('$0 <command> [options]')
 
-  .command('validate', 'Validate an Ink source file', (yargs) => {
-    return yargs.option('input', { alias: 'i', type: 'string', demandOption: true, describe: 'Path to .ink file' })
+  .command('validate', 'Validate an Ink source file and run Story Health checks', (yargs) => {
+    return yargs
+      .option('input', { alias: 'i', type: 'string', demandOption: true, describe: 'Path to .ink file' })
+      .option('strict', { type: 'boolean', default: false, describe: 'Exit non-zero on structural warnings as well as errors' })
   }, async (argv) => {
     try {
       const source = await readFile(argv.input as string, 'utf-8')
       await compileInk(source)
       console.log('Valid! Story compiled successfully.')
+
+      const { issues, stats } = lintInk(source)
+      const counts = countIssues(issues)
+      console.log(
+        `Story health: ${stats.nodes} passages · ${stats.choices} choices · ${stats.endings} tagged endings · ${stats.variables} variables`
+      )
+      for (const issue of issues) {
+        const where = [issue.knotId, issue.line ? `line ${issue.line}` : ''].filter(Boolean).join(' · ')
+        console.log(
+          `  ${issue.severity.toUpperCase()}: ${issue.message}${where ? ` (${where})` : ''}`
+        )
+      }
+      if (issues.length === 0) console.log('  No structural issues found.')
+
+      if (counts.error > 0 || (argv.strict && counts.warning > 0)) {
+        process.exit(1)
+      }
     } catch (err) {
       console.error('Validation failed:', err instanceof Error ? err.message : err)
       process.exit(1)

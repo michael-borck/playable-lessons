@@ -52,3 +52,10 @@ export interface ProjectFull {
   caseStudy?: CaseStudyResult
   activity?: ActivityResult
 }
+
+/** Autosaved working copy, stored in the app's userData directory. */
+export interface AutosaveDraft {
+  /** Set by the main process when the draft is written. */
+  savedAt: number
+  project: ProjectFull
+}

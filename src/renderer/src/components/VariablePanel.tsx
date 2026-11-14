@@ -4,7 +4,7 @@ import { parseInkSource, type InkVariable } from '../lib/inkParser'
 
 export default function VariablePanel() {
   const inkSource = useAppStore((s) => s.inkSource)
-  const setInkSource = useAppStore((s) => s.setInkSource)
+  const applyInkEdit = useAppStore((s) => s.applyInkEdit)
   const [isOpen, setIsOpen] = useState(true)
   const [editingVar, setEditingVar] = useState<string | null>(null)
   const [newName, setNewName] = useState('')
@@ -16,14 +16,14 @@ export default function VariablePanel() {
   const updateVariable = (oldVar: InkVariable, name: string, value: string) => {
     const lines = inkSource.split('\n')
     lines[oldVar.line] = `VAR ${name} = ${value}`
-    setInkSource(lines.join('\n'))
+    applyInkEdit(lines.join('\n'))
     setEditingVar(null)
   }
 
   const deleteVariable = (v: InkVariable) => {
     const lines = inkSource.split('\n')
     lines.splice(v.line, 1)
-    setInkSource(lines.join('\n'))
+    applyInkEdit(lines.join('\n'))
   }
 
   const addVariable = () => {
@@ -36,7 +36,7 @@ export default function VariablePanel() {
       if (lines[i].trim().startsWith('VAR ')) insertAt = i + 1
     }
     lines.splice(insertAt, 0, `VAR ${newName.trim()} = ${value}`)
-    setInkSource(lines.join('\n'))
+    applyInkEdit(lines.join('\n'))
     setNewName('')
     setNewValue('')
     setAddMode(false)

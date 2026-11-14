@@ -1096,3 +1096,88 @@ body {
 .activity-end-label { flex: 0 0 96px; color: var(--text-secondary); font-size: 12px; line-height: 1.3; }
 .activity-end-label:last-child { text-align: right; }
 .activity-slider .activity-feedback { margin-top: 12px; background: rgba(124, 110, 240, 0.08); }
+
+/* ─── Story health ─── */
+.story-health {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.story-health.has-warnings { border-color: rgba(232, 168, 56, 0.5); }
+.story-health.has-errors { border-color: rgba(232, 88, 88, 0.6); }
+.story-health-head {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.story-health-head:hover { background: rgba(255, 255, 255, 0.03); }
+.story-health-toggle { color: var(--text-muted); font-size: 12px; flex-shrink: 0; }
+.story-health-stats {
+  padding: 0 14px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.story-health-issues {
+  list-style: none;
+  border-top: 1px solid var(--border);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.story-issue {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(58, 59, 85, 0.5);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.story-issue:last-child { border-bottom: none; }
+.story-issue-severity {
+  flex: 0 0 58px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.story-issue.error .story-issue-severity { color: var(--error); }
+.story-issue.warning .story-issue-severity { color: var(--warning); }
+.story-issue.info .story-issue-severity { color: var(--text-muted); }
+.story-issue-message { flex: 1; color: var(--text-secondary); }
+.story-issue-where { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+
+/* ─── Autosave status ─── */
+.autosave-status {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.autosave-status.saved { color: var(--success); border-color: rgba(76, 175, 124, 0.45); }
+.autosave-status.error { color: var(--error); border-color: rgba(232, 88, 88, 0.5); }
+
+/* ─── Unsaved draft banner ─── */
+.draft-banner {
+  background: rgba(232, 168, 56, 0.12);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.draft-banner strong { color: var(--warning); }

@@ -83,6 +83,11 @@ function projectsRoot(): string {
   return join(app.getPath('documents'), 'Playable Lessons')
 }
 
+/** Single-file autosave of the current working copy (not a saved project). */
+function autosavePath(): string {
+  return join(app.getPath('userData'), 'autosave.json')
+}
+
 async function readSecrets(): Promise<Record<string, string>> {
   try {
     const parsed = JSON.parse(await readFile(secretsPath(), 'utf-8'))
@@ -442,6 +447,43 @@ app.whenReady().then(() => {
   ipcMain.handle('projects:delete', async (event, id: string): Promise<void> => {
     assertTrustedSender(event)
     await rm(projectDir(id), { recursive: true, force: true })
+  })
+
+  // ─── Autosaved working copy ───
+  // A single draft file in userData, separate from the user's project folders.
+  ipcMain.handle('autosave:save', async (event, draft: any): Promise<number> => {
+    assertTrustedSender(event)
+    if (!draft || typeof draft !== 'object' || !draft.project || typeof draft.project !== 'object') {
+      throw new Error('Invalid autosave draft')
+    }
+    const savedAt = Date.now()
+    const json = JSON.stringify({ ...draft, savedAt }, null, 2)
+    if (Buffer.byteLength(json, 'utf-8') > MAX_PROJECT_BYTES) {
+      throw new Error('Autosave is too large (64 MB limit).')
+    }
+    const file = autosavePath()
+    const tmp = `${file}.tmp`
+    await writeFile(tmp, json, { encoding: 'utf-8', mode: 0o600 })
+    await rename(tmp, file)
+    return savedAt
+  })
+
+  ipcMain.handle('autosave:read', async (event): Promise<any> => {
+    assertTrustedSender(event)
+    try {
+      const parsed = JSON.parse(await readFile(autosavePath(), 'utf-8'))
+      if (!parsed || typeof parsed !== 'object' || !parsed.project || typeof parsed.project !== 'object') {
+        return null
+      }
+      return parsed
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('autosave:clear', async (event): Promise<void> => {
+    assertTrustedSender(event)
+    await rm(autosavePath(), { force: true })
   })
 
   createWindow()

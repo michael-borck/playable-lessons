@@ -4,7 +4,7 @@ Turn educational source material into **playable interactive fiction**. Paste in
 
 It ships in two forms:
 
-- **Desktop app** (Electron + React) — the full authoring experience: AI generation with an interactive clarification step and an **editable outline** before prose, a node-graph editor (drag to connect passages, persisted layouts), live player, a **Projects dashboard** (save / reopen / delete lessons as ownable folders on disk), **inline editing** with AI refinement (✨), and exports. Stories can be illustrated with an **AI-generated image per scene** (cartoon or photorealistic) or a local image embedded in the Ink source, using your own image provider — OpenAI, Google Imagen, or any OpenAI-compatible endpoint. Aimed at non-technical authors (e.g. educators).
+- **Desktop app** (Electron + React) — the full authoring experience: AI generation with an interactive clarification step and an **editable outline** before prose, a node-graph editor (drag to connect passages, persisted layouts), **Story Health** checks (dead ends, unreachable passages, empty choices, broken tags), source **undo/redo**, **draft autosave with restore**, a live player, a **Projects dashboard** (save / reopen / delete lessons as ownable folders on disk), **inline editing** with AI refinement (✨), and exports. Stories can be illustrated with an **AI-generated image per scene** (cartoon or photorealistic) or a local image embedded in the Ink source, using your own image provider — OpenAI, Google Imagen, or any OpenAI-compatible endpoint. Aimed at non-technical authors (e.g. educators).
 - **CLI** (`playable-lessons`, on npm) — the same engine, headless: **generate** an Ink story, **flashcards**, a **quiz**, a **summary**, **AI-collaboration tasks**, a **case study**, or a **reflective activity**; **plan** a recommended set; **validate**, and **export**. Handy for scripts, CI, batch runs, and local/offline generation against Ollama.
 - **Self-hosted web** (Docker) — a browser-based version for institutions (e.g. university staff). The server holds the API key; users just enter an access code. No per-user keys, no accounts — work is stored per-browser.
 
@@ -191,7 +191,13 @@ playable-lessons plan -i notes.md --apply -o plan/
 
 ```bash
 playable-lessons validate --input story.ink
+playable-lessons validate --input story.ink --strict
 ```
+
+`validate` compiles the story and runs the same Story Health checks as the
+desktop app: dead ends, unreachable passages, empty choices, broken image
+tags, invalid timer tags, duplicate passages, and advanced-Ink notes. Without
+`--strict`, warnings are reported but do not fail the command.
 
 ### Export
 
@@ -345,7 +351,8 @@ Notes for operators:
   in the build toolchain. The remaining moderate advisories are build-time-only
   (`glob`/`minimatch` inside ESLint and electron-builder) and are tracked by
   Dependabot. GitHub Actions and the build/packaging images are pinned, with Dependabot
-  and CodeQL running weekly.
+  and CodeQL running weekly. The release workflow reuses the normal CI
+  workflow as a preflight gate before packaging or publishing.
 
 ---
 

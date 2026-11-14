@@ -6,7 +6,7 @@ import { generateSceneImage } from '../lib/aiService'
 export default function PassageEditor() {
   const selectedNodeId = useAppStore((s) => s.selectedNodeId)
   const inkSource = useAppStore((s) => s.inkSource)
-  const setInkSource = useAppStore((s) => s.setInkSource)
+  const applyInkEdit = useAppStore((s) => s.applyInkEdit)
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId)
 
   const parsed = useMemo(() => parseInkSource(inkSource), [inkSource])
@@ -59,7 +59,7 @@ export default function PassageEditor() {
     }
 
     const newSource = updateKnotContent(inkSource, selectedNodeId, content.trim())
-    setInkSource(newSource)
+    applyInkEdit(newSource)
   }
 
   return (

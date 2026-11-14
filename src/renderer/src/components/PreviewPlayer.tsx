@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAppStore } from '../stores/appStore'
 import { compileInk } from '../lib/inkCompiler'
 import { parseInkSource } from '../lib/inkParser'
+import StoryHealth from './StoryHealth'
 
 interface StoryState {
   text: string[]
@@ -204,6 +205,8 @@ export default function PreviewPlayer() {
   return (
     <div className="panel">
       <h2 className="panel-title">Preview</h2>
+
+      <StoryHealth inkSource={inkSource} />
 
       <div className="player-controls">
         <button className="btn btn-secondary" onClick={restart}>Restart</button>

@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { FlashcardResult, QuizResult, SummaryResult, AiTaskResult, CaseStudyResult, ActivityResult, PlanResult, BranchingStyle } from '../../../shared/generate'
 import type { ImageProvider, ImageStyle } from '../../../shared/imageClient'
 import type { ProjectMeta } from '../../../shared/project'
+import { pushInkHistory, redoInkHistory, resetInkHistory, undoInkHistory, type InkHistoryState } from '../lib/inkHistory'
 
 export type { BranchingStyle }
 
@@ -117,7 +118,14 @@ export interface AppState {
   storyOutline: StoryOutline | null
   setStoryOutline: (outline: StoryOutline | null) => void
   inkSource: string
+  /** Programmatic load (generation, project open, demo) — resets undo history. */
   setInkSource: (ink: string) => void
+  /** User edit — records a coalesced undo entry. */
+  applyInkEdit: (ink: string) => void
+  undoInk: () => void
+  redoInk: () => void
+  inkHistory: InkHistoryState
+  inkHistoryAt: number
   compiledStoryJson: string
   setCompiledStoryJson: (json: string) => void
 
@@ -254,7 +262,25 @@ export const useAppStore = create<AppState>()(persist((set) => ({
   storyOutline: null,
   setStoryOutline: (storyOutline) => set({ storyOutline }),
   inkSource: '',
-  setInkSource: (inkSource) => set({ inkSource }),
+  setInkSource: (inkSource) => set({ inkSource, inkHistory: resetInkHistory(inkSource), inkHistoryAt: 0 }),
+  applyInkEdit: (inkSource) =>
+    set((s) => {
+      const now = Date.now()
+      const result = pushInkHistory(s.inkHistory, inkSource, now, s.inkHistoryAt)
+      return { inkSource, inkHistory: result.state, inkHistoryAt: result.recordedAt }
+    }),
+  undoInk: () =>
+    set((s) => {
+      const result = undoInkHistory(s.inkHistory)
+      return result ? { inkSource: result.source, inkHistory: result.state, inkHistoryAt: 0 } : {}
+    }),
+  redoInk: () =>
+    set((s) => {
+      const result = redoInkHistory(s.inkHistory)
+      return result ? { inkSource: result.source, inkHistory: result.state, inkHistoryAt: 0 } : {}
+    }),
+  inkHistory: resetInkHistory(''),
+  inkHistoryAt: 0,
   compiledStoryJson: '',
   setCompiledStoryJson: (compiledStoryJson) => set({ compiledStoryJson }),
 

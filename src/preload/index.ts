@@ -26,6 +26,12 @@ const api = {
 
   getSecretStatus: (): Promise<{ encryptionAvailable: boolean; backend: string }> =>
     ipcRenderer.invoke('secret:status'),
+  // Single-file autosave of the current working copy.
+  autosave: {
+    save: (draft: any): Promise<number> => ipcRenderer.invoke('autosave:save', draft),
+    read: (): Promise<any> => ipcRenderer.invoke('autosave:read'),
+    clear: (): Promise<void> => ipcRenderer.invoke('autosave:clear')
+  },
   // Projects (local dashboard) — each project is a folder on disk.
   projects: {
     root: (): Promise<string> => ipcRenderer.invoke('projects:root'),

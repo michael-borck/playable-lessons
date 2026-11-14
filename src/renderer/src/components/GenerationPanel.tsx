@@ -3,6 +3,7 @@ import { useAppStore, GenerationStage, GenerationTarget } from '../stores/appSto
 import { generateStory, generateFlashcardsGUI, generateQuizGUI, generateSummaryGUI, generateAiTaskGUI, generateCaseStudyGUI, generateActivityGUI, generatePlanGUI } from '../lib/aiService'
 import { SAMPLE_INK_SOURCE } from '../lib/sampleStory'
 import OutlineEditor from './OutlineEditor'
+import { canRedoInk, canUndoInk } from '../lib/inkHistory'
 
 const STAGES: { key: GenerationStage; label: string }[] = [
   { key: 'analysis', label: 'Analysis' },
@@ -30,6 +31,9 @@ export default function GenerationPanel() {
   const questions = useAppStore((s) => s.clarificationQuestions)
   const updateAnswer = useAppStore((s) => s.updateClarificationAnswer)
   const storyOutline = useAppStore((s) => s.storyOutline)
+  const inkHistory = useAppStore((s) => s.inkHistory)
+  const undoInk = useAppStore((s) => s.undoInk)
+  const redoInk = useAppStore((s) => s.redoInk)
   const error = useAppStore((s) => s.error)
   const setError = useAppStore((s) => s.setError)
   const setView = useAppStore((s) => s.setCurrentView)
@@ -278,11 +282,21 @@ export default function GenerationPanel() {
           {stage === 'done' && inkSource && (
             <>
               <div className="form-group">
-                <label className="form-label">Generated Ink Source</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                  <label className="form-label" style={{ margin: 0 }}>Generated Ink Source</label>
+                  <div className="btn-row" style={{ margin: 0 }}>
+                    <button className="btn btn-secondary" onClick={undoInk} disabled={!canUndoInk(inkHistory)} title="Undo (Cmd/Ctrl+Z)" style={{ padding: '2px 10px', fontSize: 12 }}>
+                      Undo
+                    </button>
+                    <button className="btn btn-secondary" onClick={redoInk} disabled={!canRedoInk(inkHistory)} title="Redo (Shift+Cmd/Ctrl+Z)" style={{ padding: '2px 10px', fontSize: 12 }}>
+                      Redo
+                    </button>
+                  </div>
+                </div>
                 <textarea
                   className="ink-editor"
                   value={inkSource}
-                  onChange={(e) => useAppStore.getState().setInkSource(e.target.value)}
+                  onChange={(e) => useAppStore.getState().applyInkEdit(e.target.value)}
                 />
               </div>
               <div className="btn-row">

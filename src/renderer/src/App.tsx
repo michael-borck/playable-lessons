@@ -8,6 +8,7 @@ import NodeEditor from './components/NodeEditor'
 import ExportPanel from './components/ExportPanel'
 import SettingsPanel from './components/SettingsPanel'
 import ProjectsView from './components/ProjectsView'
+import { useAutosave } from './lib/autosave'
 
 type View = 'input' | 'generation' | 'graph' | 'preview' | 'study' | 'export' | 'settings' | 'projects'
 
@@ -15,6 +16,7 @@ function App(): React.ReactElement {
   const view = useAppStore((s) => s.currentView)
   const setView = useAppStore((s) => s.setCurrentView)
   const projectName = useAppStore((s) => s.projectName)
+  const autosave = useAutosave()
 
   // Load secrets from the OS keychain into memory for this session.
   useEffect(() => {
@@ -29,11 +31,41 @@ function App(): React.ReactElement {
     load('geminiApiKey', store.setGeminiApiKey)
   }, [])
 
+  // Source-level undo/redo. Leave native undo alone while typing in a field.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return
+
+      const key = e.key.toLowerCase()
+      if (key === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) useAppStore.getState().redoInk()
+        else useAppStore.getState().undoInk()
+      } else if (key === 'y') {
+        e.preventDefault()
+        useAppStore.getState().redoInk()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   return (
     <div className="app">
       <header className="app-header">
         <h1 className="app-title">Playable Lessons</h1>
         {projectName && <span className="project-name">{projectName}</span>}
+        {autosave.status === 'pending' && <span className="autosave-status">Unsaved changes</span>}
+        {autosave.status === 'saving' && <span className="autosave-status">Saving draft…</span>}
+        {autosave.status === 'saved' && autosave.savedAt && (
+          <span className="autosave-status saved">
+            Draft saved {new Date(autosave.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+        {autosave.status === 'error' && <span className="autosave-status error">Draft save failed</span>}
         <nav className="app-nav">
           <NavButton view="projects" current={view} onClick={setView}>Projects</NavButton>
           <NavButton view="input" current={view} onClick={setView}>Input</NavButton>

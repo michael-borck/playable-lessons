@@ -12,6 +12,7 @@ import {
 import { extractInk, generateFlashcards, generateQuiz, generateSummary, generateAiTask, generateCaseStudy, generateActivity, generatePlan, applyPlan, refineText, generateSceneImages } from '../../../shared/generate'
 import { buildSceneImagePrompt, generateImage, isImageProviderConfigured, type ImageProviderConfig } from '../../../shared/imageClient'
 import { projectIdFromName, type ProjectFull } from '../../../shared/project'
+import { setAutosaveBaseline } from './autosave'
 import { projectService } from './projectService'
 
 /** Refine a single piece of text via the current provider (for the ✨ buttons). */
@@ -598,6 +599,8 @@ export async function generateAllToProject(): Promise<void> {
       activity: artifacts.activity
     }
     await projectService.save(project)
+    setAutosaveBaseline(project)
+    window.api.autosave.clear().catch(() => {})
     const list = await projectService.list()
     useAppStore.getState().setProjects(list)
     useAppStore.getState().setLoadedProjectId(project.id)
