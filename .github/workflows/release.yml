@@ -1,180 +1,73 @@
+# Shared Electron release pipeline: michael-borck/app-hq/.github/workflows/electron-release.yml
 name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # Reuse the normal CI checks before packaging or publishing anything.
   preflight:
     uses: ./.github/workflows/ci.yml
 
-  build:
+  desktop:
     needs: preflight
-    strategy:
-      matrix:
-        include:
-          - os: macos-15
-            platform: mac
-          - os: ubuntu-latest
-            platform: linux
-          - os: windows-latest
-            platform: win
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Build Electron app
-        run: npm run build
-
-      # macOS: code-sign + notarize. electron-builder reads CSC_LINK /
-      # CSC_KEY_PASSWORD for signing; scripts/notarize.js (the afterSign hook)
-      # reads NOTARIZE_APPLE_*. The names are NOTARIZE_APPLE_* (not APPLE_*) so
-      # electron-builder's own buggy auto-notarize wrapper doesn't also fire.
-      - name: Prepare App Store Connect API key
-        if: matrix.os == 'macos-15'
-        env:
-          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-        run: |
-          if [ -n "$APPLE_API_KEY_CONTENT" ] && [ -n "$APPLE_API_KEY" ]; then
-            mkdir -p "$RUNNER_TEMP/apple-api"
-            KEY_PATH="$RUNNER_TEMP/apple-api/AuthKey_${APPLE_API_KEY}.p8"
-            printf '%s' "$APPLE_API_KEY_CONTENT" | openssl base64 -d -A > "$KEY_PATH"
-            chmod 600 "$KEY_PATH"
-            echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
-          else
-            echo "No API key secrets; notarization will fall back to Apple ID"
-          fi
-
-      - name: Build for mac
-        if: matrix.os == 'macos-15'
-        # An UNSET CSC_LINK secret arrives as an empty string, which
-        # electron-builder treats as a certificate file path and dies on
-        # ("not a file"). Unset it and disable identity discovery so the build
-        # proceeds unsigned until real signing secrets are configured.
-        run: |
-          if [ -z "$CSC_LINK" ]; then
-            unset CSC_LINK CSC_KEY_PASSWORD
-            unset NOTARIZE_APPLE_ID NOTARIZE_APPLE_PASSWORD NOTARIZE_APPLE_TEAM_ID
-            unset APPLE_API_KEY_PATH APPLE_API_KEY APPLE_API_ISSUER APPLE_API_KEY_CONTENT
-            export CSC_IDENTITY_AUTO_DISCOVERY=false
-            echo "CSC_LINK not set - building unsigned"
-          fi
-          npx electron-builder --mac --publish never
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE || secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD || secrets.CSC_KEY_PASSWORD }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
-          # Legacy fallback; scripts/notarize.js prefers the API key path.
-          NOTARIZE_APPLE_ID: ${{ secrets.APPLE_ID }}
-          NOTARIZE_APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          NOTARIZE_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-
-      - name: Build for ${{ matrix.platform }}
-        if: matrix.os != 'macos-15'
-        run: npx electron-builder --${{ matrix.platform }} --publish never
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: release-${{ matrix.platform }}
-          path: |
-            release/*.dmg
-            release/*.zip
-            release/*.exe
-            release/*.AppImage
-            release/latest*.yml
-            release/*.blockmap
-          if-no-files-found: ignore
-          retention-days: 5
-
-  publish-release:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: List artifacts
-        run: find artifacts -type f | head -20 || echo "No artifacts found"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          draft: false
-          generate_release_notes: true
-          files: |
-            artifacts/**/*.dmg
-            artifacts/**/*.zip
-            artifacts/**/*.exe
-            artifacts/**/*.AppImage
-            artifacts/**/latest*.yml
-            artifacts/**/*.blockmap
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    uses: michael-borck/app-hq/.github/workflows/electron-release.yml@main
+    with:
+      product-name: Playable Lessons
+      node-version: '22'
+      install-command: npm ci --legacy-peer-deps
+      build-command: npm run build
+      package-command: npx electron-builder --$PLATFORM --publish never
+      notarize-check-command: npx electron-builder --mac --publish never
+      notarize-check-artifact-root: release
+      signing-mode: standard
+      notarize-mode: hook
+      publish-mode: artifacts
+      publish-release: false
+    secrets:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
 
   publish-npm:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: desktop
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
-
-    # Trusted publishing (OIDC): GitHub vouches for this job to npm.
-    # No NPM_TOKEN secret, no OTP. npmjs.com package settings must list
-    # this repo + workflow file as the trusted publisher.
     permissions:
       id-token: write
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-
-      # Trusted publishing needs npm >= 11.5; node 22 bundles npm 10.x
-      - name: Upgrade npm
-        run: npm install -g npm@latest
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      # Guard: only publish when the tag matches package.json (v0.6.2 <-> 0.6.2)
+      - run: npm install -g npm@latest
+      - run: npm ci --legacy-peer-deps
       - name: Verify version matches tag
         run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
+      - run: npm run build:cli
+      - run: npm publish --access public --provenance
 
-      - name: Build CLI
-        run: npm run build:cli
-
-      - name: Publish to npm
-        run: npm publish --access public --provenance
+  publish-release:
+    needs: [desktop, publish-npm]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest
